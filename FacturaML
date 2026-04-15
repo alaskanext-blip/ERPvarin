@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Varin | Dashboard de Facturación</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (Excel Processor) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .negative-val { color: #ef4444; } /* Red for costs */
+        .positive-val { color: #10b981; } /* Green for positive balance/sales */
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen">
+    <div id="app" class="max-w-7xl mx-auto">
+        
+        <!-- HEADER Y CARGA DE ARCHIVO -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
+                    <div class="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </div>
+                    Varin | Smart Traaq | Factura ML
+                </h1>
+                <div class="text-slate-500 mt-3 flex items-center gap-3 flex-wrap">
+                    <span id="header-status">Mostrando reporte de ejemplo. Sube el "Reporte de Facturación" para comenzar.</span>
+                    <span id="date-badge" class="hidden inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                        <i class="fa-regular fa-calendar"></i>
+                        <span id="date-range"></span>
+                    </span>
+                </div>
+            </div>
+            
+            <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-md w-full md:w-auto">
+                <i class="fa-solid fa-file-excel"></i>
+                Subir Factura
+                <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" id="file-upload" />
+            </label>
+        </div>
+
+        <!-- ERROR MESSAGE -->
+        <div id="error-container" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg flex items-center gap-3">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <p id="error-text"></p>
+        </div>
+
+        <!-- FILTROS -->
+        <div class="mb-8 flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-wrap">
+            <div class="flex items-center gap-2 text-slate-500 font-medium">
+                <i class="fa-solid fa-filter"></i> Rango de Análisis:
+            </div>
+            
+            <!-- Filtro de Fechas -->
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                <span class="text-slate-400 text-sm ml-1">Del:</span>
+                <input type="date" id="date-start" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
+                <span class="text-slate-400 text-sm">Al:</span>
+                <input type="date" id="date-end" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
+            </div>
+
+            <button id="clear-filters" class="hidden flex items-center gap-1 text-sm text-red-500 hover:text-red-700 font-medium ml-auto">
+                <i class="fa-solid fa-xmark"></i> Limpiar Filtros
+            </button>
+        </div>
+
+        <!-- KPIs PRINCIPALES (Ventas y Costos Consolidados) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+            
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 xl:col-span-2">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-cash-register"></i></div>
+                    <p class="text-slate-500 text-sm font-medium">Ventas Totales (Operaciones base)</p>
+                </div>
+                <h3 class="text-3xl font-bold text-slate-800" id="kpi-ventas">$0</h3>
+                <p class="text-xs text-slate-400 mt-1">Suma de la columna "Total de la venta"</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center border-l-4 border-l-red-500">
+                <p class="text-slate-500 text-xs font-medium mb-1">Gasto Total y % Incidencia</p>
+                <div class="flex items-baseline gap-2">
+                    <h3 class="text-2xl font-bold text-red-500" id="kpi-gasto-total">$0</h3>
+                    <span class="text-lg font-bold text-red-500/70" id="kpi-porcentaje-costos">(0.0%)</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Suma de cargos netos</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                <p class="text-slate-500 text-xs font-medium mb-1">Cargos por Venta Netos</p>
+                <h3 class="text-xl font-bold text-orange-500" id="kpi-cargo-venta">$0</h3>
+                <p class="text-xs text-slate-400 mt-1" id="kpi-anul-venta">Incluye anulaciones</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                <p class="text-slate-500 text-xs font-medium mb-1">Cargos por Envío Netos</p>
+                <h3 class="text-xl font-bold text-orange-500" id="kpi-cargo-envio">$0</h3>
+                <p class="text-xs text-slate-400 mt-1" id="kpi-anul-envio">Incluye anulaciones</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                <p class="text-slate-500 text-xs font-medium mb-1">Inversión Publicidad (Ads)</p>
+                <h3 class="text-xl font-bold text-orange-500" id="kpi-cargo-publi">$0</h3>
+                <p class="text-xs text-slate-400 mt-1" id="kpi-anul-publi">Incluye anulaciones</p>
+            </div>
+
+        </div>
+
+        <!-- SECCIÓN MEDIA: MÉTRICAS OPERATIVAS Y GRÁFICO -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            
+            <!-- Resumen Operativo -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-2">Resumen Operativo</h3>
+                    
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i class="fa-solid fa-box-open"></i></div>
+                            <span class="font-medium text-slate-700">Artículos Vendidos</span>
+                        </div>
+                        <span class="text-xl font-bold text-slate-800" id="op-articulos">0</span>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-purple-50 text-purple-600 rounded-lg"><i class="fa-solid fa-truck"></i></div>
+                            <span class="font-medium text-slate-700">Envíos Registrados</span>
+                        </div>
+                        <span class="text-xl font-bold text-slate-800" id="op-envios">0</span>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i class="fa-solid fa-ban"></i></div>
+                            <span class="font-medium text-slate-700">Total Anulaciones</span>
+                        </div>
+                        <span class="text-lg font-bold text-slate-800" id="op-anulaciones">0 registros</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                    <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Gasto Total de Facturación</p>
+                    <h2 class="text-2xl font-bold text-red-500" id="op-gasto-total">$0</h2>
+                </div>
+            </div>
+
+            <!-- Gráfico de Cargos vs Ventas -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
+                <h3 class="text-lg font-bold text-slate-800 mb-6">Comparativa: Costos vs. Ingreso Bruto (Por Semana)</h3>
+                <div class="relative h-[280px] w-full">
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLA DETALLE DE CARGOS -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800">Desglose de Cargos Netos (Por Tipo de Publicación/Servicio)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-white text-slate-500 text-sm uppercase tracking-wider border-b border-slate-100">
+                            <th class="p-4 font-semibold">Categoría / Detalle</th>
+                            <th class="p-4 font-semibold text-right">Cargos Cobrados</th>
+                            <th class="p-4 font-semibold text-right">Anulaciones (Devolución)</th>
+                            <th class="p-4 font-semibold text-right bg-slate-50">Costo Neto Final</th>
+                        </tr>
+                    </thead>
+                    <tbody id="charges-table-body" class="divide-y divide-slate-100">
+                        <!-- Llenado dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LOGIC (Vanilla JS) -->
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let financeChartInstance = null;
+        let globalMinDateStr = '';
+        let globalMaxDateStr = '';
+
+        const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
+
+        // FUNCIÓN INTELIGENTE PARA LIMPIAR NÚMEROS
+        // Resuelve el problema de Excel exportando números con puntos como separadores de miles
+        const parseAmount = (valStr) => {
+            if (!valStr) return 0;
+            let s = String(valStr).trim().replace(/\$/g, '').replace(/\s/g, '');
+            
+            if (s.includes('.') && s.includes(',')) {
+                // Formato con ambos separadores (Ej. 1.234,56 o 1,234.56)
+                if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+                    s = s.replace(/\./g, '').replace(',', '.'); // 1.234,56 -> 1234.56
+                } else {
+                    s = s.replace(/,/g, ''); // 1,234.56 -> 1234.56
+                }
+            } else if (s.includes(',')) {
+                s = s.replace(/\,/g, '.'); // Asumimos coma como decimal latino
+            } else if (s.includes('.')) {
+                // Si tiene un punto seguido de 3 dígitos (Ej. 28.796 o 179.980), en CLP es separador de miles.
+                // Excepción: si es un número que empieza con cero (Ej. 0.16) se mantiene el decimal.
+                if (/\.\d{3}$/.test(s) && !s.startsWith('0.')) {
+                    s = s.replace(/\./g, '');
+                }
+            }
+            
+            const num = parseFloat(s);
+            return isNaN(num) ? 0 : num;
+        };
+
+        // UI Elements
+        const fileUpload = document.getElementById('file-upload');
+        const errorContainer = document.getElementById('error-container');
+        const errorText = document.getElementById('error-text');
+        
+        // Filtros
+        const dateStartFilter = document.getElementById('date-start');
+        const dateEndFilter = document.getElementById('date-end');
+        const clearFiltersBtn = document.getElementById('clear-filters');
+
+        // Utils for Dates
+        const dateToInputString = (dateObj) => {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        // ISO Week Number Calculator
+        const getWeekInfo = (dateObj) => {
+            const d = new Date(dateObj.getTime());
+            d.setHours(0, 0, 0, 0);
+            // Jueves de la semana actual define el año al que pertenece la semana
+            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+            const week1 = new Date(d.getFullYear(), 0, 4);
+            const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+            return `Semana ${weekNum} (${d.getFullYear()})`;
+        };
+
+        // MOCK DATA INICIAL
+        const initMockData = () => {
+            allData = [
+                { fechaObj: new Date(2026, 2, 10), detalle: 'Cargo por venta', valorCargo: 28796, esAnulacion: false, isPublicidad: false, isEnvio: false, isCargoVenta: true, ventaTotal: 179980, cantVendida: 2, numEnvio: 'E1', rawDetalle: 'Cargo por venta' },
+                { fechaObj: new Date(2026, 2, 10), detalle: 'Cargo por envío', valorCargo: 14000, esAnulacion: false, isPublicidad: false, isEnvio: true, isCargoVenta: false, ventaTotal: 0, cantVendida: 0, numEnvio: 'E1', rawDetalle: 'Cargo por envío' },
+                { fechaObj: new Date(2026, 2, 11), detalle: 'Cargo por campaña de publicidad - Product Ads', valorCargo: 1025, esAnulacion: false, isPublicidad: true, isEnvio: false, isCargoVenta: false, ventaTotal: 0, cantVendida: 0, numEnvio: '', rawDetalle: 'Cargo por campaña de publicidad - Product Ads' },
+                { fechaObj: new Date(2026, 2, 20), detalle: 'Cargo por venta', valorCargo: 14398, esAnulacion: false, isPublicidad: false, isEnvio: false, isCargoVenta: true, ventaTotal: 89990, cantVendida: 1, numEnvio: 'E2', rawDetalle: 'Cargo por venta' },
+                { fechaObj: new Date(2026, 2, 20), detalle: 'Anulación del cargo por venta', valorCargo: -14398, esAnulacion: true, isPublicidad: false, isEnvio: false, isCargoVenta: true, ventaTotal: 0, cantVendida: 0, numEnvio: '', rawDetalle: 'Anulación del cargo por venta' },
+            ];
+            updateApp(true);
+        };
+
+        const processDataString = (text) => {
+            try {
+                const lines = text.split('\n');
+                let headerIndex = -1;
+                
+                // Buscar la fila de encabezados usando minúsculas
+                for (let i = 0; i < Math.min(30, lines.length); i++) {
+                    const rowLower = lines[i].toLowerCase();
+                    if (rowLower.includes('factura fiscal') && rowLower.includes('detalle')) {
+                        headerIndex = i;
+                        break;
+                    }
+                }
+
+                if (headerIndex === -1) throw new Error('No se encontraron los encabezados de Facturación. Verifica subir el archivo correcto.');
+
+                const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
+                const parsedData = [];
+
+                for (let i = headerIndex + 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    // Separar por comas respetando las comillas
+                    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
+                    });
+
+                    if (row['Detalle']) {
+                        const dateStr = row['Fecha del cargo'] || row['Fecha de venta'];
+                        let dateObj = new Date();
+                        if (dateStr && dateStr.includes('-')) {
+                            const [y, m, d] = dateStr.split('-');
+                            dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+                        }
+
+                        const detalle = row['Detalle'];
+                        const valor = parseAmount(row['Valor del cargo']);
+                        const esAnulacion = detalle.toLowerCase().includes('anulación') || detalle.toLowerCase().includes('anulacion');
+                        const isPublicidad = detalle.toLowerCase().includes('publicidad') || detalle.toLowerCase().includes('product ads');
+                        const isEnvio = detalle.toLowerCase().includes('envío') || detalle.toLowerCase().includes('envio');
+                        
+                        const isVentaDirecta = detalle === 'Cargo por venta';
+                        const ventaTotal = isVentaDirecta ? parseAmount(row['Total de la venta']) : 0;
+                        const cantVendida = isVentaDirecta ? (parseInt(row['Cantidad vendida']) || 0) : 0;
+                        const numEnvio = row['Número de envío'] || '';
+
+                        parsedData.push({
+                            fechaObj: dateObj,
+                            detalle: detalle,
+                            valorCargo: valor,
+                            esAnulacion: esAnulacion,
+                            isPublicidad: isPublicidad,
+                            isEnvio: isEnvio,
+                            isCargoVenta: (!isPublicidad && !isEnvio && !detalle.toLowerCase().includes('impuesto')),
+                            ventaTotal: ventaTotal,
+                            cantVendida: cantVendida,
+                            numEnvio: numEnvio,
+                            rawDetalle: detalle
+                        });
+                    }
+                }
+
+                if (parsedData.length > 0) {
+                    parsedData.sort((a, b) => a.fechaObj - b.fechaObj);
+                    allData = parsedData;
+                    
+                    errorContainer.classList.add('hidden');
+                    updateApp(true);
+                } else {
+                    throw new Error('El archivo no contiene registros de facturación válidos.');
+                }
+            } catch (err) {
+                showError(err.message);
+            }
+        };
+
+        const showError = (msg) => {
+            errorText.textContent = msg;
+            errorContainer.classList.remove('hidden');
+        };
+
+        // File Input Listener
+        fileUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const buffer = e.target.result;
+                const bytes = new Uint8Array(buffer);
+                
+                // Detección de Magic Bytes para identificar el tipo real de archivo
+                // 0x50 0x4B = PK (ZIP/XLSX) | 0xD0 0xCF = OLE2 (XLS)
+                const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B; 
+                const isXls = bytes[0] === 0xD0 && bytes[1] === 0xCF; 
+                
+                if (isZip || isXls) {
+                    // Interceptar console.error para silenciar las advertencias de JSZip de ML
+                    const originalConsoleError = console.error;
+                    console.error = function(...args) {
+                        if (typeof args[0] === 'string' && args[0].includes('Bad uncompressed size')) return;
+                        originalConsoleError.apply(console, args);
+                    };
+
+                    try {
+                        if (typeof XLSX === 'undefined') throw new Error("Librería Excel no cargada.");
+                        const workbook = XLSX.read(buffer, { type: 'array' });
+                        const sheetName = workbook.SheetNames.find(s => s.includes('REPORT')) || workbook.SheetNames[0];
+                        const text = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+                        processDataString(text);
+                    } catch (xlsxErr) {
+                        console.error(xlsxErr);
+                        showError("Fallo al procesar el archivo Excel. Verifica que no esté corrupto.");
+                    } finally {
+                        console.error = originalConsoleError;
+                    }
+                } else {
+                    try {
+                        // Si no es un binario Excel, procesarlo como texto (resuelve errores "Bad uncompressed size")
+                        const textDecoder = new TextDecoder('utf-8');
+                        let text = textDecoder.decode(buffer);
+                        
+                        // Fallback para caracteres latinos si utf-8 falla
+                        if (text.includes('')) {
+                            text = new TextDecoder('iso-8859-1').decode(buffer);
+                        }
+                        
+                        processDataString(text);
+                    } catch(err) {
+                        showError("No se pudo leer el archivo. Asegúrate de que sea el reporte original de Mercado Libre.");
+                    }
+                }
+            };
+            // Leer siempre como ArrayBuffer para permitir ambos intentos de parseo
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Listeners Filtros de Fecha
+        const applyFilters = () => updateApp(false);
+        dateStartFilter.addEventListener('change', applyFilters);
+        dateEndFilter.addEventListener('change', applyFilters);
+        clearFiltersBtn.addEventListener('click', () => {
+            dateStartFilter.value = globalMinDateStr;
+            dateEndFilter.value = globalMaxDateStr;
+            applyFilters();
+        });
+
+        const updateApp = (isNewUpload = false) => {
+            if (isNewUpload && allData.length > 0) {
+                const dates = allData.map(d => d.fechaObj.getTime());
+                const minDate = new Date(Math.min(...dates));
+                const maxDate = new Date(Math.max(...dates));
+                
+                globalMinDateStr = dateToInputString(minDate);
+                globalMaxDateStr = dateToInputString(maxDate);
+
+                dateStartFilter.min = globalMinDateStr;
+                dateStartFilter.max = globalMaxDateStr;
+                dateStartFilter.value = globalMinDateStr;
+
+                dateEndFilter.min = globalMinDateStr;
+                dateEndFilter.max = globalMaxDateStr;
+                dateEndFilter.value = globalMaxDateStr;
+            }
+
+            const dsVal = dateStartFilter.value;
+            const deVal = dateEndFilter.value;
+
+            if (dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) {
+                clearFiltersBtn.classList.remove('hidden');
+            } else {
+                clearFiltersBtn.classList.add('hidden');
+            }
+
+            const startDateObj = dsVal ? new Date(dsVal + 'T00:00:00') : new Date('1970-01-01');
+            const endDateObj = deVal ? new Date(deVal + 'T23:59:59') : new Date('2099-12-31');
+
+            filteredData = allData.filter(item => {
+                return item.fechaObj >= startDateObj && item.fechaObj <= endDateObj;
+            });
+
+            document.getElementById('header-status').innerHTML = `Analizando <b>${filteredData.length}</b> registros contables del periodo.`;
+
+            if (filteredData.length > 0) {
+                const dates = filteredData.map(d => d.fechaObj.getTime());
+                const min = new Date(Math.min(...dates)).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                const max = new Date(Math.max(...dates)).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                document.getElementById('date-range').textContent = `${min} al ${max}`;
+                document.getElementById('date-badge').classList.remove('hidden');
+            } else {
+                document.getElementById('date-badge').classList.add('hidden');
+            }
+
+            let totalVentas = 0;
+            let sumCargosVentas = 0, anulCargosVentas = 0;
+            let sumCargosEnvios = 0, anulCargosEnvios = 0;
+            let sumCargosPubli = 0, anulCargosPubli = 0;
+            let enviosUnicos = new Set();
+            let totalArticulos = 0;
+            let countAnulaciones = 0;
+
+            const agroupations = {};
+
+            filteredData.forEach(item => {
+                totalVentas += item.ventaTotal;
+                totalArticulos += item.cantVendida;
+                
+                if (item.numEnvio) enviosUnicos.add(item.numEnvio);
+                if (item.esAnulacion) countAnulaciones++;
+
+                if (item.isPublicidad) {
+                    if (item.esAnulacion) anulCargosPubli += item.valorCargo;
+                    else sumCargosPubli += item.valorCargo;
+                } 
+                else if (item.isEnvio) {
+                    if (item.esAnulacion) anulCargosEnvios += item.valorCargo;
+                    else sumCargosEnvios += item.valorCargo;
+                }
+                else if (item.isCargoVenta) {
+                    if (item.esAnulacion) anulCargosVentas += item.valorCargo;
+                    else sumCargosVentas += item.valorCargo;
+                }
+
+                let categoryName = item.rawDetalle;
+                if (item.esAnulacion) {
+                    categoryName = categoryName.replace(/anulación del /i, '').replace(/anulacion del /i, '');
+                    categoryName = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+                }
+
+                if (!agroupations[categoryName]) {
+                    agroupations[categoryName] = { cobrado: 0, anulado: 0 };
+                }
+
+                if (item.esAnulacion) agroupations[categoryName].anulado += item.valorCargo;
+                else agroupations[categoryName].cobrado += item.valorCargo;
+            });
+
+            const netoVentas = sumCargosVentas + anulCargosVentas;
+            const netoEnvios = sumCargosEnvios + anulCargosEnvios;
+            const netoPubli = sumCargosPubli + anulCargosPubli;
+            const gastoTotal = netoVentas + netoEnvios + netoPubli;
+            
+            // Calculo de Incidencia % (Gasto / Venta)
+            const porcentajeCostos = totalVentas > 0 ? (gastoTotal / totalVentas) * 100 : 0;
+
+            document.getElementById('kpi-ventas').textContent = formatCLP(totalVentas);
+            document.getElementById('kpi-gasto-total').textContent = formatCLP(gastoTotal);
+            document.getElementById('kpi-porcentaje-costos').textContent = `(${porcentajeCostos.toFixed(1)}%)`;
+            
+            document.getElementById('kpi-cargo-venta').textContent = formatCLP(netoVentas);
+            document.getElementById('kpi-anul-venta').textContent = `Bruto: ${formatCLP(sumCargosVentas)} | Dev: ${formatCLP(anulCargosVentas)}`;
+            
+            document.getElementById('kpi-cargo-envio').textContent = formatCLP(netoEnvios);
+            document.getElementById('kpi-anul-envio').textContent = `Bruto: ${formatCLP(sumCargosEnvios)} | Dev: ${formatCLP(anulCargosEnvios)}`;
+            
+            document.getElementById('kpi-cargo-publi').textContent = formatCLP(netoPubli);
+            document.getElementById('kpi-anul-publi').textContent = `Bruto: ${formatCLP(sumCargosPubli)} | Dev: ${formatCLP(anulCargosPubli)}`;
+
+            document.getElementById('op-articulos').textContent = totalArticulos;
+            document.getElementById('op-envios').textContent = enviosUnicos.size;
+            document.getElementById('op-anulaciones').textContent = `${countAnulaciones} reg.`;
+
+            const tBody = document.getElementById('charges-table-body');
+            const tableRows = Object.keys(agroupations).map(key => {
+                const data = agroupations[key];
+                const neto = data.cobrado + data.anulado;
+                if (neto === 0 && data.cobrado === 0) return ''; 
+                
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                        <td class="p-4"><div class="font-medium text-slate-800">${key}</div></td>
+                        <td class="p-4 text-right text-slate-600">${formatCLP(data.cobrado)}</td>
+                        <td class="p-4 text-right text-emerald-600">${data.anulado !== 0 ? formatCLP(data.anulado) : '-'}</td>
+                        <td class="p-4 text-right font-bold text-slate-800 bg-slate-50/50">${formatCLP(neto)}</td>
+                    </tr>
+                `;
+            }).join('');
+            tBody.innerHTML = tableRows || `<tr><td colspan="4" class="p-4 text-center text-slate-400">Sin datos registrados en estas fechas</td></tr>`;
+
+            // --- UPDATE CHART POR SEMANAS ---
+            const chartData = {};
+            filteredData.forEach(d => {
+                const weekKey = getWeekInfo(d.fechaObj);
+                
+                // Usamos el timestamp como sortKey para asegurarnos de que el gráfico quede en orden cronológico
+                if (!chartData[weekKey]) {
+                    chartData[weekKey] = { ventas: 0, cargos: 0, sortKey: d.fechaObj.getTime() };
+                }
+                
+                chartData[weekKey].ventas += d.ventaTotal;
+                chartData[weekKey].cargos += d.valorCargo; 
+            });
+
+            // Ordenar las llaves (semanas) de más antigua a más reciente
+            const labels = Object.keys(chartData).sort((a, b) => chartData[a].sortKey - chartData[b].sortKey);
+            const dataVentas = labels.map(l => chartData[l].ventas);
+            const dataCargos = labels.map(l => Math.abs(chartData[l].cargos)); 
+
+            if(financeChartInstance) financeChartInstance.destroy();
+            const ctxChart = document.getElementById('financeChart').getContext('2d');
+            financeChartInstance = new Chart(ctxChart, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Ingreso Bruto (Ventas)', data: dataVentas, backgroundColor: '#3b82f6', borderRadius: 4 },
+                        { label: 'Gasto Facturado (Todos los Cargos)', data: dataCargos, backgroundColor: '#ef4444', borderRadius: 4 }
+                    ]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCLP(ctx.raw)}` } } },
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (val) => formatCLP(val) } }, 
+                        x: { grid: { display: false } } 
+                    } 
+                }
+            });
+        };
+
+        // Initialize App
+        initMockData();
+    </script>
+</body>
+</html>
