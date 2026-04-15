@@ -128,19 +128,31 @@
         </div>
 
         <!-- GRÁFICOS -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
+        <div class="grid grid-cols-1 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 class="text-lg font-bold text-slate-800 mb-6">Evolución de Ingresos en el Tiempo</h3>
                 <div class="relative h-[300px] w-full">
                     <canvas id="trendChart"></canvas>
                 </div>
             </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
                 <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                     <i class="fa-regular fa-circle-check text-slate-400"></i> Estado de los Paquetes
                 </h3>
                 <div class="relative flex-1 flex justify-center items-center min-h-[250px] w-full">
                     <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-slate-400"></i> Ventas por Región
+                </h3>
+                <div class="relative flex-1 flex justify-center items-center min-h-[250px] w-full">
+                    <canvas id="regionChart"></canvas>
                 </div>
             </div>
         </div>
@@ -185,6 +197,7 @@
         let filteredData = [];
         let trendChartInstance = null;
         let statusChartInstance = null;
+        let regionChartInstance = null;
         let globalMinDateStr = '';
         let globalMaxDateStr = '';
 
@@ -223,9 +236,9 @@
         // MOCK DATA INITIALIZATION
         const initMockData = () => {
             allData = [
-                { id: `2000011961080799`, fecha: '10 de marzo de 2026', fechaObj: new Date(2026, 2, 10), estado: 'Entregado', unidades: 1, ingresosBrutos: 89990, costoEnvio: -14000, comision: -14398, ingresosNetos: 61592, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
-                { id: `2000011961080800`, fecha: '12 de marzo de 2026', fechaObj: new Date(2026, 2, 12), estado: 'Entregado', unidades: 2, ingresosBrutos: 179980, costoEnvio: -28000, comision: -28796, ingresosNetos: 123184, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
-                { id: `2000011961080801`, fecha: '15 de marzo de 2026', fechaObj: new Date(2026, 2, 15), estado: 'En camino', unidades: 1, ingresosBrutos: 85000, costoEnvio: -14000, comision: -13600, ingresosNetos: 57400, sku: 'VA-E004', titulo: 'Ventilador De Techo Varin® Bambú Design' }
+                { id: `2000011961080799`, fecha: '10 de marzo de 2026', fechaObj: new Date(2026, 2, 10), estado: 'Entregado', region: 'Biobío', unidades: 1, ingresosBrutos: 89990, costoEnvio: -14000, comision: -14398, ingresosNetos: 61592, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
+                { id: `2000011961080800`, fecha: '12 de marzo de 2026', fechaObj: new Date(2026, 2, 12), estado: 'Entregado', region: 'Metropolitana', unidades: 2, ingresosBrutos: 179980, costoEnvio: -28000, comision: -28796, ingresosNetos: 123184, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
+                { id: `2000011961080801`, fecha: '15 de marzo de 2026', fechaObj: new Date(2026, 2, 15), estado: 'En camino', region: 'Valparaíso', unidades: 1, ingresosBrutos: 85000, costoEnvio: -14000, comision: -13600, ingresosNetos: 57400, sku: 'VA-E004', titulo: 'Ventilador De Techo Varin® Bambú Design' }
             ];
             updateApp(true);
         };
@@ -247,8 +260,9 @@
                 const parsedData = [];
                 
                 // Encontrar el índice exacto de la columna "Estado" que pertenece al paquete (columna C)
-                // Mercado Libre tiene dos columnas llamadas "Estado", usamos la primera que encontremos
-                const estadoPaqueteIndex = headers.findIndex(h => h === 'Estado');
+                const estadoPaqueteIndex = headers.indexOf('Estado');
+                // Encontrar la segunda aparición de "Estado" que corresponde a la Región (columna AH)
+                const regionIndex = headers.indexOf('Estado', estadoPaqueteIndex + 1);
 
                 for (let i = headerIndex + 1; i < lines.length; i++) {
                     if (!lines[i].trim()) continue;
@@ -262,12 +276,15 @@
                         const fechaString = row['Fecha de venta'].split(' hs.')[0].trim();
                         // Extraer el estado usando el índice encontrado (usualmente la 3ra columna)
                         const estadoPaquete = estadoPaqueteIndex !== -1 && values[estadoPaqueteIndex] ? values[estadoPaqueteIndex].trim().replace(/"/g, '') : 'Desconocido';
+                        // Extraer la región usando el segundo índice encontrado (columna AH)
+                        const region = regionIndex !== -1 && values[regionIndex] ? values[regionIndex].trim().replace(/"/g, '') : 'Desconocida';
                         
                         parsedData.push({
                             id: row['# de venta'],
                             fecha: fechaString,
                             fechaObj: parseMLDate(fechaString),
                             estado: estadoPaquete,
+                            region: region,
                             unidades: parseInt(row['Unidades']) || 1,
                             ingresosBrutos: parseFloat(row['Ingresos por productos (CLP)']) || 0,
                             costoEnvio: parseFloat(row['Costos de envío (CLP)']) || 0,
@@ -465,6 +482,24 @@
                 type: 'doughnut',
                 data: { labels: sLabels, datasets: [{ data: sData, backgroundColor: colors, borderWidth: 0, cutout: '70%' }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // Region Data (Gráfico de Dona - Estilo cálido)
+            const regionMap = {};
+            filteredData.forEach(d => regionMap[d.region] = (regionMap[d.region] || 0) + 1);
+            
+            // Ordenar las regiones de mayor a menor cantidad de envíos
+            const sortedRegions = Object.keys(regionMap).sort((a, b) => regionMap[b] - regionMap[a]);
+            const rData = sortedRegions.map(l => regionMap[l]);
+            // Colores cálidos (Rojos, Naranjas, Amarillos, Corales)
+            const regionColors = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#f43f5e', '#ea580c', '#dc2626', '#fb923c', '#fbbf24'];
+
+            if(regionChartInstance) regionChartInstance.destroy();
+            const ctxRegion = document.getElementById('regionChart').getContext('2d');
+            regionChartInstance = new Chart(ctxRegion, {
+                type: 'doughnut',
+                data: { labels: sortedRegions, datasets: [{ data: rData, backgroundColor: regionColors, borderWidth: 0, cutout: '70%' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } } } }
             });
         };
 
