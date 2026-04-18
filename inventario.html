@@ -17,13 +17,19 @@
     <style>
         /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
-        /* Modificado: Usamos Flexbox en las vistas para controlar el layout interno con precisión */
+        /* Usamos Flexbox para controlar el layout interno con precisión */
         .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         /* Tipografía corporativa premium */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
+
+        /* Scrollbar estilizada para un look más moderno */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d4d4d8; }
     </style>
 </head>
 <body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
@@ -60,7 +66,6 @@
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <!-- Modificado: Se quitó el overflow-y-auto global. Ahora cada vista maneja su scroll. -->
     <main class="flex-1 relative h-screen overflow-hidden flex flex-col p-10">
         
         <!-- Notificaciones flotantes -->
@@ -70,9 +75,9 @@
         </div>
 
         <!-- VISTA: DASHBOARD -->
-        <section id="view-dashboard" class="view-section active flex-1 min-h-0 gap-6 max-w-7xl w-full mx-auto">
+        <section id="view-dashboard" class="view-section active h-full flex flex-col gap-6 max-w-7xl w-full mx-auto overflow-hidden">
             
-            <!-- CONTENEDOR FIJO SUPERIOR -->
+            <!-- PARTE SUPERIOR FIJA -->
             <div class="shrink-0 space-y-6">
                 <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                     <div>
@@ -87,7 +92,7 @@
                     </div>
                 </header>
                 
-                <!-- KPIs (Minimalistas) -->
+                <!-- KPIs (Colores oscurecidos) -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
                         <div class="flex justify-between items-start mb-4">
@@ -111,25 +116,23 @@
                         <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
                     </div>
                 </div>
-            </div> <!-- Fin Contenedor Fijo Superior -->
+            </div>
 
-            <!-- CONTENEDOR SCROLLABLE INFERIOR (Sub Pantalla de Movimientos) -->
+            <!-- TABLA DE MOVIMIENTOS (Sub-pantalla con scroll propio) -->
             <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1 min-h-0">
                 <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
-                    <h3 class="font-medium text-zinc-800">Últimos Movimientos</h3>
+                    <h3 class="font-medium text-zinc-800 italic">Últimos Movimientos Registrados</h3>
                 </div>
-                <!-- Zona que genera la barra de scroll de la tabla -->
-                <div class="flex-1 overflow-y-auto">
+                <div class="overflow-y-auto flex-1">
                     <table class="w-full text-sm text-left relative">
-                        <!-- shadow interior para evitar que el borde desaparezca en el scroll sticky -->
-                        <thead class="bg-zinc-50 text-zinc-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e4e4e7]">
+                        <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
                             <tr>
                                 <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
                                 <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
                                 <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
                                 <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
                                 <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha Operación</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acción</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="divide-y divide-zinc-100">
@@ -142,9 +145,9 @@
 
         <!-- VISTA: REGISTRO MANUAL -->
         <section id="view-ingreso" class="view-section max-w-3xl w-full mx-auto gap-8 overflow-y-auto pb-10">
-            <header class="shrink-0">
+            <header>
                 <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Registro Manual</h2>
-                <p class="text-zinc-500 text-sm mt-1">Registra un ingreso o salida individual de productos en el inventario.</p>
+                <p class="text-zinc-500 text-sm mt-1">Ingresa o descuenta productos del inventario de forma puntual.</p>
             </header>
 
             <form id="form-manual" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-8 space-y-6 shrink-0">
@@ -173,7 +176,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Nombre del Producto</label>
-                    <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ventilador De Techo Varin® Black Design" />
+                    <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Descripción del producto" />
                 </div>
                 <div class="grid grid-cols-2 gap-6">
                     <div>
@@ -195,7 +198,7 @@
                 </div>
                 <div class="pt-4">
                     <button type="submit" class="w-full bg-black hover:bg-zinc-800 text-white font-medium py-3 rounded-md transition-colors text-sm tracking-wide shadow-md">
-                        Registrar en Inventario
+                        Registrar Movimiento
                     </button>
                 </div>
             </form>
@@ -209,17 +212,16 @@
                 </div>
                 <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Importación de Ventas</h2>
                 <p class="text-zinc-500 text-sm mt-3 max-w-lg mx-auto">
-                    Sube el reporte de ventas de Mercado Libre. Las unidades se procesarán como <b>Salidas (-)</b> y se descontarán automáticamente del inventario de <b>Full ML</b>.
+                    Sube el reporte de ventas de Mercado Libre. Las unidades se procesarán como <b>Salidas (-)</b> y se descontarán del inventario de <b>Full ML</b>.
                 </p>
             </header>
             
             <div class="shrink-0 relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
-                <!-- Soporte para MIME types de Microsoft Excel y CSV -->
                 <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                 <div class="pointer-events-none flex flex-col items-center">
                     <i class="ph ph-upload-simple text-3xl text-zinc-400 group-hover:text-black mb-4 transition-colors"></i>
-                    <p class="text-zinc-900 font-medium text-lg">Haz clic o arrastra el archivo aquí</p>
-                    <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Soporta formatos nativos de ML (.csv, .xlsx)</p>
+                    <p class="text-zinc-900 font-medium text-lg">Selecciona o arrastra el archivo aquí</p>
+                    <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Soporta .csv y .xlsx nativos de ML</p>
                 </div>
             </div>
         </section>
@@ -227,7 +229,6 @@
 
     <!-- LÓGICA DE LA APLICACIÓN -->
     <script>
-        // === CORE (SINGLE SOURCE OF TRUTH) ===
         const App = {
             inventory: [],
             currentSkuFilter: '',
@@ -248,10 +249,8 @@
                 this.toast = document.getElementById('toast');
                 this.toastMsg = document.getElementById('toast-msg');
                 this.toastIcon = document.getElementById('toast-icon');
-                
                 this.formManual = document.getElementById('form-manual');
                 this.fileInput = document.getElementById('file-upload');
-                
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
                 this.kpi3 = document.getElementById('kpi-bodega3');
@@ -320,16 +319,15 @@
                 this.renderDashboard();
             },
 
-            // Función disparada por el nuevo botón en la tabla
             deleteItem(id) {
-                // Eliminación rápida e inmutable usando filter
-                this.inventory = this.inventory.filter(item => item.id !== id);
-                this.saveAndRender();
-                this.showNotification('Movimiento eliminado del registro.', 'success');
+                if (confirm('¿Estás seguro de que deseas eliminar este movimiento?')) {
+                    this.inventory = this.inventory.filter(item => item.id !== id);
+                    this.saveAndRender();
+                    this.showNotification('Movimiento eliminado correctamente.');
+                }
             },
 
             renderDashboard() {
-                // Actualizar Datalist con SKUs únicos
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                 this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
 
@@ -344,11 +342,10 @@
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
 
                 if(filteredInventory.length === 0) {
-                    this.tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light">No se encontraron movimientos para este filtro.</td></tr>`;
+                    this.tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">No hay registros de movimientos para mostrar.</td></tr>`;
                     return;
                 }
 
-                // Incrementado a los últimos 100 movimientos en la subpantalla
                 const rowsHtml = filteredInventory.slice(0, 100).map(item => {
                     const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
                     const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
@@ -358,16 +355,18 @@
                     else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
                     
                     return `
-                        <tr class="hover:bg-zinc-50 transition-colors">
+                        <tr class="hover:bg-zinc-50 transition-colors group">
                             <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span>
                             </td>
-                            <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
+                            <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">
+                                ${item.quantity > 0 ? '+' : ''}${item.quantity}
+                            </td>
                             <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
                             <td class="px-6 py-4 text-center">
-                                <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors" title="Eliminar registro">
+                                <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100" title="Eliminar registro">
                                     <i class="ph ph-trash text-lg"></i>
                                 </button>
                             </td>
@@ -380,11 +379,9 @@
 
             handleManualEntry(e) {
                 e.preventDefault();
-                
                 const type = document.getElementById('input-type').value;
                 let qty = parseInt(document.getElementById('input-qty').value);
                 if (type === 'out') qty = -Math.abs(qty);
-                else qty = Math.abs(qty);
 
                 const rawDate = document.getElementById('input-date').value;
                 const [year, month, day] = rawDate.split('-');
@@ -403,7 +400,7 @@
 
                 this.inventory.unshift(newItem);
                 this.saveAndRender();
-                this.showNotification(`Operación registrada correctamente.`);
+                this.showNotification(`Movimiento registrado correctamente.`);
                 
                 document.getElementById('input-sku').value = '';
                 document.getElementById('input-name').value = '';
@@ -414,22 +411,16 @@
             handleCSVUpload(e) {
                 const file = e.target.files[0];
                 if (!file) return;
-
                 const reader = new FileReader();
-                
                 reader.onload = (event) => {
                     try {
                         const data = new Uint8Array(event.target.result);
                         const workbook = XLSX.read(data, {type: 'array'});
-                        
-                        const firstSheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[firstSheetName];
-                        
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                         const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''});
                         
                         let headerIndex = -1;
                         let headers = [];
-                        
                         for (let i = 0; i < Math.min(15, rows.length); i++) {
                             const parsedLine = rows[i].map(cell => String(cell).trim());
                             if (parsedLine.includes('SKU') && parsedLine.includes('Unidades')) {
@@ -439,15 +430,11 @@
                             }
                         }
 
-                        if (headerIndex === -1) {
-                            throw new Error("No se encontró la fila de cabeceras con 'SKU' y 'Unidades' en el archivo.");
-                        }
+                        if (headerIndex === -1) throw new Error("Formato no válido: Falta SKU o Unidades.");
                         
                         const idxSKU = headers.indexOf('SKU');
                         const idxUnidades = headers.indexOf('Unidades');
                         const idxTitulo = headers.indexOf('Título de la publicación');
-                        
-                        // Capturamos el identificador de venta para evitar procesar la misma venta dos veces
                         const idxVenta = headers.indexOf('# de venta'); 
 
                         let newDeductions = [];
@@ -455,13 +442,8 @@
                         
                         for (let i = headerIndex + 1; i < rows.length; i++) {
                             const row = rows[i].map(cell => String(cell).trim());
-                            
-                            if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] && row[idxSKU] !== '') {
-                                
-                                // ID de la orden o fallback seguro si el archivo no trae esa columna
-                                const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : `ML-Fallback-${Date.now()}-${i}`;
-                                
-                                // Prevenir deducciones duplicadas revisando el historial
+                            if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] !== '') {
+                                const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : `ML-TEMP-${Date.now()}-${i}`;
                                 if (this.inventory.some(item => item.mlSaleId === saleId)) {
                                     duplicatesIgnored++;
                                     continue;
@@ -469,10 +451,9 @@
 
                                 newDeductions.push({
                                     id: Date.now() + i,
-                                    mlSaleId: saleId, // Llave foránea para la idempotencia
+                                    mlSaleId: saleId,
                                     sku: row[idxSKU],
                                     name: row[idxTitulo] || 'Venta Mercado Libre',
-                                    // Las ventas se registran como valores NEGATIVOS
                                     quantity: -Math.abs(parseInt(row[idxUnidades]) || 1),
                                     warehouse: 'Full ML',
                                     status: 'Vendido',
@@ -482,20 +463,13 @@
                         }
 
                         if (newDeductions.length > 0) {
-                            // Ahora SIMPLEMENTE AGREGAMOS las salidas al historial, no sobrescribimos nada.
                             this.inventory = [...newDeductions, ...this.inventory];
                             this.saveAndRender();
-                            this.showNotification(`Se descontaron ${newDeductions.length} ventas nuevas de Full ML. ${duplicatesIgnored > 0 ? `(Ignoradas ${duplicatesIgnored} ya procesadas)` : ''}`);
+                            this.showNotification(`Se descontaron ${newDeductions.length} ventas nuevas de Full ML.`);
                         } else {
-                            if (duplicatesIgnored > 0) {
-                                this.showNotification("Archivo procesado: Todas las ventas ya habían sido descontadas previamente.", 'success');
-                            } else {
-                                this.showNotification("Archivo leído, pero sin datos válidos.", 'error');
-                            }
+                            this.showNotification(duplicatesIgnored > 0 ? "Ventas ya procesadas anteriormente." : "No se encontraron datos nuevos.", 'success');
                         }
-
                     } catch (err) {
-                        console.error(err);
                         this.showNotification(err.message, 'error');
                     }
                 };
@@ -504,51 +478,28 @@
             },
 
             exportToExcel() {
-                if (this.inventory.length === 0) {
-                    this.showNotification("No hay datos para exportar", "error");
-                    return;
-                }
-
+                if (this.inventory.length === 0) return this.showNotification("No hay datos.", "error");
                 const aggregated = {};
                 this.inventory.forEach(item => {
-                    const sku = item.sku;
-                    if (!aggregated[sku]) {
-                        aggregated[sku] = { whHub: 0, office: 0, fullML: 0 };
-                    }
-                    
+                    if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0 };
                     const qty = parseInt(item.quantity) || 0;
-                    
-                    if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') {
-                        aggregated[sku].whHub += qty;
-                    } else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') {
-                        aggregated[sku].office += qty;
-                    } else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) {
-                        aggregated[sku].fullML += qty;
-                    }
+                    if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') aggregated[item.sku].whHub += qty;
+                    else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') aggregated[item.sku].office += qty;
+                    else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
                 });
 
                 const headers = ['Fecha', 'SKU', 'Unidades en Bodega 1 WH Hub', 'Unidades en Bodega 2 Office', 'Unidades en Bodega 3 FULL ML'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
-
-                const rows = Object.keys(aggregated).map(sku => {
-                    const data = aggregated[sku];
-                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML}`;
-                });
-                
+                const rows = Object.keys(aggregated).map(sku => `"${currentDate}","${sku}",${aggregated[sku].whHub},${aggregated[sku].office},${aggregated[sku].fullML}`);
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
-                const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `varin_traaq_reporte_stock_${new Date().toISOString().split('T')[0]}.csv`);
-                document.body.appendChild(link);
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", `varin_reporte_${new Date().toISOString().split('T')[0]}.csv`);
                 link.click();
-                document.body.removeChild(link);
             }
         };
 
-        // Inicializar la app
         document.addEventListener('DOMContentLoaded', () => App.init());
-
     </script>
 </body>
 </html>
