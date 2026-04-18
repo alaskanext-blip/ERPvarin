@@ -17,7 +17,6 @@
     <style>
         /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
-        /* Usamos Flexbox para controlar el layout interno con precisión */
         .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
@@ -25,7 +24,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
 
-        /* Scrollbar estilizada para un look más moderno */
+        /* Scrollbar estilizada */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
@@ -34,7 +33,7 @@
 </head>
 <body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
 
-    <!-- SIDEBAR DE NAVEGACIÓN (Premium Black) -->
+    <!-- SIDEBAR DE NAVEGACIÓN -->
     <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800 shrink-0">
         <div class="p-8">
             <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
@@ -74,157 +73,162 @@
             <span id="toast-msg" class="font-medium text-sm tracking-wide"></span>
         </div>
 
-        <!-- VISTA: DASHBOARD -->
-        <section id="view-dashboard" class="view-section active h-full flex flex-col gap-6 max-w-7xl w-full mx-auto overflow-hidden">
-            
-            <!-- PARTE SUPERIOR FIJA -->
-            <div class="shrink-0 space-y-6">
-                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                    <div>
-                        <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
-                        <p class="text-zinc-500 text-sm mt-1">Resumen en tiempo real del inventario Varin Traaq.</p>
-                    </div>
-                    <!-- Buscador por SKU con Datalist -->
-                    <div class="relative w-full sm:w-72">
-                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
-                        <input type="text" id="filter-sku" list="sku-list" placeholder="Buscar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
-                        <datalist id="sku-list"></datalist>
-                    </div>
-                </header>
-                
-                <!-- KPIs (Colores oscurecidos) -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-sky-800">WH Hub</p>
-                            <i class="ph ph-warehouse text-sky-600 text-2xl"></i>
-                        </div>
-                        <p id="kpi-bodega1" class="text-4xl font-light text-sky-950">0</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 flex flex-col justify-between hover:border-zinc-300 transition-colors">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Office</p>
-                            <i class="ph ph-archive-box text-zinc-400 text-2xl"></i>
-                        </div>
-                        <p id="kpi-bodega2" class="text-4xl font-light text-zinc-900">0</p>
-                    </div>
-                    <div class="bg-emerald-100 p-6 rounded-lg shadow-sm border border-emerald-300 flex flex-col justify-between hover:border-emerald-400 transition-colors">
-                        <div class="flex justify-between items-start mb-4">
-                            <p class="text-xs font-semibold uppercase tracking-wider text-emerald-800">Full ML</p>
-                            <i class="ph ph-shopping-bag text-emerald-600 text-2xl"></i>
-                        </div>
-                        <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TABLA DE MOVIMIENTOS (Sub-pantalla con scroll propio) -->
-            <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1 min-h-0">
-                <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
-                    <h3 class="font-medium text-zinc-800 italic">Últimos Movimientos Registrados</h3>
-                </div>
-                <div class="overflow-y-auto flex-1">
-                    <table class="w-full text-sm text-left relative">
-                        <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha Operación</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="divide-y divide-zinc-100">
-                            <!-- Filas generadas por JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- VISTA: REGISTRO MANUAL -->
-        <section id="view-ingreso" class="view-section max-w-3xl w-full mx-auto gap-8 overflow-y-auto pb-10">
-            <header>
-                <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Registro Manual</h2>
-                <p class="text-zinc-500 text-sm mt-1">Ingresa o descuenta productos del inventario de forma puntual.</p>
-            </header>
-
-            <form id="form-manual" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-8 space-y-6 shrink-0">
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Tipo de Operación</label>
-                        <select id="input-type" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
-                            <option value="in">Ingreso (+)</option>
-                            <option value="out">Salida (-)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Fecha de Operación</label>
-                        <input required type="date" id="input-date" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">SKU</label>
-                        <input required type="text" id="input-sku" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ej. VA-E002" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Cantidad</label>
-                        <input required type="number" id="input-qty" min="1" value="1" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
-                    </div>
-                </div>
+        <!-- PARTE SUPERIOR GLOBAL (Fija para todas las vistas) -->
+        <div class="shrink-0 space-y-6 mb-8">
+            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Nombre del Producto</label>
-                    <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Descripción del producto" />
+                    <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
+                    <p class="text-zinc-500 text-sm mt-1">Gestión centralizada de existencias Varin Traaq.</p>
                 </div>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega de Destino</label>
-                        <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
-                            <option value="WH Hub">WH Hub</option>
-                            <option value="Office">Office</option>
-                            <option value="Full ML">Full ML</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Estado</label>
-                        <select id="input-status" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
-                            <option>Disponible</option>
-                            <option>Reservado</option>
-                            <option>Vendido</option>
-                        </select>
-                    </div>
+                <!-- Buscador por SKU con Datalist (Global) -->
+                <div class="relative w-full sm:w-72">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
+                    <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
+                    <datalist id="sku-list"></datalist>
                 </div>
-                <div class="pt-4">
-                    <button type="submit" class="w-full bg-black hover:bg-zinc-800 text-white font-medium py-3 rounded-md transition-colors text-sm tracking-wide shadow-md">
-                        Registrar Movimiento
-                    </button>
-                </div>
-            </form>
-        </section>
-
-        <!-- VISTA: CARGA MASIVA -->
-        <section id="view-carga" class="view-section max-w-3xl w-full mx-auto gap-8 overflow-y-auto pb-10 text-center">
-            <header class="shrink-0 mb-6">
-                <div class="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <i class="ph ph-file-xls text-black text-4xl"></i>
-                </div>
-                <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Importación de Ventas</h2>
-                <p class="text-zinc-500 text-sm mt-3 max-w-lg mx-auto">
-                    Sube el reporte de ventas de Mercado Libre. Las unidades se procesarán como <b>Salidas (-)</b> y se descontarán del inventario de <b>Full ML</b>.
-                </p>
             </header>
             
-            <div class="shrink-0 relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
-                <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                <div class="pointer-events-none flex flex-col items-center">
-                    <i class="ph ph-upload-simple text-3xl text-zinc-400 group-hover:text-black mb-4 transition-colors"></i>
-                    <p class="text-zinc-900 font-medium text-lg">Selecciona o arrastra el archivo aquí</p>
-                    <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Soporta .csv y .xlsx nativos de ML</p>
+            <!-- KPIs GLOBALES (Visibles en todas las vistas) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-sky-800">WH Hub</p>
+                        <i class="ph ph-warehouse text-sky-600 text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega1" class="text-4xl font-light text-sky-950">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 flex flex-col justify-between hover:border-zinc-300 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Office</p>
+                        <i class="ph ph-archive-box text-zinc-400 text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega2" class="text-4xl font-light text-zinc-900">0</p>
+                </div>
+                <div class="bg-emerald-100 p-6 rounded-lg shadow-sm border border-emerald-300 flex flex-col justify-between hover:border-emerald-400 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-800">Full ML</p>
+                        <i class="ph ph-shopping-bag text-emerald-600 text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
                 </div>
             </div>
-        </section>
+        </div>
+
+        <!-- ZONA DE CONTENIDO DINÁMICO (Scrollable) -->
+        <div class="flex-1 min-h-0 overflow-hidden relative">
+            
+            <!-- VISTA: DASHBOARD (Solo aquí se ven los movimientos) -->
+            <section id="view-dashboard" class="view-section active h-full">
+                <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col h-full">
+                    <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                        <h3 class="font-medium text-zinc-800 italic">Últimos Movimientos Registrados</h3>
+                    </div>
+                    <div class="overflow-y-auto flex-1">
+                        <table class="w-full text-sm text-left relative">
+                            <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Eliminar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="divide-y divide-zinc-100">
+                                <!-- Filas generadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: REGISTRO MANUAL -->
+            <section id="view-ingreso" class="view-section h-full overflow-y-auto pb-10">
+                <div class="max-w-3xl w-full mx-auto space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Nuevo Registro Manual</h2>
+                        <p class="text-zinc-500 text-sm mt-1">Afecta el stock de forma inmediata en las bodegas.</p>
+                    </header>
+                    <form id="form-manual" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-8 space-y-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Tipo de Operación</label>
+                                <select id="input-type" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                                    <option value="in">Ingreso (+)</option>
+                                    <option value="out">Salida (-)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Fecha de Operación</label>
+                                <input required type="date" id="input-date" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">SKU</label>
+                                <input required type="text" id="input-sku" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ej. VA-E002" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Cantidad</label>
+                                <input required type="number" id="input-qty" min="1" value="1" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Nombre del Producto</label>
+                            <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Descripción del producto" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega de Destino</label>
+                                <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                                    <option value="WH Hub">WH Hub</option>
+                                    <option value="Office">Office</option>
+                                    <option value="Full ML">Full ML</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Estado</label>
+                                <select id="input-status" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                                    <option>Disponible</option>
+                                    <option>Reservado</option>
+                                    <option>Vendido</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="pt-4">
+                            <button type="submit" class="w-full bg-black hover:bg-zinc-800 text-white font-medium py-3 rounded-md transition-colors text-sm tracking-wide shadow-md">
+                                Registrar Movimiento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- VISTA: CARGA MASIVA -->
+            <section id="view-carga" class="view-section h-full overflow-y-auto pb-10 text-center">
+                <div class="max-w-3xl w-full mx-auto space-y-8">
+                    <header>
+                        <div class="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="ph ph-file-xls text-black text-4xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Importación de Ventas Mercado Libre</h2>
+                        <p class="text-zinc-500 text-sm mt-3 max-w-lg mx-auto">
+                            Las unidades se procesarán como <b>Salidas (-)</b> y se descontarán del inventario de <b>Full ML</b>.
+                        </p>
+                    </header>
+                    
+                    <div class="relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
+                        <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                        <div class="pointer-events-none flex flex-col items-center">
+                            <i class="ph ph-upload-simple text-3xl text-zinc-400 group-hover:text-black mb-4 transition-colors"></i>
+                            <p class="text-zinc-900 font-medium text-lg">Selecciona o arrastra el archivo aquí</p>
+                            <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Soporta .csv y .xlsx nativos de ML</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- LÓGICA DE LA APLICACIÓN -->
@@ -294,7 +298,8 @@
                 });
                 activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
                 
-                if(targetId === 'view-dashboard') this.renderDashboard();
+                // Actualizar dashboard al navegar (limpiar o mantener filtros)
+                this.renderDashboard();
             },
 
             showNotification(msg, type = 'success') {
@@ -341,8 +346,12 @@
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
 
+                // Solo renderizamos la tabla si la vista activa es el Dashboard
+                const tableBody = document.getElementById('table-body');
+                if (!tableBody) return;
+
                 if(filteredInventory.length === 0) {
-                    this.tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">No hay registros de movimientos para mostrar.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">No hay registros de movimientos para mostrar.</td></tr>`;
                     return;
                 }
 
@@ -374,7 +383,7 @@
                     `;
                 }).join('');
                 
-                this.tableBody.innerHTML = rowsHtml;
+                tableBody.innerHTML = rowsHtml;
             },
 
             handleManualEntry(e) {
