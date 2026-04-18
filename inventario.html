@@ -117,7 +117,7 @@
         <!-- ZONA DE CONTENIDO DINÁMICO (Scrollable) -->
         <div class="flex-1 min-h-0 overflow-hidden relative">
             
-            <!-- VISTA: DASHBOARD (Solo aquí se ven los movimientos) -->
+            <!-- VISTA: DASHBOARD -->
             <section id="view-dashboard" class="view-section active h-full">
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col h-full">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
@@ -339,8 +339,15 @@
                     ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter))
                     : this.inventory;
 
-                // ORDENAR: De más nuevo (ID mayor) a más antiguo (ID menor)
-                const sortedInventory = [...filteredInventory].sort((a, b) => b.id - a.id);
+                // MEJORA: Ordenamiento cronológico preciso (sortDate DESC, luego id DESC para el orden de ingreso del mismo día)
+                const sortedInventory = [...filteredInventory].sort((a, b) => {
+                    const dateA = a.sortDate || '0000-00-00';
+                    const dateB = b.sortDate || '0000-00-00';
+                    if (dateA !== dateB) {
+                        return dateB.localeCompare(dateA);
+                    }
+                    return b.id - a.id;
+                });
 
                 const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
                 
@@ -393,13 +400,14 @@
                 let qty = parseInt(document.getElementById('input-qty').value);
                 if (type === 'out') qty = -Math.abs(qty);
 
-                const rawDate = document.getElementById('input-date').value;
+                const rawDate = document.getElementById('input-date').value; // Formato YYYY-MM-DD
                 const [year, month, day] = rawDate.split('-');
                 const dateObj = new Date(year, month - 1, day);
                 const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
                 const newItem = {
                     id: Date.now(),
+                    sortDate: rawDate, // Almacenamos el ISO para ordenamiento real
                     sku: document.getElementById('input-sku').value,
                     name: document.getElementById('input-name').value,
                     quantity: qty,
@@ -416,6 +424,26 @@
                 document.getElementById('input-name').value = '';
                 document.getElementById('input-qty').value = '1';
                 this.setDefaultDate();
+            },
+
+            // Utilidad para extraer fecha del reporte de Mercado Libre
+            parseMLDate(str) {
+                if (!str) return null;
+                const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+                const parts = str.toLowerCase().split(' ');
+                // Formato esperado: "18 de abril de 2026 10:00 hs."
+                const d = parts[0];
+                const mIdx = months.indexOf(parts[2]);
+                const y = parts[4];
+                if (d && mIdx !== -1 && y) {
+                    const day = d.padStart(2, '0');
+                    const month = String(mIdx + 1).padStart(2, '0');
+                    return {
+                        sort: `${y}-${month}-${day}`,
+                        display: `${day} ${months[mIdx].substring(0,3)} ${y}`
+                    };
+                }
+                return null;
             },
 
             handleCSVUpload(e) {
@@ -446,6 +474,7 @@
                         const idxUnidades = headers.indexOf('Unidades');
                         const idxTitulo = headers.indexOf('Título de la publicación');
                         const idxVenta = headers.indexOf('# de venta'); 
+                        const idxFechaVenta = headers.indexOf('Fecha de venta');
 
                         let newDeductions = [];
                         let duplicatesIgnored = 0;
@@ -459,15 +488,22 @@
                                     continue;
                                 }
 
+                                // Intentamos extraer la fecha del reporte, si falla usamos hoy
+                                const mlDate = this.parseMLDate(row[idxFechaVenta]);
+                                const today = new Date();
+                                const todaySort = today.toISOString().split('T')[0];
+                                const todayDisplay = today.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+
                                 newDeductions.push({
                                     id: Date.now() + i,
                                     mlSaleId: saleId,
+                                    sortDate: mlDate ? mlDate.sort : todaySort,
                                     sku: row[idxSKU],
                                     name: row[idxTitulo] || 'Venta Mercado Libre',
                                     quantity: -Math.abs(parseInt(row[idxUnidades]) || 1),
                                     warehouse: 'Full ML',
                                     status: 'Vendido',
-                                    date: new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+                                    date: mlDate ? mlDate.display : todayDisplay
                                 });
                             }
                         }
