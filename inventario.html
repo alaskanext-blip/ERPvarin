@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Varin Traaq Stock</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- SheetJS (Para procesar Excel/CSV) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        /* Clases auxiliares para el manejo de vistas */
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Tipografía corporativa premium */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
+
+    <!-- SIDEBAR DE NAVEGACIÓN (Premium Black) -->
+    <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800">
+        <div class="p-8">
+            <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
+                <span class="flex items-center gap-2">
+                    <i class="ph ph-package text-3xl text-sky-400"></i> VARIN
+                </span>
+                <span class="text-zinc-500 font-light tracking-[0.3em]">TRAAQ</span>
+            </h1>
+            <p class="text-xs text-zinc-500 mt-3 font-medium uppercase tracking-widest border-t border-zinc-800 pt-3">Stock Manager</p>
+        </div>
+        
+        <nav class="flex-1 px-4 space-y-1" id="nav-menu">
+            <button data-target="view-dashboard" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white">
+                <i class="ph ph-squares-four text-xl"></i> <span class="font-medium text-sm tracking-wide">Dashboard</span>
+            </button>
+            <button data-target="view-ingreso" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-arrows-left-right text-xl"></i> <span class="font-medium text-sm tracking-wide">Registro Manual</span>
+            </button>
+            <button data-target="view-carga" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-file-xls text-xl"></i> <span class="font-medium text-sm tracking-wide">Carga Masiva (ML)</span>
+            </button>
+        </nav>
+        
+        <div class="p-6 bg-zinc-950">
+            <button onclick="App.exportToExcel()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-200 text-black py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
+                <i class="ph ph-download-simple text-lg"></i> Exportar Reporte
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto relative p-10">
+        
+        <!-- Notificaciones flotantes -->
+        <div id="toast" class="absolute top-6 right-6 z-50 px-5 py-4 rounded-md shadow-xl flex items-center gap-3 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-[-10px]">
+            <i id="toast-icon" class="ph text-2xl"></i>
+            <span id="toast-msg" class="font-medium text-sm tracking-wide"></span>
+        </div>
+
+        <!-- VISTA: DASHBOARD -->
+        <section id="view-dashboard" class="view-section active space-y-8 max-w-7xl mx-auto">
+            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Estado de Bodegas</h2>
+                    <p class="text-zinc-500 text-sm mt-1">Resumen en tiempo real del inventario Varin Traaq.</p>
+                </div>
+                <!-- Buscador por SKU -->
+                <div class="relative w-full sm:w-72">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
+                    <input type="text" id="filter-sku" placeholder="Buscar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" />
+                </div>
+            </header>
+            
+            <!-- KPIs (Minimalistas) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 flex flex-col justify-between hover:border-zinc-300 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">WH Hub</p>
+                        <i class="ph ph-warehouse text-zinc-400 text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega1" class="text-4xl font-light text-zinc-900">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 flex flex-col justify-between hover:border-zinc-300 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Office</p>
+                        <i class="ph ph-archive-box text-zinc-400 text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega2" class="text-4xl font-light text-zinc-900">0</p>
+                </div>
+                <div class="bg-zinc-900 p-6 rounded-lg shadow-sm border border-zinc-800 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Full ML</p>
+                        <i class="ph ph-shopping-bag text-white text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega3" class="text-4xl font-light text-white">0</p>
+                </div>
+            </div>
+
+            <!-- Tabla de Movimientos -->
+            <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden">
+                <div class="px-6 py-5 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+                    <h3 class="font-medium text-zinc-800">Últimos Movimientos</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200">
+                            <tr>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">SKU</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Producto</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Bodega</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Cant.</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Status</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Fecha Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-zinc-100">
+                            <!-- Filas generadas por JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA: REGISTRO MANUAL -->
+        <section id="view-ingreso" class="view-section max-w-3xl mx-auto space-y-8">
+            <header>
+                <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Registro Manual</h2>
+                <p class="text-zinc-500 text-sm mt-1">Registra un ingreso o salida individual de productos en el inventario.</p>
+            </header>
+
+            <form id="form-manual" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-8 space-y-6">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Tipo de Operación</label>
+                        <select id="input-type" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                            <option value="in">Ingreso (+)</option>
+                            <option value="out">Salida (-)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Fecha de Operación</label>
+                        <input required type="datetime-local" id="input-date" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">SKU</label>
+                        <input required type="text" id="input-sku" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ej. VA-E002" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Cantidad</label>
+                        <input required type="number" id="input-qty" min="1" value="1" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Nombre del Producto</label>
+                    <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ventilador De Techo Varin® Black Design" />
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega de Destino</label>
+                        <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                            <option value="WH Hub">WH Hub</option>
+                            <option value="Office">Office</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Estado</label>
+                        <select id="input-status" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                            <option>Disponible</option>
+                            <option>Reservado</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-4">
+                    <button type="submit" class="w-full bg-black hover:bg-zinc-800 text-white font-medium py-3 rounded-md transition-colors text-sm tracking-wide shadow-md">
+                        Registrar en Inventario
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- VISTA: CARGA MASIVA -->
+        <section id="view-carga" class="view-section max-w-3xl mx-auto space-y-8 text-center">
+            <header class="mb-10">
+                <div class="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="ph ph-file-xls text-black text-4xl"></i>
+                </div>
+                <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Importación de Ventas</h2>
+                <p class="text-zinc-500 text-sm mt-3 max-w-lg mx-auto">
+                    Sube el reporte de ventas de Mercado Libre (CSV o Excel). El sistema detectará las unidades vendidas y las asignará automáticamente a <b>Full ML</b>.
+                </p>
+            </header>
+            
+            <div class="relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
+                <!-- Soporte para MIME types de Microsoft Excel y CSV -->
+                <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <div class="pointer-events-none flex flex-col items-center">
+                    <i class="ph ph-upload-simple text-3xl text-zinc-400 group-hover:text-black mb-4 transition-colors"></i>
+                    <p class="text-zinc-900 font-medium text-lg">Haz clic o arrastra el archivo aquí</p>
+                    <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Soporta formatos nativos de ML (.csv, .xlsx)</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- LÓGICA DE LA APLICACIÓN -->
+    <script>
+        // === CORE (SINGLE SOURCE OF TRUTH) ===
+        const App = {
+            inventory: [],
+            currentSkuFilter: '', // Estado del filtro actual
+            
+            init() {
+                const data = localStorage.getItem('inventory_db_varin');
+                if(data) this.inventory = JSON.parse(data);
+                
+                this.cacheDOM();
+                this.setDefaultDate();
+                this.bindEvents();
+                this.renderDashboard();
+            },
+
+            cacheDOM() {
+                this.navButtons = document.querySelectorAll('.nav-btn');
+                this.views = document.querySelectorAll('.view-section');
+                this.toast = document.getElementById('toast');
+                this.toastMsg = document.getElementById('toast-msg');
+                this.toastIcon = document.getElementById('toast-icon');
+                
+                this.formManual = document.getElementById('form-manual');
+                this.fileInput = document.getElementById('file-upload');
+                
+                this.kpi1 = document.getElementById('kpi-bodega1');
+                this.kpi2 = document.getElementById('kpi-bodega2');
+                this.kpi3 = document.getElementById('kpi-bodega3');
+                this.tableBody = document.getElementById('table-body');
+                this.skuFilterInput = document.getElementById('filter-sku');
+                this.dateInput = document.getElementById('input-date');
+            },
+
+            setDefaultDate() {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                this.dateInput.value = now.toISOString().slice(0,16);
+            },
+
+            bindEvents() {
+                this.navButtons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const targetId = btn.getAttribute('data-target');
+                        this.navigate(targetId, btn);
+                    });
+                });
+
+                this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
+                this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
+                
+                // Evento de búsqueda en tiempo real
+                this.skuFilterInput.addEventListener('input', (e) => {
+                    this.currentSkuFilter = e.target.value.trim().toUpperCase();
+                    this.renderDashboard();
+                });
+            },
+
+            // === UI CONTROLLERS ===
+            navigate(targetId, activeBtn) {
+                this.views.forEach(v => v.classList.remove('active'));
+                document.getElementById(targetId).classList.add('active');
+                
+                this.navButtons.forEach(btn => {
+                    btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent";
+                });
+                activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
+                
+                if(targetId === 'view-dashboard') this.renderDashboard();
+            },
+
+            showNotification(msg, type = 'success') {
+                this.toastMsg.innerText = msg;
+                this.toast.classList.remove('opacity-0', 'translate-y-[-10px]', 'bg-black', 'text-white', 'bg-red-50');
+                
+                if(type === 'success') {
+                    this.toast.classList.add('bg-black', 'text-white', 'opacity-100', 'translate-y-0');
+                    this.toastIcon.className = "ph ph-check-circle text-xl text-green-400";
+                } else {
+                    this.toast.classList.add('bg-red-50', 'text-red-900', 'border', 'border-red-200', 'opacity-100', 'translate-y-0');
+                    this.toastIcon.className = "ph ph-warning-circle text-xl text-red-500";
+                }
+
+                setTimeout(() => {
+                    this.toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                }, 4000);
+            },
+
+            // === BUSINESS LOGIC ===
+            saveAndRender() {
+                localStorage.setItem('inventory_db_varin', JSON.stringify(this.inventory));
+                this.renderDashboard();
+            },
+
+            renderDashboard() {
+                // 1. Filtrar inventario si hay un SKU escrito en el buscador
+                const filteredInventory = this.currentSkuFilter 
+                    ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter))
+                    : this.inventory;
+
+                // 2. Calcular KPIs usando el inventario filtrado (soporta legacy names)
+                const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
+                
+                this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
+                this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
+                this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
+
+                // 3. Renderizar tabla con el inventario filtrado
+                if(filteredInventory.length === 0) {
+                    this.tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light">No se encontraron movimientos para este filtro.</td></tr>`;
+                    return;
+                }
+
+                const rowsHtml = filteredInventory.slice(0, 15).map(item => {
+                    const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
+                    // Estilos premium para los tags
+                    const badgeClass = isB3 ? 'bg-zinc-800 text-white border-transparent' : 'bg-white text-zinc-800 border-zinc-200';
+                    return `
+                        <tr class="hover:bg-zinc-50 transition-colors">
+                            <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                            <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span>
+                            </td>
+                            <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
+                            <td class="px-6 py-4 text-zinc-500 text-xs">${item.status}</td>
+                            <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                this.tableBody.innerHTML = rowsHtml;
+            },
+
+            handleManualEntry(e) {
+                e.preventDefault();
+                
+                // Procesar si es ingreso (positivo) o salida (negativo)
+                const type = document.getElementById('input-type').value;
+                let qty = parseInt(document.getElementById('input-qty').value);
+                if (type === 'out') qty = -Math.abs(qty);
+                else qty = Math.abs(qty);
+
+                // Procesar la fecha elegida por el usuario
+                const rawDate = document.getElementById('input-date').value;
+                const dateObj = new Date(rawDate);
+                const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit' });
+
+                const newItem = {
+                    id: Date.now(),
+                    sku: document.getElementById('input-sku').value,
+                    name: document.getElementById('input-name').value,
+                    quantity: qty,
+                    warehouse: document.getElementById('input-bodega').value,
+                    status: document.getElementById('input-status').value,
+                    date: formattedDate
+                };
+
+                this.inventory.unshift(newItem);
+                this.saveAndRender();
+                this.showNotification(`Operación registrada correctamente.`);
+                
+                // Limpiar inputs
+                document.getElementById('input-sku').value = '';
+                document.getElementById('input-name').value = '';
+                document.getElementById('input-qty').value = '1';
+                this.setDefaultDate(); // Resetear fecha a la actual
+            },
+
+            handleCSVUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                
+                // Usamos ArrayBuffer en lugar de Texto plano para leer binarios Excel sin corromperlos
+                reader.onload = (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        
+                        // Tomamos la primera hoja del archivo (sirve para CSV también)
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        // Convertimos la hoja a un array bidimensional limpio
+                        const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''});
+                        
+                        let headerIndex = -1;
+                        let headers = [];
+                        
+                        // Escaneamos las primeras 15 líneas buscando las columnas clave
+                        for (let i = 0; i < Math.min(15, rows.length); i++) {
+                            const parsedLine = rows[i].map(cell => String(cell).trim());
+                            if (parsedLine.includes('SKU') && parsedLine.includes('Unidades')) {
+                                headerIndex = i;
+                                headers = parsedLine;
+                                break;
+                            }
+                        }
+
+                        if (headerIndex === -1) {
+                            throw new Error("No se encontró la fila de cabeceras con 'SKU' y 'Unidades' en el archivo.");
+                        }
+                        
+                        const idxSKU = headers.indexOf('SKU');
+                        const idxUnidades = headers.indexOf('Unidades');
+                        const idxTitulo = headers.indexOf('Título de la publicación');
+
+                        let newSales = [];
+                        
+                        // Procesar filas de ventas
+                        for (let i = headerIndex + 1; i < rows.length; i++) {
+                            const row = rows[i].map(cell => String(cell).trim());
+                            
+                            if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] && row[idxSKU] !== '') {
+                                newSales.push({
+                                    id: Date.now() + i,
+                                    sku: row[idxSKU],
+                                    name: row[idxTitulo] || 'Venta Mercado Libre',
+                                    quantity: parseInt(row[idxUnidades]) || 1,
+                                    warehouse: 'Full ML',
+                                    status: 'Vendido',
+                                    date: new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit' })
+                                });
+                            }
+                        }
+
+                        if (newSales.length > 0) {
+                            // Sincronización limpia: preservamos WH Hub y Office, reemplazamos Full ML.
+                            const inventoryIntacto = this.inventory.filter(item => item.warehouse !== 'Full ML' && !item.warehouse.includes('3'));
+                            
+                            this.inventory = [...newSales, ...inventoryIntacto];
+                            this.saveAndRender();
+                            this.showNotification(`Se actualizaron ${newSales.length} ventas exclusivas en Full ML.`);
+                        } else {
+                            this.showNotification("Archivo leído, pero sin datos válidos.", 'error');
+                        }
+
+                    } catch (err) {
+                        console.error(err);
+                        this.showNotification(err.message, 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+                e.target.value = null; // reset del input
+            },
+
+            exportToExcel() {
+                if (this.inventory.length === 0) {
+                    this.showNotification("No hay datos para exportar", "error");
+                    return;
+                }
+
+                // 1. Agrupar cantidades por SKU y consolidar el stock actual
+                const aggregated = {};
+                this.inventory.forEach(item => {
+                    const sku = item.sku;
+                    if (!aggregated[sku]) {
+                        aggregated[sku] = { whHub: 0, office: 0, fullML: 0 };
+                    }
+                    
+                    const qty = parseInt(item.quantity) || 0;
+                    
+                    if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') {
+                        aggregated[sku].whHub += qty;
+                    } else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') {
+                        aggregated[sku].office += qty;
+                    } else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) {
+                        aggregated[sku].fullML += qty;
+                    }
+                });
+
+                // 2. Definir cabeceras solicitadas
+                const headers = ['Fecha', 'SKU', 'Unidades en Bodega 1 WH Hub', 'Unidades en Bodega 2 Office', 'Unidades en Bodega 3 FULL ML'];
+                const currentDate = new Date().toLocaleDateString('es-CL');
+
+                // 3. Formatear las filas del CSV
+                const rows = Object.keys(aggregated).map(sku => {
+                    const data = aggregated[sku];
+                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML}`;
+                });
+                
+                // Agregar BOM (\uFEFF) para que Excel reconozca correctamente los caracteres especiales y tildes si los hubiera
+                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `varin_traaq_reporte_stock_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        };
+
+        // Inicializar la app
+        document.addEventListener('DOMContentLoaded', () => App.init());
+
+    </script>
+</body>
+</html>
