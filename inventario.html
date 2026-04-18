@@ -80,7 +80,7 @@
                     <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
                     <p class="text-zinc-500 text-sm mt-1">Gestión centralizada de existencias Varin Traaq.</p>
                 </div>
-                <!-- Buscador por SKU con Datalist -->
+                <!-- Buscador por SKU -->
                 <div class="relative w-full sm:w-72">
                     <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
                     <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
@@ -132,7 +132,7 @@
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha</th>
-                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Eliminar</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="table-body" class="divide-y divide-zinc-100">
@@ -212,9 +212,9 @@
                         <div class="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <i class="ph ph-file-xls text-black text-4xl"></i>
                         </div>
-                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Importación de Ventas Mercado Libre</h2>
+                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Importación Incremental Mercado Libre</h2>
                         <p class="text-zinc-500 text-sm mt-3 max-w-lg mx-auto">
-                            Las unidades se procesarán como <b>Salidas (-)</b> y se descontarán del inventario de <b>Full ML</b>.
+                            El sistema detectará y omitirá automáticamente las ventas que ya fueron cargadas previamente.
                         </p>
                     </header>
                     
@@ -222,8 +222,8 @@
                         <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                         <div class="pointer-events-none flex flex-col items-center">
                             <i class="ph ph-upload-simple text-3xl text-zinc-400 group-hover:text-black mb-4 transition-colors"></i>
-                            <p class="text-zinc-900 font-medium text-lg">Selecciona o arrastra el archivo aquí</p>
-                            <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Soporta .csv y .xlsx nativos de ML</p>
+                            <p class="text-zinc-900 font-medium text-lg">Subir reporte de ventas</p>
+                            <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Solo se agregarán los nuevos registros</p>
                         </div>
                     </div>
                 </div>
@@ -231,32 +231,29 @@
         </div>
     </main>
 
-    <!-- LÓGICA DE LA APLICACIÓN -->
     <script>
         const App = {
             inventory: [],
             currentSkuFilter: '',
+            editingId: null,
             
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
                 if(data) {
                     this.inventory = JSON.parse(data);
-                    this.migrateData(); // Aseguramos cronología para datos existentes
+                    this.migrateData();
                 }
-                
                 this.cacheDOM();
                 this.setDefaultDate();
                 this.bindEvents();
                 this.renderDashboard();
             },
 
-            // Limpieza de datos antiguos para asegurar que todos tengan sortDate
             migrateData() {
                 let changed = false;
                 this.inventory = this.inventory.map(item => {
                     if (!item.sortDate && item.date) {
                         changed = true;
-                        // Intenta reconstruir el sortDate desde el string de fecha legible si existe
                         const parts = item.date.split(' ');
                         if (parts.length === 3) {
                             const months = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
@@ -265,7 +262,7 @@
                             const y = parts[2];
                             item.sortDate = `${y}-${m}-${d}`;
                         } else {
-                            item.sortDate = '2000-01-01'; // Fallback
+                            item.sortDate = new Date().toISOString().split('T')[0];
                         }
                     }
                     return item;
@@ -305,10 +302,8 @@
                         this.navigate(targetId, btn);
                     });
                 });
-
                 this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
-                
                 this.skuFilterInput.addEventListener('input', (e) => {
                     this.currentSkuFilter = e.target.value.trim().toUpperCase();
                     this.renderDashboard();
@@ -316,21 +311,19 @@
             },
 
             navigate(targetId, activeBtn) {
+                this.editingId = null;
                 this.views.forEach(v => v.classList.remove('active'));
                 document.getElementById(targetId).classList.add('active');
-                
                 this.navButtons.forEach(btn => {
                     btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent";
                 });
                 activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
-                
                 this.renderDashboard();
             },
 
             showNotification(msg, type = 'success') {
                 this.toastMsg.innerText = msg;
                 this.toast.classList.remove('opacity-0', 'translate-y-[-10px]', 'bg-black', 'text-white', 'bg-red-50');
-                
                 if(type === 'success') {
                     this.toast.classList.add('bg-black', 'text-white', 'opacity-100', 'translate-y-0');
                     this.toastIcon.className = "ph ph-check-circle text-xl text-green-400";
@@ -338,7 +331,6 @@
                     this.toast.classList.add('bg-red-50', 'text-red-900', 'border', 'border-red-200', 'opacity-100', 'translate-y-0');
                     this.toastIcon.className = "ph ph-warning-circle text-xl text-red-500";
                 }
-
                 setTimeout(() => {
                     this.toast.classList.add('opacity-0', 'translate-y-[-10px]');
                 }, 4000);
@@ -349,33 +341,58 @@
                 this.renderDashboard();
             },
 
+            toggleEdit(id) {
+                this.editingId = (this.editingId === id) ? null : id;
+                this.renderDashboard();
+            },
+
+            syncDescription(sku, inputElement) {
+                const match = this.inventory.find(i => i.sku.toUpperCase() === sku.toUpperCase());
+                if (match) inputElement.value = match.name;
+            },
+
+            saveEdit(id) {
+                const row = document.querySelector(`tr[data-id="${id}"]`);
+                if (!row) return;
+                const newSku = row.querySelector('.edit-sku').value;
+                const newName = row.querySelector('.edit-name').value;
+                const newWarehouse = row.querySelector('.edit-warehouse').value;
+                const newQty = parseInt(row.querySelector('.edit-qty').value);
+                const newSortDate = row.querySelector('.edit-date').value;
+                const [y, m, d] = newSortDate.split('-');
+                const dateObj = new Date(y, m - 1, d);
+                const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+
+                this.inventory = this.inventory.map(item => {
+                    if (item.id === id) {
+                        return { ...item, sku: newSku, name: newName, warehouse: newWarehouse, quantity: newQty, sortDate: newSortDate, date: formattedDate };
+                    }
+                    return item;
+                });
+                this.editingId = null;
+                this.saveAndRender();
+                this.showNotification('Registro actualizado.');
+            },
+
             deleteItem(id) {
-                if (confirm('¿Estás seguro de que deseas eliminar este movimiento?')) {
+                if (confirm('¿Eliminar este movimiento?')) {
                     this.inventory = this.inventory.filter(item => item.id !== id);
                     this.saveAndRender();
-                    this.showNotification('Movimiento eliminado correctamente.');
+                    this.showNotification('Registro eliminado.');
                 }
             },
 
             renderDashboard() {
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                 this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
-
-                const filteredInventory = this.currentSkuFilter 
-                    ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter))
-                    : this.inventory;
-
-                // ORDENAMIENTO CRONOLÓGICO MEJORADO (Más reciente arriba)
+                const filteredInventory = this.currentSkuFilter ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter)) : this.inventory;
                 const sortedInventory = [...filteredInventory].sort((a, b) => {
                     const timeA = new Date(a.sortDate || '2000-01-01').getTime();
                     const timeB = new Date(b.sortDate || '2000-01-01').getTime();
-                    
-                    if (timeA !== timeB) return timeB - timeA; // Por fecha de operación
-                    return b.id - a.id; // Por momento de ingreso al sistema (si la fecha coincide)
+                    if (timeA !== timeB) return timeB - timeA;
+                    return b.id - a.id;
                 });
-
                 const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
-                
                 this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
@@ -384,14 +401,37 @@
                 if (!tableBody) return;
 
                 if(sortedInventory.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">No hay registros de movimientos para mostrar.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar.</td></tr>`;
                     return;
                 }
 
                 const rowsHtml = sortedInventory.slice(0, 100).map(item => {
+                    const isEditing = this.editingId === item.id;
                     const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
                     const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
                     
+                    if (isEditing) {
+                        return `
+                            <tr class="bg-zinc-50" data-id="${item.id}">
+                                <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${item.sku}" oninput="App.syncDescription(this.value, this.closest('tr').querySelector('.edit-name'))"></td>
+                                <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${item.name}"></td>
+                                <td class="px-6 py-4">
+                                    <select class="edit-warehouse p-1 border rounded text-[10px] uppercase font-semibold">
+                                        <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
+                                        <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
+                                        <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
+                                    </select>
+                                </td>
+                                <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
+                                <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
+                                <td class="px-6 py-4 text-center space-x-1">
+                                    <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
+                                    <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
                     let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
                     if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
                     else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
@@ -400,22 +440,16 @@
                         <tr class="hover:bg-zinc-50 transition-colors group">
                             <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4">
-                                <span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span>
-                            </td>
-                            <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">
-                                ${item.quantity > 0 ? '+' : ''}${item.quantity}
-                            </td>
+                            <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
+                            <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
                             <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
-                            <td class="px-6 py-4 text-center">
-                                <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100" title="Eliminar registro">
-                                    <i class="ph ph-trash text-lg"></i>
-                                </button>
+                            <td class="px-6 py-4 text-center space-x-2">
+                                <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
+                                <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
                             </td>
                         </tr>
                     `;
                 }).join('');
-                
                 tableBody.innerHTML = rowsHtml;
             },
 
@@ -424,13 +458,11 @@
                 const type = document.getElementById('input-type').value;
                 let qty = parseInt(document.getElementById('input-qty').value);
                 if (type === 'out') qty = -Math.abs(qty);
-
-                const rawDate = document.getElementById('input-date').value; // YYYY-MM-DD
-                const [year, month, day] = rawDate.split('-');
-                const dateObj = new Date(year, month - 1, day);
+                const rawDate = document.getElementById('input-date').value;
+                const [y, m, d] = rawDate.split('-');
+                const dateObj = new Date(y, m - 1, d);
                 const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
-
-                const newItem = {
+                this.inventory.unshift({
                     id: Date.now(),
                     sortDate: rawDate,
                     sku: document.getElementById('input-sku').value,
@@ -439,12 +471,9 @@
                     warehouse: document.getElementById('input-bodega').value,
                     status: document.getElementById('input-status').value,
                     date: formattedDate
-                };
-
-                this.inventory.unshift(newItem);
+                });
                 this.saveAndRender();
-                this.showNotification(`Movimiento registrado correctamente.`);
-                
+                this.showNotification(`Registrado.`);
                 document.getElementById('input-sku').value = '';
                 document.getElementById('input-name').value = '';
                 document.getElementById('input-qty').value = '1';
@@ -461,10 +490,7 @@
                 if (d && mIdx !== -1 && y) {
                     const day = d.padStart(2, '0');
                     const month = String(mIdx + 1).padStart(2, '0');
-                    return {
-                        sort: `${y}-${month}-${day}`,
-                        display: `${day} ${months[mIdx].substring(0,3)} ${y}`
-                    };
+                    return { sort: `${y}-${month}-${day}`, display: `${day} ${months[mIdx].substring(0,3)} ${y}` };
                 }
                 return null;
             },
@@ -491,7 +517,7 @@
                             }
                         }
 
-                        if (headerIndex === -1) throw new Error("Formato no válido: Falta SKU o Unidades.");
+                        if (headerIndex === -1) throw new Error("Falta SKU o Unidades.");
                         
                         const idxSKU = headers.indexOf('SKU');
                         const idxUnidades = headers.indexOf('Unidades');
@@ -505,27 +531,40 @@
                         for (let i = headerIndex + 1; i < rows.length; i++) {
                             const row = rows[i].map(cell => String(cell).trim());
                             if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] !== '') {
-                                const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : `ML-TEMP-${Date.now()}-${i}`;
-                                if (this.inventory.some(item => item.mlSaleId === saleId)) {
+                                const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : null;
+                                
+                                // LÓGICA INCREMENTAL: 
+                                // 1. Si hay ID de venta, verificamos por ID.
+                                // 2. Si no hay ID (fallback), verificamos por "Huella Digital" (SKU+Qty+Date)
+                                const mlDate = this.parseMLDate(row[idxFechaVenta]);
+                                const today = new Date();
+                                const todaySort = today.toISOString().split('T')[0];
+                                const currentSortDate = mlDate ? mlDate.sort : todaySort;
+                                const currentQty = -Math.abs(parseInt(row[idxUnidades]) || 1);
+
+                                const isDuplicate = this.inventory.some(item => {
+                                    if (saleId && item.mlSaleId === saleId) return true;
+                                    // Fallback Huella Digital: mismo SKU, misma cantidad negativa y misma fecha
+                                    return item.sku === row[idxSKU] && 
+                                           item.quantity === currentQty && 
+                                           item.sortDate === currentSortDate;
+                                });
+
+                                if (isDuplicate) {
                                     duplicatesIgnored++;
                                     continue;
                                 }
 
-                                const mlDate = this.parseMLDate(row[idxFechaVenta]);
-                                const today = new Date();
-                                const todaySort = today.toISOString().split('T')[0];
-                                const todayDisplay = today.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
-
                                 newDeductions.push({
                                     id: Date.now() + i,
                                     mlSaleId: saleId,
-                                    sortDate: mlDate ? mlDate.sort : todaySort,
+                                    sortDate: currentSortDate,
                                     sku: row[idxSKU],
                                     name: row[idxTitulo] || 'Venta Mercado Libre',
-                                    quantity: -Math.abs(parseInt(row[idxUnidades]) || 1),
+                                    quantity: currentQty,
                                     warehouse: 'Full ML',
                                     status: 'Vendido',
-                                    date: mlDate ? mlDate.display : todayDisplay
+                                    date: mlDate ? mlDate.display : today.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
                                 });
                             }
                         }
@@ -533,9 +572,9 @@
                         if (newDeductions.length > 0) {
                             this.inventory = [...newDeductions, ...this.inventory];
                             this.saveAndRender();
-                            this.showNotification(`Se descontaron ${newDeductions.length} ventas nuevas de Full ML.`);
+                            this.showNotification(`Importación exitosa: ${newDeductions.length} registros nuevos. ${duplicatesIgnored > 0 ? `(${duplicatesIgnored} omitidos por ser duplicados)` : ''}`);
                         } else {
-                            this.showNotification(duplicatesIgnored > 0 ? "Ventas ya procesadas anteriormente." : "No se encontraron datos nuevos.", 'success');
+                            this.showNotification(duplicatesIgnored > 0 ? "No hay registros nuevos en este archivo." : "Sin datos válidos.", 'success');
                         }
                     } catch (err) {
                         this.showNotification(err.message, 'error');
@@ -546,7 +585,7 @@
             },
 
             exportToExcel() {
-                if (this.inventory.length === 0) return this.showNotification("No hay datos.", "error");
+                if (this.inventory.length === 0) return this.showNotification("Sin datos.", "error");
                 const aggregated = {};
                 this.inventory.forEach(item => {
                     if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0 };
@@ -555,14 +594,13 @@
                     else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') aggregated[item.sku].office += qty;
                     else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
                 });
-
-                const headers = ['Fecha', 'SKU', 'Unidades en Bodega 1 WH Hub', 'Unidades en Bodega 2 Office', 'Unidades en Bodega 3 FULL ML'];
+                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
                 const rows = Object.keys(aggregated).map(sku => `"${currentDate}","${sku}",${aggregated[sku].whHub},${aggregated[sku].office},${aggregated[sku].fullML}`);
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
                 const link = document.createElement("a");
                 link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", `varin_reporte_${new Date().toISOString().split('T')[0]}.csv`);
+                link.setAttribute("download", `reporte_stock_${new Date().toISOString().split('T')[0]}.csv`);
                 link.click();
             }
         };
