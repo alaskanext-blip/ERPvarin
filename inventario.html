@@ -40,7 +40,7 @@
                 <span class="flex items-center gap-2">
                     <i class="ph ph-package text-3xl text-sky-400"></i> VARIN
                 </span>
-                <span class="text-zinc-500 font-light tracking-[0.3em]">TRAAQ</span>
+                <span class="text-zinc-500 font-light tracking-[0.3em]">Traaq</span>
             </h1>
             <p class="text-xs text-zinc-500 mt-3 font-medium uppercase tracking-widest border-t border-zinc-800 pt-3">Stock Manager</p>
         </div>
@@ -73,14 +73,14 @@
             <span id="toast-msg" class="font-medium text-sm tracking-wide"></span>
         </div>
 
-        <!-- PARTE SUPERIOR GLOBAL (Fija para todas las vistas) -->
+        <!-- PARTE SUPERIOR GLOBAL -->
         <div class="shrink-0 space-y-6 mb-8">
             <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
                     <p class="text-zinc-500 text-sm mt-1">Gestión centralizada de existencias Varin Traaq.</p>
                 </div>
-                <!-- Buscador por SKU con Datalist (Global) -->
+                <!-- Buscador por SKU con Datalist -->
                 <div class="relative w-full sm:w-72">
                     <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
                     <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
@@ -88,7 +88,7 @@
                 </div>
             </header>
             
-            <!-- KPIs GLOBALES (Visibles en todas las vistas) -->
+            <!-- KPIs GLOBALES -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
                     <div class="flex justify-between items-start mb-4">
@@ -114,7 +114,7 @@
             </div>
         </div>
 
-        <!-- ZONA DE CONTENIDO DINÁMICO (Scrollable) -->
+        <!-- ZONA DE CONTENIDO DINÁMICO -->
         <div class="flex-1 min-h-0 overflow-hidden relative">
             
             <!-- VISTA: DASHBOARD -->
@@ -239,12 +239,38 @@
             
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
-                if(data) this.inventory = JSON.parse(data);
+                if(data) {
+                    this.inventory = JSON.parse(data);
+                    this.migrateData(); // Aseguramos cronología para datos existentes
+                }
                 
                 this.cacheDOM();
                 this.setDefaultDate();
                 this.bindEvents();
                 this.renderDashboard();
+            },
+
+            // Limpieza de datos antiguos para asegurar que todos tengan sortDate
+            migrateData() {
+                let changed = false;
+                this.inventory = this.inventory.map(item => {
+                    if (!item.sortDate && item.date) {
+                        changed = true;
+                        // Intenta reconstruir el sortDate desde el string de fecha legible si existe
+                        const parts = item.date.split(' ');
+                        if (parts.length === 3) {
+                            const months = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
+                            const d = parts[0].padStart(2, '0');
+                            const m = months[parts[1].substring(0,3).toLowerCase()] || '01';
+                            const y = parts[2];
+                            item.sortDate = `${y}-${m}-${d}`;
+                        } else {
+                            item.sortDate = '2000-01-01'; // Fallback
+                        }
+                    }
+                    return item;
+                });
+                if (changed) this.saveAndRender();
             },
 
             cacheDOM() {
@@ -339,14 +365,13 @@
                     ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter))
                     : this.inventory;
 
-                // MEJORA: Ordenamiento cronológico preciso (sortDate DESC, luego id DESC para el orden de ingreso del mismo día)
+                // ORDENAMIENTO CRONOLÓGICO MEJORADO (Más reciente arriba)
                 const sortedInventory = [...filteredInventory].sort((a, b) => {
-                    const dateA = a.sortDate || '0000-00-00';
-                    const dateB = b.sortDate || '0000-00-00';
-                    if (dateA !== dateB) {
-                        return dateB.localeCompare(dateA);
-                    }
-                    return b.id - a.id;
+                    const timeA = new Date(a.sortDate || '2000-01-01').getTime();
+                    const timeB = new Date(b.sortDate || '2000-01-01').getTime();
+                    
+                    if (timeA !== timeB) return timeB - timeA; // Por fecha de operación
+                    return b.id - a.id; // Por momento de ingreso al sistema (si la fecha coincide)
                 });
 
                 const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
@@ -400,14 +425,14 @@
                 let qty = parseInt(document.getElementById('input-qty').value);
                 if (type === 'out') qty = -Math.abs(qty);
 
-                const rawDate = document.getElementById('input-date').value; // Formato YYYY-MM-DD
+                const rawDate = document.getElementById('input-date').value; // YYYY-MM-DD
                 const [year, month, day] = rawDate.split('-');
                 const dateObj = new Date(year, month - 1, day);
                 const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
                 const newItem = {
                     id: Date.now(),
-                    sortDate: rawDate, // Almacenamos el ISO para ordenamiento real
+                    sortDate: rawDate,
                     sku: document.getElementById('input-sku').value,
                     name: document.getElementById('input-name').value,
                     quantity: qty,
@@ -426,12 +451,10 @@
                 this.setDefaultDate();
             },
 
-            // Utilidad para extraer fecha del reporte de Mercado Libre
             parseMLDate(str) {
                 if (!str) return null;
                 const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
                 const parts = str.toLowerCase().split(' ');
-                // Formato esperado: "18 de abril de 2026 10:00 hs."
                 const d = parts[0];
                 const mIdx = months.indexOf(parts[2]);
                 const y = parts[4];
@@ -488,7 +511,6 @@
                                     continue;
                                 }
 
-                                // Intentamos extraer la fecha del reporte, si falla usamos hoy
                                 const mlDate = this.parseMLDate(row[idxFechaVenta]);
                                 const today = new Date();
                                 const todaySort = today.toISOString().split('T')[0];
