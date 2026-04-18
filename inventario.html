@@ -17,7 +17,8 @@
     <style>
         /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        /* Modificado: Usamos Flexbox en las vistas para controlar el layout interno con precisión */
+        .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         /* Tipografía corporativa premium */
@@ -28,7 +29,7 @@
 <body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
 
     <!-- SIDEBAR DE NAVEGACIÓN (Premium Black) -->
-    <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800">
+    <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800 shrink-0">
         <div class="p-8">
             <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
                 <span class="flex items-center gap-2">
@@ -59,7 +60,8 @@
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <main class="flex-1 overflow-y-auto relative p-10">
+    <!-- Modificado: Se quitó el overflow-y-auto global. Ahora cada vista maneja su scroll. -->
+    <main class="flex-1 relative h-screen overflow-hidden flex flex-col p-10">
         
         <!-- Notificaciones flotantes -->
         <div id="toast" class="absolute top-6 right-6 z-50 px-5 py-4 rounded-md shadow-xl flex items-center gap-3 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-[-10px]">
@@ -68,61 +70,66 @@
         </div>
 
         <!-- VISTA: DASHBOARD -->
-        <section id="view-dashboard" class="view-section active space-y-8 max-w-7xl mx-auto">
-            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div>
-                    <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
-                    <p class="text-zinc-500 text-sm mt-1">Resumen en tiempo real del inventario Varin Traaq.</p>
-                </div>
-                <!-- Buscador por SKU con Datalist -->
-                <div class="relative w-full sm:w-72">
-                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
-                    <input type="text" id="filter-sku" list="sku-list" placeholder="Buscar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
-                    <!-- Datalist dinámico para sugerencias de SKU -->
-                    <datalist id="sku-list"></datalist>
-                </div>
-            </header>
+        <section id="view-dashboard" class="view-section active flex-1 min-h-0 gap-6 max-w-7xl w-full mx-auto">
             
-            <!-- KPIs (Minimalistas) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
-                    <div class="flex justify-between items-start mb-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-sky-800">WH Hub</p>
-                        <i class="ph ph-warehouse text-sky-600 text-2xl"></i>
+            <!-- CONTENEDOR FIJO SUPERIOR -->
+            <div class="shrink-0 space-y-6">
+                <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                    <div>
+                        <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
+                        <p class="text-zinc-500 text-sm mt-1">Resumen en tiempo real del inventario Varin Traaq.</p>
                     </div>
-                    <p id="kpi-bodega1" class="text-4xl font-light text-sky-950">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 flex flex-col justify-between hover:border-zinc-300 transition-colors">
-                    <div class="flex justify-between items-start mb-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Office</p>
-                        <i class="ph ph-archive-box text-zinc-400 text-2xl"></i>
+                    <!-- Buscador por SKU con Datalist -->
+                    <div class="relative w-full sm:w-72">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
+                        <input type="text" id="filter-sku" list="sku-list" placeholder="Buscar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
+                        <datalist id="sku-list"></datalist>
                     </div>
-                    <p id="kpi-bodega2" class="text-4xl font-light text-zinc-900">0</p>
-                </div>
-                <div class="bg-emerald-100 p-6 rounded-lg shadow-sm border border-emerald-300 flex flex-col justify-between hover:border-emerald-400 transition-colors">
-                    <div class="flex justify-between items-start mb-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-800">Full ML</p>
-                        <i class="ph ph-shopping-bag text-emerald-600 text-2xl"></i>
+                </header>
+                
+                <!-- KPIs (Minimalistas) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-sky-800">WH Hub</p>
+                            <i class="ph ph-warehouse text-sky-600 text-2xl"></i>
+                        </div>
+                        <p id="kpi-bodega1" class="text-4xl font-light text-sky-950">0</p>
                     </div>
-                    <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 flex flex-col justify-between hover:border-zinc-300 transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Office</p>
+                            <i class="ph ph-archive-box text-zinc-400 text-2xl"></i>
+                        </div>
+                        <p id="kpi-bodega2" class="text-4xl font-light text-zinc-900">0</p>
+                    </div>
+                    <div class="bg-emerald-100 p-6 rounded-lg shadow-sm border border-emerald-300 flex flex-col justify-between hover:border-emerald-400 transition-colors">
+                        <div class="flex justify-between items-start mb-4">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-emerald-800">Full ML</p>
+                            <i class="ph ph-shopping-bag text-emerald-600 text-2xl"></i>
+                        </div>
+                        <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
+                    </div>
                 </div>
-            </div>
+            </div> <!-- Fin Contenedor Fijo Superior -->
 
-            <!-- Tabla de Movimientos -->
-            <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden">
-                <div class="px-6 py-5 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+            <!-- CONTENEDOR SCROLLABLE INFERIOR (Sub Pantalla de Movimientos) -->
+            <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1 min-h-0">
+                <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                     <h3 class="font-medium text-zinc-800">Últimos Movimientos</h3>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200">
+                <!-- Zona que genera la barra de scroll de la tabla -->
+                <div class="flex-1 overflow-y-auto">
+                    <table class="w-full text-sm text-left relative">
+                        <!-- shadow interior para evitar que el borde desaparezca en el scroll sticky -->
+                        <thead class="bg-zinc-50 text-zinc-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e4e4e7]">
                             <tr>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">SKU</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Producto</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Bodega</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Cant.</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Status</th>
-                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider">Fecha Operación</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha Operación</th>
+                                <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="divide-y divide-zinc-100">
@@ -134,13 +141,13 @@
         </section>
 
         <!-- VISTA: REGISTRO MANUAL -->
-        <section id="view-ingreso" class="view-section max-w-3xl mx-auto space-y-8">
-            <header>
+        <section id="view-ingreso" class="view-section max-w-3xl w-full mx-auto gap-8 overflow-y-auto pb-10">
+            <header class="shrink-0">
                 <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Registro Manual</h2>
                 <p class="text-zinc-500 text-sm mt-1">Registra un ingreso o salida individual de productos en el inventario.</p>
             </header>
 
-            <form id="form-manual" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-8 space-y-6">
+            <form id="form-manual" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-8 space-y-6 shrink-0">
                 <div class="grid grid-cols-2 gap-6">
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Tipo de Operación</label>
@@ -174,7 +181,6 @@
                         <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
                             <option value="WH Hub">WH Hub</option>
                             <option value="Office">Office</option>
-                            <!-- Agregado Full ML como opción manual -->
                             <option value="Full ML">Full ML</option>
                         </select>
                     </div>
@@ -183,6 +189,7 @@
                         <select id="input-status" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
                             <option>Disponible</option>
                             <option>Reservado</option>
+                            <option>Vendido</option>
                         </select>
                     </div>
                 </div>
@@ -195,8 +202,8 @@
         </section>
 
         <!-- VISTA: CARGA MASIVA -->
-        <section id="view-carga" class="view-section max-w-3xl mx-auto space-y-8 text-center">
-            <header class="mb-10">
+        <section id="view-carga" class="view-section max-w-3xl w-full mx-auto gap-8 overflow-y-auto pb-10 text-center">
+            <header class="shrink-0 mb-6">
                 <div class="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <i class="ph ph-file-xls text-black text-4xl"></i>
                 </div>
@@ -206,7 +213,7 @@
                 </p>
             </header>
             
-            <div class="relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
+            <div class="shrink-0 relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
                 <!-- Soporte para MIME types de Microsoft Excel y CSV -->
                 <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                 <div class="pointer-events-none flex flex-col items-center">
@@ -313,6 +320,14 @@
                 this.renderDashboard();
             },
 
+            // Función disparada por el nuevo botón en la tabla
+            deleteItem(id) {
+                // Eliminación rápida e inmutable usando filter
+                this.inventory = this.inventory.filter(item => item.id !== id);
+                this.saveAndRender();
+                this.showNotification('Movimiento eliminado del registro.', 'success');
+            },
+
             renderDashboard() {
                 // Actualizar Datalist con SKUs únicos
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
@@ -333,7 +348,8 @@
                     return;
                 }
 
-                const rowsHtml = filteredInventory.slice(0, 15).map(item => {
+                // Incrementado a los últimos 100 movimientos en la subpantalla
+                const rowsHtml = filteredInventory.slice(0, 100).map(item => {
                     const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
                     const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
                     
@@ -349,8 +365,12 @@
                                 <span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span>
                             </td>
                             <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
-                            <td class="px-6 py-4 text-zinc-500 text-xs">${item.status}</td>
                             <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
+                            <td class="px-6 py-4 text-center">
+                                <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors" title="Eliminar registro">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
