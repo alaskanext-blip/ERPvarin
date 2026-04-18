@@ -57,9 +57,14 @@
             </button>
         </nav>
         
-        <div class="p-6 bg-zinc-950">
+        <div class="p-6 bg-zinc-950 space-y-3">
+            <!-- Botón de Reporte Consolidado (Blanco) -->
             <button onclick="App.exportToExcel()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-200 text-black py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-download-simple text-lg"></i> Exportar Reporte
+            </button>
+            <!-- Nuevo Botón de Detalle (Rojo) -->
+            <button onclick="App.exportDetail()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
+                <i class="ph ph-list-numbers text-lg"></i> Exportar Detalle
             </button>
         </div>
     </aside>
@@ -591,11 +596,9 @@
                     else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
                 });
                 
-                // Agregamos la columna "Total Unidades" a las cabeceras
                 const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'Total Unidades'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
                 
-                // Mapeamos los datos calculando la suma de las tres bodegas
                 const rows = Object.keys(aggregated).map(sku => {
                     const data = aggregated[sku];
                     const total = data.whHub + data.office + data.fullML;
@@ -607,6 +610,32 @@
                 link.setAttribute("href", encodeURI(csvContent));
                 link.setAttribute("download", `reporte_stock_${new Date().toISOString().split('T')[0]}.csv`);
                 link.click();
+            },
+
+            // --- NUEVA FUNCIÓN: EXPORTAR TODOS LOS MOVIMIENTOS ---
+            exportDetail() {
+                if (this.inventory.length === 0) return this.showNotification("No hay movimientos registrados.", "error");
+
+                // Headers del detalle
+                const headers = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado'];
+                
+                // Formateamos todas las filas del inventario (ordenadas por fecha descendente para el reporte)
+                const sortedDetail = [...this.inventory].sort((a, b) => {
+                    const timeA = new Date(a.sortDate || '2000-01-01').getTime();
+                    const timeB = new Date(b.sortDate || '2000-01-01').getTime();
+                    return timeB - timeA || b.id - a.id;
+                });
+
+                const rows = sortedDetail.map(item => {
+                    return `"${item.date}","${item.sku}","${item.name}","${item.warehouse}",${item.quantity},"${item.status || ''}"`;
+                });
+
+                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", `detalle_movimientos_${new Date().toISOString().split('T')[0]}.csv`);
+                link.click();
+                this.showNotification('Detalle de movimientos exportado.');
             }
         };
 
