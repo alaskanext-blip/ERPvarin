@@ -298,7 +298,6 @@
                 });
                 activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
                 
-                // Actualizar dashboard al navegar (limpiar o mantener filtros)
                 this.renderDashboard();
             },
 
@@ -340,22 +339,24 @@
                     ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter))
                     : this.inventory;
 
+                // ORDENAR: De más nuevo (ID mayor) a más antiguo (ID menor)
+                const sortedInventory = [...filteredInventory].sort((a, b) => b.id - a.id);
+
                 const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
                 
                 this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
 
-                // Solo renderizamos la tabla si la vista activa es el Dashboard
                 const tableBody = document.getElementById('table-body');
                 if (!tableBody) return;
 
-                if(filteredInventory.length === 0) {
+                if(sortedInventory.length === 0) {
                     tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">No hay registros de movimientos para mostrar.</td></tr>`;
                     return;
                 }
 
-                const rowsHtml = filteredInventory.slice(0, 100).map(item => {
+                const rowsHtml = sortedInventory.slice(0, 100).map(item => {
                     const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
                     const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
                     
