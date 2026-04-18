@@ -533,9 +533,6 @@
                             if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] !== '') {
                                 const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : null;
                                 
-                                // LÓGICA INCREMENTAL: 
-                                // 1. Si hay ID de venta, verificamos por ID.
-                                // 2. Si no hay ID (fallback), verificamos por "Huella Digital" (SKU+Qty+Date)
                                 const mlDate = this.parseMLDate(row[idxFechaVenta]);
                                 const today = new Date();
                                 const todaySort = today.toISOString().split('T')[0];
@@ -544,7 +541,6 @@
 
                                 const isDuplicate = this.inventory.some(item => {
                                     if (saleId && item.mlSaleId === saleId) return true;
-                                    // Fallback Huella Digital: mismo SKU, misma cantidad negativa y misma fecha
                                     return item.sku === row[idxSKU] && 
                                            item.quantity === currentQty && 
                                            item.sortDate === currentSortDate;
@@ -594,9 +590,18 @@
                     else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') aggregated[item.sku].office += qty;
                     else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
                 });
-                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML'];
+                
+                // Agregamos la columna "Total Unidades" a las cabeceras
+                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'Total Unidades'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
-                const rows = Object.keys(aggregated).map(sku => `"${currentDate}","${sku}",${aggregated[sku].whHub},${aggregated[sku].office},${aggregated[sku].fullML}`);
+                
+                // Mapeamos los datos calculando la suma de las tres bodegas
+                const rows = Object.keys(aggregated).map(sku => {
+                    const data = aggregated[sku];
+                    const total = data.whHub + data.office + data.fullML;
+                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${total}`;
+                });
+                
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
                 const link = document.createElement("a");
                 link.setAttribute("href", encodeURI(csvContent));
