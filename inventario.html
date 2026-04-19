@@ -58,11 +58,9 @@
         </nav>
         
         <div class="p-6 bg-zinc-950 space-y-3">
-            <!-- Botón de Reporte Consolidado (Blanco) -->
             <button onclick="App.exportToExcel()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-200 text-black py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-download-simple text-lg"></i> Exportar Reporte
             </button>
-            <!-- Nuevo Botón de Detalle (Rojo) -->
             <button onclick="App.exportDetail()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-list-numbers text-lg"></i> Exportar Detalle
             </button>
@@ -172,7 +170,13 @@
                         <div class="grid grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">SKU</label>
-                                <input required type="text" id="input-sku" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ej. VA-E002" />
+                                <input required type="text" id="input-sku" list="manual-sku-list" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm font-mono" placeholder="Ej. VA-E002" oninput="App.syncDescription(this.value, document.getElementById('input-name'))" autocomplete="off" />
+                                <datalist id="manual-sku-list">
+                                    <option value="VA-E001 B">
+                                    <option value="VA-E001 N">
+                                    <option value="VA-E002">
+                                    <option value="VA-004">
+                                </datalist>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Cantidad</label>
@@ -612,14 +616,11 @@
                 link.click();
             },
 
-            // --- NUEVA FUNCIÓN: EXPORTAR TODOS LOS MOVIMIENTOS ---
             exportDetail() {
                 if (this.inventory.length === 0) return this.showNotification("No hay movimientos registrados.", "error");
 
-                // Headers del detalle
                 const headers = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado'];
                 
-                // Formateamos todas las filas del inventario (ordenadas por fecha descendente para el reporte)
                 const sortedDetail = [...this.inventory].sort((a, b) => {
                     const timeA = new Date(a.sortDate || '2000-01-01').getTime();
                     const timeB = new Date(b.sortDate || '2000-01-01').getTime();
