@@ -245,7 +245,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // Globals provided by environment
+        // Variables de entorno cargadas por Canvas
         const firebaseConfig = JSON.parse(__firebase_config);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const app = initializeApp(firebaseConfig);
@@ -261,10 +261,10 @@
         let globalMinDateStr = '';
         let globalMaxDateStr = '';
 
-        // NUEVA CLAVE: ventas
+        // Clave de acceso establecida
         const CLAVE_MAESTRA = "ventas";
 
-        // Auth Init
+        // Inicializar Autenticación
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -273,7 +273,7 @@
                     await signInAnonymously(auth);
                 }
             } catch (err) {
-                console.error("Auth error", err);
+                console.error("Error en autenticación:", err);
             }
         };
 
@@ -283,8 +283,9 @@
 
         initAuth();
 
+        // Función de acceso (expuesta a window para el onclick del HTML)
         window.validarAcceso = async () => {
-            const input = document.getElementById('pass-input').value;
+            const input = document.getElementById('pass-input').value.trim();
             const errorBox = document.getElementById('error-box');
             const loginSection = document.getElementById('login-section');
             const dashboardSection = document.getElementById('dashboard-section');
@@ -298,11 +299,11 @@
                     body.className = "bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen transition-colors duration-500 block overflow-x-hidden";
                     dashboardSection.classList.remove('hidden');
                     
-                    // Intentar cargar datos de la nube
+                    // Intentar cargar datos previos de Firestore
                     const cloudData = await loadDataFromCloud();
                     if (cloudData && cloudData.length > 0) {
                         allData = cloudData;
-                        document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros de la nube.`;
+                        document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros guardados.`;
                         updateApp(true);
                     } else {
                         initMockData();
@@ -320,7 +321,7 @@
             }
         };
 
-        // Persistence Logic
+        // Lógica de Persistencia en Firestore
         const saveDataToCloud = async (data) => {
             if (!user) return;
             const syncEl = document.getElementById('sync-indicator');
@@ -335,7 +336,7 @@
                     updatedAt: new Date().toISOString()
                 });
             } catch (e) {
-                console.error("Error saving data", e);
+                console.error("Error al guardar datos:", e);
             } finally {
                 syncEl.classList.add('hidden');
             }
@@ -343,7 +344,7 @@
 
         const loadDataFromCloud = async () => {
             if (!user) return null;
-            document.getElementById('header-status').textContent = "Recuperando datos...";
+            document.getElementById('header-status').textContent = "Recuperando datos guardados...";
             try {
                 const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
                 const docSnap = await getDoc(salesRef);
@@ -352,7 +353,7 @@
                     return raw.map(d => ({...d, fechaObj: new Date(d.fechaObj)}));
                 }
             } catch (e) {
-                console.error("Error loading data", e);
+                console.error("Error al cargar datos:", e);
             }
             return null;
         };
@@ -508,7 +509,7 @@
             const sVal = skuFilter.value;
             const stVal = statusFilter.value;
             const dsVal = dateStartFilter.value;
-            const deVal = deVal = dateEndFilter.value;
+            const deVal = dateEndFilter.value;
 
             if (sVal !== 'all' || stVal !== 'all' || dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) {
                 clearFiltersBtn.classList.remove('hidden');
