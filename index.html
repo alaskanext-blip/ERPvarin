@@ -51,7 +51,7 @@
                         placeholder="••••••••">
                 </div>
 
-                <button id="login-btn" onclick="validarAcceso()" 
+                <button id="login-btn" 
                     class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
                     Entrar al Dashboard
                 </button>
@@ -97,7 +97,7 @@
                     Cargar Excel
                     <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" />
                 </label>
-                <button onclick="window.location.reload()" class="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-slate-200 hover:border-red-100" title="Bloquear Pantalla">
+                <button id="logout-btn" class="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-slate-200 hover:border-red-100" title="Bloquear Pantalla">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
@@ -245,7 +245,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // Variables de entorno cargadas por Canvas
+        // Configuración segura
         const firebaseConfig = JSON.parse(__firebase_config);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const app = initializeApp(firebaseConfig);
@@ -261,102 +261,8 @@
         let globalMinDateStr = '';
         let globalMaxDateStr = '';
 
-        // Clave de acceso establecida
+        // Nueva clave maestra: ventas
         const CLAVE_MAESTRA = "ventas";
-
-        // Inicializar Autenticación
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (err) {
-                console.error("Error en autenticación:", err);
-            }
-        };
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-        });
-
-        initAuth();
-
-        // Función de acceso (expuesta a window para el onclick del HTML)
-        window.validarAcceso = async () => {
-            const input = document.getElementById('pass-input').value.trim();
-            const errorBox = document.getElementById('error-box');
-            const loginSection = document.getElementById('login-section');
-            const dashboardSection = document.getElementById('dashboard-section');
-            const body = document.getElementById('main-body');
-
-            if (input === CLAVE_MAESTRA) {
-                loginSection.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
-                
-                setTimeout(async () => {
-                    loginSection.classList.add('hidden');
-                    body.className = "bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen transition-colors duration-500 block overflow-x-hidden";
-                    dashboardSection.classList.remove('hidden');
-                    
-                    // Intentar cargar datos previos de Firestore
-                    const cloudData = await loadDataFromCloud();
-                    if (cloudData && cloudData.length > 0) {
-                        allData = cloudData;
-                        document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros guardados.`;
-                        updateApp(true);
-                    } else {
-                        initMockData();
-                    }
-                    
-                    setTimeout(() => {
-                        dashboardSection.classList.remove('opacity-0');
-                    }, 50);
-                }, 400);
-            } else {
-                errorBox.classList.remove('hidden');
-                document.getElementById('pass-input').value = '';
-                loginSection.classList.add('animate-pulse');
-                setTimeout(() => loginSection.classList.remove('animate-pulse'), 500);
-            }
-        };
-
-        // Lógica de Persistencia en Firestore
-        const saveDataToCloud = async (data) => {
-            if (!user) return;
-            const syncEl = document.getElementById('sync-indicator');
-            syncEl.classList.remove('hidden');
-            
-            try {
-                const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
-                const serializableData = data.map(d => ({...d, fechaObj: d.fechaObj.toISOString()}));
-                
-                await setDoc(salesRef, { 
-                    data: JSON.stringify(serializableData),
-                    updatedAt: new Date().toISOString()
-                });
-            } catch (e) {
-                console.error("Error al guardar datos:", e);
-            } finally {
-                syncEl.classList.add('hidden');
-            }
-        };
-
-        const loadDataFromCloud = async () => {
-            if (!user) return null;
-            document.getElementById('header-status').textContent = "Recuperando datos guardados...";
-            try {
-                const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
-                const docSnap = await getDoc(salesRef);
-                if (docSnap.exists()) {
-                    const raw = JSON.parse(docSnap.data().data);
-                    return raw.map(d => ({...d, fechaObj: new Date(d.fechaObj)}));
-                }
-            } catch (e) {
-                console.error("Error al cargar datos:", e);
-            }
-            return null;
-        };
 
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
 
@@ -381,12 +287,148 @@
             try {
                 const months = { 'enero':0, 'febrero':1, 'marzo':2, 'abril':3, 'mayo':4, 'junio':5, 'julio':6, 'agosto':7, 'septiembre':8, 'octubre':9, 'noviembre':10, 'diciembre':11 };
                 const parts = dateStr.toLowerCase().split(' ');
-                if(parts.length >= 5) {
-                    return new Date(parseInt(parts[4]), months[parts[2]], parseInt(parts[0]));
-                }
+                if(parts.length >= 5) return new Date(parseInt(parts[4]), months[parts[2]], parseInt(parts[0]));
             } catch(e) {}
             return new Date();
         };
+
+        // Lógica de Persistencia
+        const saveDataToCloud = async (data) => {
+            if (!user) return;
+            const syncEl = document.getElementById('sync-indicator');
+            syncEl.classList.remove('hidden');
+            try {
+                const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
+                const serializableData = data.map(d => ({...d, fechaObj: d.fechaObj.toISOString()}));
+                await setDoc(salesRef, { 
+                    data: JSON.stringify(serializableData),
+                    updatedAt: new Date().toISOString()
+                });
+            } catch (e) { console.error("Save error", e); }
+            finally { syncEl.classList.add('hidden'); }
+        };
+
+        const loadDataFromCloud = async () => {
+            if (!user) return null;
+            document.getElementById('header-status').textContent = "Recuperando datos...";
+            try {
+                const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
+                const docSnap = await getDoc(salesRef);
+                if (docSnap.exists()) {
+                    const raw = JSON.parse(docSnap.data().data);
+                    return raw.map(d => ({...d, fechaObj: new Date(d.fechaObj)}));
+                }
+            } catch (e) { console.error("Load error", e); }
+            return null;
+        };
+
+        const updateTables = () => {
+            const pMap = {};
+            filteredData.forEach(d => {
+                const sku = d.sku !== 'Sin SKU' ? d.sku : d.titulo.substring(0, 15)+'...';
+                if(!pMap[sku]) pMap[sku] = { sku, t: d.titulo, i: 0, u: 0 };
+                pMap[sku].i += d.ingresosBrutos; pMap[sku].u += d.unidades;
+            });
+            const top = Object.values(pMap).sort((a,b) => b.i - a.i).slice(0, 5);
+            document.getElementById('top-products-body').innerHTML = top.map(p => `
+                <tr class="hover:bg-slate-50"><td class="p-4"><b>${p.sku}</b><div class="text-xs text-slate-500">${p.t}</div></td><td class="p-4 text-center"><span class="px-2 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">${p.u}</span></td><td class="p-4 text-right font-bold text-green-600">${formatCLP(p.i)}</td></tr>
+            `).join('');
+            document.getElementById('latest-sales-body').innerHTML = [...filteredData].reverse().map(v => `
+                <div class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl mb-1"><div class="flex items-center gap-4"><div class="p-2 rounded-full ${v.estado.toLowerCase().includes('entregado') ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}"><i class="fa-regular fa-file-lines"></i></div><div><p class="font-bold text-sm truncate max-w-[150px]">${v.sku}</p><p class="text-xs text-slate-500">${v.fecha}</p></div></div><div class="text-right"><p class="font-bold">${formatCLP(v.ingresosNetos)}</p><p class="text-xs font-semibold ${v.estado.toLowerCase().includes('entregado') ? 'text-green-600' : 'text-orange-500'}">${v.estado}</p></div></div>
+            `).join('');
+        };
+
+        const updateCharts = () => {
+            const trendMap = {};
+            filteredData.forEach(d => {
+                const k = d.fechaObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                if(!trendMap[k]) trendMap[k] = { b: 0, n: 0 };
+                trendMap[k].b += d.ingresosBrutos; trendMap[k].n += d.ingresosNetos;
+            });
+            const labels = Object.keys(trendMap);
+            if(trendChartInstance) trendChartInstance.destroy();
+            trendChartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: labels, datasets: [
+                    { label: 'Bruto', data: labels.map(l => trendMap[l].b), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 },
+                    { label: 'Neto', data: labels.map(l => trendMap[l].n), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.3)', fill: true, tension: 0.4, borderWidth: 3 }
+                ]},
+                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCLP(ctx.raw)}` } } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+
+            const statusMap = {}; filteredData.forEach(d => statusMap[d.estado] = (statusMap[d.estado] || 0) + 1);
+            if(statusChartInstance) statusChartInstance.destroy();
+            statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), {
+                type: 'doughnut', data: { labels: Object.keys(statusMap), datasets: [{ data: Object.values(statusMap), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'], cutout: '70%' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            const regionMap = {}; filteredData.forEach(d => regionMap[d.region] = (regionMap[d.region] || 0) + 1);
+            const sortedR = Object.keys(regionMap).sort((a,b) => regionMap[b] - regionMap[a]);
+            if(regionChartInstance) regionChartInstance.destroy();
+            regionChartInstance = new Chart(document.getElementById('regionChart').getContext('2d'), {
+                type: 'doughnut', data: { labels: sortedR, datasets: [{ data: sortedR.map(r => regionMap[r]), backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#f43f5e'], cutout: '70%' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        };
+
+        const updateKPIs = () => {
+            const k = filteredData.reduce((a, c) => {
+                a.b += c.ingresosBrutos; a.n += c.ingresosNetos;
+                a.e += Math.abs(c.costoEnvio); a.u += c.unidades;
+                return a;
+            }, { b: 0, n: 0, e: 0, u: 0 });
+            document.getElementById('kpi-bruto').textContent = formatCLP(k.b);
+            document.getElementById('kpi-neto').textContent = formatCLP(k.n);
+            document.getElementById('kpi-unidades').textContent = k.u;
+            document.getElementById('kpi-envios').textContent = formatCLP(k.e);
+        };
+
+        const updateHeader = () => {
+            document.getElementById('sales-count-badge').textContent = `${filteredData.length} registros`;
+            const badge = document.getElementById('date-badge');
+            if (filteredData.length > 0) {
+                const dates = filteredData.map(d => d.fechaObj.getTime());
+                const opt = { day: '2-digit', month: 'short', year: 'numeric' };
+                document.getElementById('date-range').textContent = `${new Date(Math.min(...dates)).toLocaleDateString('es-CL', opt)} al ${new Date(Math.max(...dates)).toLocaleDateString('es-CL', opt)}`;
+                badge.classList.remove('hidden');
+            } else badge.classList.add('hidden');
+        };
+
+        const updateApp = (isNewUpload) => {
+            if (isNewUpload) {
+                const skus = [...new Set(allData.map(d => d.sku).filter(s => s !== 'Sin SKU'))];
+                const statuses = [...new Set(allData.map(d => d.estado))];
+                skuFilter.innerHTML = '<option value="all">Todos los Productos (SKU)</option>' + skus.map(s => `<option value="${s}">${s}</option>`).join('');
+                statusFilter.innerHTML = '<option value="all">Todos los Estados de Envío</option>' + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+                const dates = allData.map(d => d.fechaObj.getTime());
+                if (dates.length) {
+                    globalMinDateStr = dateToInputString(new Date(Math.min(...dates)));
+                    globalMaxDateStr = dateToInputString(new Date(Math.max(...dates)));
+                    dateStartFilter.value = globalMinDateStr;
+                    dateEndFilter.value = globalMaxDateStr;
+                }
+            }
+            const sVal = skuFilter.value;
+            const stVal = statusFilter.value;
+            const dsVal = dateStartFilter.value;
+            const deVal = dateEndFilter.value;
+
+            if (sVal !== 'all' || stVal !== 'all' || dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) clearFiltersBtn.classList.remove('hidden');
+            else clearFiltersBtn.classList.add('hidden');
+
+            const start = dsVal ? new Date(dsVal + 'T00:00:00') : new Date(0);
+            const end = deVal ? new Date(deVal + 'T23:59:59') : new Date();
+
+            filteredData = allData.filter(item => (sVal === 'all' || item.sku === sVal) && (stVal === 'all' || item.estado === stVal) && (item.fechaObj >= start && item.fechaObj <= end));
+
+            updateHeader();
+            updateKPIs();
+            updateCharts();
+            updateTables();
+        };
+
+        const applyFilters = () => updateApp(false);
 
         const initMockData = () => {
             allData = [
@@ -403,63 +445,36 @@
                 const lines = text.split('\n');
                 let headerIndex = -1;
                 for (let i = 0; i < Math.min(30, lines.length); i++) {
-                    if (lines[i].includes('# de venta') && lines[i].includes('Fecha de venta')) {
-                        headerIndex = i;
-                        break;
-                    }
+                    if (lines[i].includes('# de venta') && lines[i].includes('Fecha de venta')) { headerIndex = i; break; }
                 }
-
                 if (headerIndex === -1) throw new Error('No se encontraron los encabezados de Mercado Libre.');
-
                 const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
                 const parsedData = [];
-                
                 const estadoPaqueteIndex = headers.indexOf('Estado');
                 const regionIndex = headers.indexOf('Estado', estadoPaqueteIndex + 1);
-
                 for (let i = headerIndex + 1; i < lines.length; i++) {
                     if (!lines[i].trim()) continue;
                     const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                     const row = {};
-                    headers.forEach((header, index) => {
-                        row[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
-                    });
-
+                    headers.forEach((header, index) => { row[header] = values[index] ? values[index].trim().replace(/"/g, '') : ''; });
                     if (row['# de venta']) {
                         const fechaString = row['Fecha de venta'].split(' hs.')[0].trim();
-                        const estadoPaquete = values[estadoPaqueteIndex] ? values[estadoPaqueteIndex].trim().replace(/"/g, '') : 'Desconocido';
-                        const region = values[regionIndex] ? values[regionIndex].trim().replace(/"/g, '') : 'Desconocida';
-                        
                         parsedData.push({
-                            id: row['# de venta'],
-                            fecha: fechaString,
-                            fechaObj: parseMLDate(fechaString),
-                            estado: estadoPaquete,
-                            region: region,
-                            unidades: parseInt(row['Unidades']) || 1,
-                            ingresosBrutos: parseFloat(row['Ingresos por productos (CLP)']) || 0,
-                            costoEnvio: parseFloat(row['Costos de envío (CLP)']) || 0,
-                            comision: (parseFloat(row['Cargo por venta e impuestos (CLP)']) || 0) + (parseFloat(row['Descuentos y bonificaciones']) || 0),
-                            ingresosNetos: parseFloat(row['Total (CLP)']) || 0,
-                            sku: row['SKU'] || 'Sin SKU',
-                            titulo: row['Título de la publicación'] || 'Producto'
+                            id: row['# de venta'], fecha: fechaString, fechaObj: parseMLDate(fechaString),
+                            estado: values[estadoPaqueteIndex] ? values[estadoPaqueteIndex].trim().replace(/"/g, '') : 'Desconocido',
+                            region: values[regionIndex] ? values[regionIndex].trim().replace(/"/g, '') : 'Desconocida',
+                            unidades: parseInt(row['Unidades']) || 1, ingresosBrutos: parseFloat(row['Ingresos por productos (CLP)']) || 0,
+                            costoEnvio: parseFloat(row['Costos de envío (CLP)']) || 0, comision: (parseFloat(row['Cargo por venta e impuestos (CLP)']) || 0) + (parseFloat(row['Descuentos y bonificaciones']) || 0),
+                            ingresosNetos: parseFloat(row['Total (CLP)']) || 0, sku: row['SKU'] || 'Sin SKU', titulo: row['Título de la publicación'] || 'Producto'
                         });
                     }
                 }
-
                 if (parsedData.length > 0) {
-                    parsedData.sort((a, b) => a.fechaObj - b.fechaObj);
-                    allData = parsedData;
-                    document.getElementById('header-status').innerHTML = `Analizando <b>${allData.length}</b> ventas del archivo cargado.`;
-                    errorContainer.classList.add('hidden');
+                    allData = parsedData.sort((a, b) => a.fechaObj - b.fechaObj);
                     updateApp(true);
                     saveDataToCloud(allData);
-                } else {
-                    throw new Error('El archivo no contiene filas de ventas válidas.');
                 }
-            } catch (err) {
-                showError(err.message);
-            }
+            } catch (err) { showError(err.message); }
         };
 
         const showError = (msg) => {
@@ -467,191 +482,74 @@
             errorContainer.classList.remove('hidden');
         };
 
+        // Acceso
+        const validarAcceso = async () => {
+            const input = document.getElementById('pass-input').value.trim();
+            const errorBox = document.getElementById('error-box');
+            const loginSection = document.getElementById('login-section');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const body = document.getElementById('main-body');
+
+            if (input === CLAVE_MAESTRA) {
+                loginSection.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+                setTimeout(async () => {
+                    loginSection.classList.add('hidden');
+                    body.className = "bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen transition-colors duration-500 block overflow-x-hidden";
+                    dashboardSection.classList.remove('hidden');
+                    const cloudData = await loadDataFromCloud();
+                    if (cloudData && cloudData.length > 0) {
+                        allData = cloudData;
+                        document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros guardados.`;
+                        updateApp(true);
+                    } else { initMockData(); }
+                    setTimeout(() => dashboardSection.classList.remove('opacity-0'), 50);
+                }, 400);
+            } else {
+                errorBox.classList.remove('hidden');
+                document.getElementById('pass-input').value = '';
+                loginSection.classList.add('animate-pulse');
+                setTimeout(() => loginSection.classList.remove('animate-pulse'), 500);
+            }
+        };
+
+        // Event Listeners
+        document.getElementById('login-btn').addEventListener('click', validarAcceso);
+        document.getElementById('pass-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') validarAcceso(); });
+
+        skuFilter.addEventListener('change', applyFilters);
+        statusFilter.addEventListener('change', applyFilters);
+        dateStartFilter.addEventListener('change', applyFilters);
+        dateEndFilter.addEventListener('change', applyFilters);
+        clearFiltersBtn.addEventListener('click', () => { 
+            skuFilter.value = 'all'; statusFilter.value = 'all'; 
+            dateStartFilter.value = globalMinDateStr; dateEndFilter.value = globalMaxDateStr; 
+            applyFilters(); 
+        });
+
         fileUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (e) => {
-                const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
-                if (isExcel) {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const text = XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]);
-                    processDataString(text);
-                } else {
-                    processDataString(e.target.result);
-                }
+                if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+                    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    processDataString(XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]));
+                } else processDataString(e.target.result);
             };
             if (file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file);
             else reader.readAsArrayBuffer(file);
         });
 
-        const updateApp = (isNewUpload) => {
-            if (isNewUpload) {
-                const skus = [...new Set(allData.map(d => d.sku).filter(s => s !== 'Sin SKU'))];
-                const statuses = [...new Set(allData.map(d => d.estado))];
-                
-                skuFilter.innerHTML = '<option value="all">Todos los Productos (SKU)</option>' + skus.map(s => `<option value="${s}">${s}</option>`).join('');
-                statusFilter.innerHTML = '<option value="all">Todos los Estados de Envío</option>' + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
-
-                const dates = allData.map(d => d.fechaObj.getTime());
-                const minDate = new Date(Math.min(...dates));
-                const maxDate = new Date(Math.max(...dates));
-                
-                globalMinDateStr = dateToInputString(minDate);
-                globalMaxDateStr = dateToInputString(maxDate);
-
-                dateStartFilter.value = globalMinDateStr;
-                dateEndFilter.value = globalMaxDateStr;
-            }
-
-            const sVal = skuFilter.value;
-            const stVal = statusFilter.value;
-            const dsVal = dateStartFilter.value;
-            const deVal = dateEndFilter.value;
-
-            if (sVal !== 'all' || stVal !== 'all' || dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) {
-                clearFiltersBtn.classList.remove('hidden');
-            } else {
-                clearFiltersBtn.classList.add('hidden');
-            }
-
-            const startDateObj = dsVal ? new Date(dsVal + 'T00:00:00') : new Date('1970-01-01');
-            const endDateObj = deVal ? new Date(deVal + 'T23:59:59') : new Date('2099-12-31');
-
-            filteredData = allData.filter(item => {
-                const matchSku = (sVal === 'all' || item.sku === sVal);
-                const matchStatus = (stVal === 'all' || item.estado === stVal);
-                const matchDate = (item.fechaObj >= startDateObj && item.fechaObj <= endDateObj);
-                return matchSku && matchStatus && matchDate;
-            });
-
-            updateHeader();
-            updateKPIs();
-            updateCharts();
-            updateTables();
+        // Auth Init
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else { await signInAnonymously(auth); }
+            } catch (err) { console.error("Auth error", err); }
         };
-
-        const updateHeader = () => {
-            document.getElementById('sales-count-badge').textContent = `${filteredData.length} registros`;
-            const badge = document.getElementById('date-badge');
-            
-            if (filteredData.length > 0) {
-                const dates = filteredData.map(d => d.fechaObj.getTime());
-                const formatOpts = { day: '2-digit', month: 'short', year: 'numeric' };
-                const min = new Date(Math.min(...dates)).toLocaleDateString('es-CL', formatOpts);
-                const max = new Date(Math.max(...dates)).toLocaleDateString('es-CL', formatOpts);
-                document.getElementById('date-range').textContent = `${min} al ${max}`;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        };
-
-        const updateKPIs = () => {
-            const kpis = filteredData.reduce((acc, curr) => {
-                acc.b += curr.ingresosBrutos; acc.n += curr.ingresosNetos;
-                acc.e += Math.abs(curr.costoEnvio); acc.u += curr.unidades;
-                return acc;
-            }, { b: 0, n: 0, e: 0, u: 0 });
-
-            document.getElementById('kpi-bruto').textContent = formatCLP(kpis.b);
-            document.getElementById('kpi-neto').textContent = formatCLP(kpis.n);
-            document.getElementById('kpi-unidades').textContent = kpis.u;
-            document.getElementById('kpi-envios').textContent = formatCLP(kpis.e);
-        };
-
-        const updateCharts = () => {
-            const trendMap = {};
-            filteredData.forEach(d => {
-                const dateKey = d.fechaObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
-                if(!trendMap[dateKey]) trendMap[dateKey] = { b: 0, n: 0 };
-                trendMap[dateKey].b += d.ingresosBrutos;
-                trendMap[dateKey].n += d.ingresosNetos;
-            });
-            const labels = Object.keys(trendMap);
-            const dataBruto = labels.map(l => trendMap[l].b);
-            const dataNeto = labels.map(l => trendMap[l].n);
-
-            if(trendChartInstance) trendChartInstance.destroy();
-            trendChartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Bruto', data: dataBruto, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 },
-                        { label: 'Neto', data: dataNeto, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.3)', fill: true, tension: 0.4, borderWidth: 3 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCLP(ctx.raw)}` } } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
-            });
-
-            const statusMap = {};
-            filteredData.forEach(d => statusMap[d.estado] = (statusMap[d.estado] || 0) + 1);
-            const sLabels = Object.keys(statusMap);
-            if(statusChartInstance) statusChartInstance.destroy();
-            statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: sLabels, datasets: [{ data: sLabels.map(l => statusMap[l]), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'], cutout: '70%' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
-
-            const regionMap = {};
-            filteredData.forEach(d => regionMap[d.region] = (regionMap[d.region] || 0) + 1);
-            const sortedRegions = Object.keys(regionMap).sort((a, b) => regionMap[b] - regionMap[a]);
-            if(regionChartInstance) regionChartInstance.destroy();
-            regionChartInstance = new Chart(document.getElementById('regionChart').getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: sortedRegions, datasets: [{ data: sortedRegions.map(l => regionMap[l]), backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#f43f5e'], cutout: '70%' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
-        };
-
-        const updateTables = () => {
-            const pMap = {};
-            filteredData.forEach(d => {
-                const sku = d.sku !== 'Sin SKU' ? d.sku : d.titulo.substring(0, 15)+'...';
-                if(!pMap[sku]) pMap[sku] = { sku, titulo: d.titulo, ingresos: 0, unidades: 0 };
-                pMap[sku].ingresos += d.ingresosBrutos; pMap[sku].unidades += d.unidades;
-            });
-            const topProds = Object.values(pMap).sort((a,b) => b.ingresos - a.ingresos).slice(0, 5);
-            document.getElementById('top-products-body').innerHTML = topProds.map(p => `
-                <tr class="hover:bg-slate-50">
-                    <td class="p-4"><div class="font-bold">${p.sku}</div><div class="text-xs text-slate-500 truncate max-w-[200px]">${p.titulo}</div></td>
-                    <td class="p-4 text-center"><span class="px-2 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">${p.unidades}</span></td>
-                    <td class="p-4 text-right font-bold text-green-600">${formatCLP(p.ingresos)}</td>
-                </tr>
-            `).join('');
-
-            const revData = [...filteredData].reverse();
-            document.getElementById('latest-sales-body').innerHTML = revData.map(v => {
-                const isGreen = v.estado.toLowerCase().includes('entregado');
-                const colorC = isGreen ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600';
-                return `
-                <div class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl mb-1 border border-transparent">
-                    <div class="flex items-center gap-4">
-                        <div class="p-2 rounded-full ${colorC}"><i class="fa-regular fa-file-lines"></i></div>
-                        <div><p class="font-bold text-sm truncate max-w-[150px]">${v.sku !== 'Sin SKU' ? v.sku : v.titulo}</p><p class="text-xs text-slate-500">${v.fecha}</p></div>
-                    </div>
-                    <div class="text-right"><p class="font-bold">${formatCLP(v.ingresosNetos)}</p><p class="text-xs font-semibold ${isGreen ? 'text-green-600' : 'text-orange-500'}">${v.estado}</p></div>
-                </div>`;
-            }).join('');
-        };
-
-        const applyFilters = () => updateApp(false);
-        skuFilter.addEventListener('change', applyFilters);
-        statusFilter.addEventListener('change', applyFilters);
-        dateStartFilter.addEventListener('change', applyFilters);
-        dateEndFilter.addEventListener('change', applyFilters);
-        
-        clearFiltersBtn.addEventListener('click', () => {
-            skuFilter.value = 'all';
-            statusFilter.value = 'all';
-            dateStartFilter.value = globalMinDateStr;
-            dateEndFilter.value = globalMaxDateStr;
-            applyFilters();
-        });
+        onAuthStateChanged(auth, (u) => { user = u; });
+        initAuth();
     </script>
 </body>
 </html>
