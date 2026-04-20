@@ -88,6 +88,9 @@
                         <i class="fa-regular fa-calendar"></i>
                         <span id="date-range"></span>
                     </span>
+                    <span id="sync-indicator" class="hidden text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-md animate-pulse">
+                        <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Guardando...
+                    </span>
                 </div>
             </div>
             
@@ -247,14 +250,87 @@
         </div>
     </div>
 
-    <!-- LOGIC (Vanilla JS) -->
-    <script>
+    <!-- LOGIC (Vanilla JS + Firebase) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // Configuración segura de Firebase
+        let firebaseConfig = {};
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+        } catch (e) {
+            console.error("Error parseando firebase config", e);
+        }
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        let currentUser = null;
+
+        // Inicializar Auth
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Error en auth", e);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+        });
+
+        // Persistencia: Guardar y Cargar de la Nube
+        async function guardarDatosEnNube(dataToSave) {
+            if (!currentUser) return;
+            const syncEl = document.getElementById('sync-indicator');
+            if (syncEl) syncEl.classList.remove('hidden');
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
+                const serialized = dataToSave.map(item => ({...item, fechaObj: item.fechaObj.toISOString()}));
+                await setDoc(docRef, {
+                    data: JSON.stringify(serialized),
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error("Error guardando datos", error);
+            } finally {
+                if (syncEl) syncEl.classList.add('hidden');
+            }
+        }
+
+        async function cargarDatosDeNube() {
+            if (!currentUser) return null;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const parsed = JSON.parse(docSnap.data().data);
+                    return parsed.map(item => ({...item, fechaObj: new Date(item.fechaObj)}));
+                }
+            } catch (error) {
+                console.error("Error cargando datos", error);
+            }
+            return null;
+        }
+
         // ==========================================
         // LÓGICA DE LOGIN
         // ==========================================
         const CLAVE_MAESTRA = "ventas";
 
-        function validarAcceso() {
+        window.validarAcceso = async function() {
             const input = document.getElementById('pass-input').value;
             const errorBox = document.getElementById('error-box');
             const loginSection = document.getElementById('login-section');
@@ -265,7 +341,7 @@
                 // Ocultar la tarjeta de login
                 loginSection.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
                 
-                setTimeout(() => {
+                setTimeout(async () => {
                     loginSection.classList.add('hidden');
                     
                     // Cambiar las clases del Body (De Oscuro a Claro)
@@ -274,8 +350,18 @@
                     // Mostrar el dashboard
                     dashboardSection.classList.remove('hidden');
                     
-                    // Inicializar los datos MOCK y Gráficos UNA VEZ QUE EL DASHBOARD ESTÁ VISIBLE
-                    initMockData();
+                    // Intentar recuperar información guardada en la nube
+                    document.getElementById('header-status').innerHTML = `Sincronizando datos...`;
+                    const datosRecuperados = await cargarDatosDeNube();
+                    
+                    if (datosRecuperados && datosRecuperados.length > 0) {
+                        allData = datosRecuperados;
+                        document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros de tu última sesión.`;
+                        updateApp(true);
+                    } else {
+                        // Inicializar los datos MOCK si no hay datos guardados
+                        initMockData();
+                    }
                     
                     setTimeout(() => {
                         dashboardSection.classList.remove('opacity-0');
@@ -293,7 +379,7 @@
         // Listener para la tecla "Enter"
         document.getElementById('pass-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
-                validarAcceso();
+                window.validarAcceso();
             }
         });
 
@@ -348,6 +434,7 @@
                 { id: `2000011961080800`, fecha: '12 de marzo de 2026', fechaObj: new Date(2026, 2, 12), estado: 'Entregado', region: 'Metropolitana', unidades: 2, ingresosBrutos: 179980, costoEnvio: -28000, comision: -28796, ingresosNetos: 123184, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
                 { id: `2000011961080801`, fecha: '15 de marzo de 2026', fechaObj: new Date(2026, 2, 15), estado: 'En camino', region: 'Valparaíso', unidades: 1, ingresosBrutos: 85000, costoEnvio: -14000, comision: -13600, ingresosNetos: 57400, sku: 'VA-E004', titulo: 'Ventilador De Techo Varin® Bambú Design' }
             ];
+            document.getElementById('header-status').innerHTML = `Mostrando datos de demostración. Sube tu reporte para analizar.`;
             updateApp(true);
         }
 
@@ -407,6 +494,9 @@
                     document.getElementById('header-status').innerHTML = `Analizando <b>${allData.length}</b> ventas del archivo cargado.`;
                     errorContainer.classList.add('hidden');
                     updateApp(true);
+                    
+                    // Sincronizar con la nube
+                    guardarDatosEnNube(allData);
                 } else {
                     throw new Error('El archivo no contiene filas de ventas válidas.');
                 }
