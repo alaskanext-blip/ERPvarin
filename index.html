@@ -19,7 +19,6 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* Estilos del Login */
         .glass-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(12px);
@@ -30,7 +29,6 @@
         }
     </style>
 </head>
-<!-- El body inicia con los estilos del login (oscuro, centrado) -->
 <body id="main-body" class="bg-gradient-custom text-slate-200 min-h-screen flex items-center justify-center p-6 transition-colors duration-500">
 
     <!-- ========================================== -->
@@ -53,12 +51,11 @@
                         placeholder="••••••••">
                 </div>
 
-                <button onclick="validarAcceso()" 
-                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+                <button id="login-btn" onclick="validarAcceso()" 
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
                     Entrar al Dashboard
                 </button>
 
-                <!-- Mensaje de error -->
                 <div id="error-box" class="hidden flex items-center gap-3 bg-red-500/10 border border-red-500/50 p-4 rounded-xl text-red-400 text-sm">
                     <i class="fa-solid fa-circle-exclamation text-lg"></i>
                     <span>Clave incorrecta. Por favor, verifica la clave.</span>
@@ -83,10 +80,13 @@
                     Varin | Smart Traaq | Ventas
                 </h1>
                 <div class="text-slate-500 mt-3 flex items-center gap-3 flex-wrap">
-                    <span id="header-status">Mostrando datos de demostración. Sube tu reporte para analizar.</span>
+                    <span id="header-status">Conectando...</span>
                     <span id="date-badge" class="hidden inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
                         <i class="fa-regular fa-calendar"></i>
                         <span id="date-range"></span>
+                    </span>
+                    <span id="sync-indicator" class="hidden text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-md animate-pulse">
+                        <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Guardando...
                     </span>
                 </div>
             </div>
@@ -95,28 +95,24 @@
                 <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-md flex-1 md:flex-none">
                     <i class="fa-solid fa-file-excel"></i>
                     Cargar Excel
-                    <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" id="file-upload" />
+                    <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" />
                 </label>
-                <!-- Botón para cerrar sesión agregado -->
                 <button onclick="window.location.reload()" class="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-slate-200 hover:border-red-100" title="Bloquear Pantalla">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
         </div>
 
-        <!-- ERROR MESSAGE -->
         <div id="error-container" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg flex items-center gap-3">
             <i class="fa-solid fa-circle-exclamation"></i>
             <p id="error-text"></p>
         </div>
 
-        <!-- FILTROS -->
         <div class="mb-8 flex flex-col lg:flex-row items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-wrap">
             <div class="flex items-center gap-2 text-slate-500 font-medium">
                 <i class="fa-solid fa-filter"></i> Filtros:
             </div>
             
-            <!-- Filtro de Fechas -->
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
                 <span class="text-slate-400 text-sm ml-1">Del:</span>
                 <input type="date" id="date-start" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
@@ -124,7 +120,6 @@
                 <input type="date" id="date-end" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
             </div>
 
-            <!-- Filtros Originales -->
             <select id="sku-filter" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
                 <option value="all">Todos los Productos (SKU)</option>
             </select>
@@ -137,7 +132,6 @@
             </button>
         </div>
 
-        <!-- KPIs -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
                 <div class="flex justify-between items-start mb-4">
@@ -183,7 +177,6 @@
             </div>
         </div>
 
-        <!-- GRÁFICOS -->
         <div class="grid grid-cols-1 gap-6 mb-8">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 class="text-lg font-bold text-slate-800 mb-6">Evolución de Ingresos en el Tiempo</h3>
@@ -213,8 +206,7 @@
             </div>
         </div>
 
-        <!-- TABLAS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="p-6 border-b border-slate-100">
                     <h3 class="text-lg font-bold text-slate-800">Productos Destacados</h3>
@@ -247,60 +239,20 @@
         </div>
     </div>
 
-    <!-- LOGIC (Vanilla JS) -->
-    <script>
-        // ==========================================
-        // LÓGICA DE LOGIN
-        // ==========================================
-        const CLAVE_MAESTRA = "secreto";
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        function validarAcceso() {
-            const input = document.getElementById('pass-input').value;
-            const errorBox = document.getElementById('error-box');
-            const loginSection = document.getElementById('login-section');
-            const dashboardSection = document.getElementById('dashboard-section');
-            const body = document.getElementById('main-body');
+        // Globals provided by environment
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-            if (input === CLAVE_MAESTRA) {
-                // Ocultar la tarjeta de login
-                loginSection.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
-                
-                setTimeout(() => {
-                    loginSection.classList.add('hidden');
-                    
-                    // Cambiar las clases del Body (De Oscuro a Claro)
-                    body.className = "bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen transition-colors duration-500";
-                    
-                    // Mostrar el dashboard
-                    dashboardSection.classList.remove('hidden');
-                    
-                    // Inicializar los datos MOCK y Gráficos UNA VEZ QUE EL DASHBOARD ESTÁ VISIBLE
-                    initMockData();
-                    
-                    setTimeout(() => {
-                        dashboardSection.classList.remove('opacity-0');
-                    }, 50);
-                }, 400);
-            } else {
-                // Error de contraseña
-                errorBox.classList.remove('hidden');
-                document.getElementById('pass-input').value = '';
-                loginSection.classList.add('animate-pulse');
-                setTimeout(() => loginSection.classList.remove('animate-pulse'), 500);
-            }
-        }
-
-        // Listener para la tecla "Enter"
-        document.getElementById('pass-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                validarAcceso();
-            }
-        });
-
-
-        // ==========================================
-        // LÓGICA DEL DASHBOARD (ORIGINAL)
-        // ==========================================
+        let user = null;
         let allData = [];
         let filteredData = [];
         let trendChartInstance = null;
@@ -309,9 +261,109 @@
         let globalMinDateStr = '';
         let globalMaxDateStr = '';
 
+        const CLAVE_MAESTRA = "secreto";
+
+        // Auth Init
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error", err);
+            }
+        };
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+        });
+
+        initAuth();
+
+        window.validarAcceso = async () => {
+            const input = document.getElementById('pass-input').value;
+            const errorBox = document.getElementById('error-box');
+            const loginSection = document.getElementById('login-section');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const body = document.getElementById('main-body');
+
+            if (input === CLAVE_MAESTRA) {
+                loginSection.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+                
+                setTimeout(async () => {
+                    loginSection.classList.add('hidden');
+                    body.className = "bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen transition-colors duration-500 block overflow-x-hidden";
+                    dashboardSection.classList.remove('hidden');
+                    
+                    // Intentar cargar datos de la nube
+                    const cloudData = await loadDataFromCloud();
+                    if (cloudData && cloudData.length > 0) {
+                        allData = cloudData;
+                        document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros de la nube.`;
+                        updateApp(true);
+                    } else {
+                        initMockData();
+                    }
+                    
+                    setTimeout(() => {
+                        dashboardSection.classList.remove('opacity-0');
+                    }, 50);
+                }, 400);
+            } else {
+                errorBox.classList.remove('hidden');
+                document.getElementById('pass-input').value = '';
+                loginSection.classList.add('animate-pulse');
+                setTimeout(() => loginSection.classList.remove('animate-pulse'), 500);
+            }
+        };
+
+        // Persistence Logic
+        const saveDataToCloud = async (data) => {
+            if (!user) return;
+            const syncEl = document.getElementById('sync-indicator');
+            syncEl.classList.remove('hidden');
+            
+            try {
+                // Para evitar exceder límites de documento único (1MB), guardamos las ventas como un array JSON stringificado
+                // o podríamos guardarlas en una subcolección. Para este caso, usaremos un documento único si es pequeño, 
+                // pero lo más robusto es guardarlo serializado para preservar la estructura.
+                const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
+                
+                // Convertimos fechas a strings para el JSON
+                const serializableData = data.map(d => ({...d, fechaObj: d.fechaObj.toISOString()}));
+                
+                await setDoc(salesRef, { 
+                    data: JSON.stringify(serializableData),
+                    updatedAt: new Date().toISOString()
+                });
+            } catch (e) {
+                console.error("Error saving data", e);
+            } finally {
+                syncEl.classList.add('hidden');
+            }
+        };
+
+        const loadDataFromCloud = async () => {
+            if (!user) return null;
+            document.getElementById('header-status').textContent = "Recuperando datos...";
+            try {
+                const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
+                const docSnap = await getDoc(salesRef);
+                if (docSnap.exists()) {
+                    const raw = JSON.parse(docSnap.data().data);
+                    return raw.map(d => ({...d, fechaObj: new Date(d.fechaObj)}));
+                }
+            } catch (e) {
+                console.error("Error loading data", e);
+            }
+            return null;
+        };
+
+        // Re-attach listeners for file processing
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
 
-        // UI Elements
         const skuFilter = document.getElementById('sku-filter');
         const statusFilter = document.getElementById('status-filter');
         const dateStartFilter = document.getElementById('date-start');
@@ -321,7 +373,6 @@
         const errorContainer = document.getElementById('error-container');
         const errorText = document.getElementById('error-text');
 
-        // Utils for Dates
         const dateToInputString = (dateObj) => {
             const y = dateObj.getFullYear();
             const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -341,17 +392,17 @@
             return new Date();
         };
 
-        // MOCK DATA INITIALIZATION
         const initMockData = () => {
             allData = [
                 { id: `2000011961080799`, fecha: '10 de marzo de 2026', fechaObj: new Date(2026, 2, 10), estado: 'Entregado', region: 'Biobío', unidades: 1, ingresosBrutos: 89990, costoEnvio: -14000, comision: -14398, ingresosNetos: 61592, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
                 { id: `2000011961080800`, fecha: '12 de marzo de 2026', fechaObj: new Date(2026, 2, 12), estado: 'Entregado', region: 'Metropolitana', unidades: 2, ingresosBrutos: 179980, costoEnvio: -28000, comision: -28796, ingresosNetos: 123184, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
                 { id: `2000011961080801`, fecha: '15 de marzo de 2026', fechaObj: new Date(2026, 2, 15), estado: 'En camino', region: 'Valparaíso', unidades: 1, ingresosBrutos: 85000, costoEnvio: -14000, comision: -13600, ingresosNetos: 57400, sku: 'VA-E004', titulo: 'Ventilador De Techo Varin® Bambú Design' }
             ];
+            document.getElementById('header-status').innerHTML = `Mostrando datos de demostración. Sube tu reporte para analizar.`;
             updateApp(true);
         };
 
-        const processDataString = (text) => {
+        const processDataString = async (text) => {
             try {
                 const lines = text.split('\n');
                 let headerIndex = -1;
@@ -362,7 +413,7 @@
                     }
                 }
 
-                if (headerIndex === -1) throw new Error('No se encontraron los encabezados de Mercado Libre. Verifica el archivo.');
+                if (headerIndex === -1) throw new Error('No se encontraron los encabezados de Mercado Libre.');
 
                 const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
                 const parsedData = [];
@@ -380,8 +431,8 @@
 
                     if (row['# de venta']) {
                         const fechaString = row['Fecha de venta'].split(' hs.')[0].trim();
-                        const estadoPaquete = estadoPaqueteIndex !== -1 && values[estadoPaqueteIndex] ? values[estadoPaqueteIndex].trim().replace(/"/g, '') : 'Desconocido';
-                        const region = regionIndex !== -1 && values[regionIndex] ? values[regionIndex].trim().replace(/"/g, '') : 'Desconocida';
+                        const estadoPaquete = values[estadoPaqueteIndex] ? values[estadoPaqueteIndex].trim().replace(/"/g, '') : 'Desconocido';
+                        const region = values[regionIndex] ? values[regionIndex].trim().replace(/"/g, '') : 'Desconocida';
                         
                         parsedData.push({
                             id: row['# de venta'],
@@ -403,10 +454,12 @@
                 if (parsedData.length > 0) {
                     parsedData.sort((a, b) => a.fechaObj - b.fechaObj);
                     allData = parsedData;
-                    
                     document.getElementById('header-status').innerHTML = `Analizando <b>${allData.length}</b> ventas del archivo cargado.`;
                     errorContainer.classList.add('hidden');
                     updateApp(true);
+                    
+                    // Persistir en la nube
+                    saveDataToCloud(allData);
                 } else {
                     throw new Error('El archivo no contiene filas de ventas válidas.');
                 }
@@ -420,7 +473,6 @@
             errorContainer.classList.remove('hidden');
         };
 
-        // File Input Listener
         fileUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -429,10 +481,6 @@
             reader.onload = (e) => {
                 const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
                 if (isExcel) {
-                    if (typeof XLSX === 'undefined') {
-                        showError("Librería Excel no cargada. Actualiza la página.");
-                        return;
-                    }
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const text = XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]);
@@ -443,21 +491,6 @@
             };
             if (file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file);
             else reader.readAsArrayBuffer(file);
-        });
-
-        // Filter Listeners
-        const applyFilters = () => updateApp(false);
-        skuFilter.addEventListener('change', applyFilters);
-        statusFilter.addEventListener('change', applyFilters);
-        dateStartFilter.addEventListener('change', applyFilters);
-        dateEndFilter.addEventListener('change', applyFilters);
-        
-        clearFiltersBtn.addEventListener('click', () => {
-            skuFilter.value = 'all';
-            statusFilter.value = 'all';
-            dateStartFilter.value = globalMinDateStr;
-            dateEndFilter.value = globalMaxDateStr;
-            applyFilters();
         });
 
         const updateApp = (isNewUpload) => {
@@ -475,12 +508,7 @@
                 globalMinDateStr = dateToInputString(minDate);
                 globalMaxDateStr = dateToInputString(maxDate);
 
-                dateStartFilter.min = globalMinDateStr;
-                dateStartFilter.max = globalMaxDateStr;
                 dateStartFilter.value = globalMinDateStr;
-
-                dateEndFilter.min = globalMinDateStr;
-                dateEndFilter.max = globalMaxDateStr;
                 dateEndFilter.value = globalMaxDateStr;
             }
 
@@ -541,7 +569,6 @@
         };
 
         const updateCharts = () => {
-            // Trend Data
             const trendMap = {};
             filteredData.forEach(d => {
                 const dateKey = d.fechaObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
@@ -554,49 +581,36 @@
             const dataNeto = labels.map(l => trendMap[l].n);
 
             if(trendChartInstance) trendChartInstance.destroy();
-            const ctxTrend = document.getElementById('trendChart').getContext('2d');
-            trendChartInstance = new Chart(ctxTrend, {
+            trendChartInstance = new Chart(document.getElementById('trendChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: 'Bruto', data: dataBruto, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                        { label: 'Bruto', data: dataBruto, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 },
                         { label: 'Neto', data: dataNeto, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.3)', fill: true, tension: 0.4, borderWidth: 3 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                            plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCLP(ctx.raw)}` } } },
-                            scales: { y: { display: false }, x: { grid: { display: false } } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCLP(ctx.raw)}` } } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
             });
 
-            // Status Data
             const statusMap = {};
             filteredData.forEach(d => statusMap[d.estado] = (statusMap[d.estado] || 0) + 1);
             const sLabels = Object.keys(statusMap);
-            const sData = sLabels.map(l => statusMap[l]);
-            const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
-
             if(statusChartInstance) statusChartInstance.destroy();
-            const ctxStatus = document.getElementById('statusChart').getContext('2d');
-            statusChartInstance = new Chart(ctxStatus, {
+            statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), {
                 type: 'doughnut',
-                data: { labels: sLabels, datasets: [{ data: sData, backgroundColor: colors, borderWidth: 0, cutout: '70%' }] },
+                data: { labels: sLabels, datasets: [{ data: sLabels.map(l => statusMap[l]), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'], cutout: '70%' }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
 
-            // Region Data
             const regionMap = {};
             filteredData.forEach(d => regionMap[d.region] = (regionMap[d.region] || 0) + 1);
             const sortedRegions = Object.keys(regionMap).sort((a, b) => regionMap[b] - regionMap[a]);
-            const rData = sortedRegions.map(l => regionMap[l]);
-            const regionColors = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#f43f5e', '#ea580c', '#dc2626', '#fb923c', '#fbbf24'];
-
             if(regionChartInstance) regionChartInstance.destroy();
-            const ctxRegion = document.getElementById('regionChart').getContext('2d');
-            regionChartInstance = new Chart(ctxRegion, {
+            regionChartInstance = new Chart(document.getElementById('regionChart').getContext('2d'), {
                 type: 'doughnut',
-                data: { labels: sortedRegions, datasets: [{ data: rData, backgroundColor: regionColors, borderWidth: 0, cutout: '70%' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 11} } } } }
+                data: { labels: sortedRegions, datasets: [{ data: sortedRegions.map(l => regionMap[l]), backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#f43f5e'], cutout: '70%' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         };
 
@@ -608,44 +622,42 @@
                 pMap[sku].ingresos += d.ingresosBrutos; pMap[sku].unidades += d.unidades;
             });
             const topProds = Object.values(pMap).sort((a,b) => b.ingresos - a.ingresos).slice(0, 5);
-            
-            const pBody = document.getElementById('top-products-body');
-            pBody.innerHTML = topProds.length ? topProds.map(p => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-4"><div class="font-bold text-slate-800">${p.sku}</div><div class="text-xs text-slate-500 truncate max-w-[200px]" title="${p.titulo}">${p.titulo}</div></td>
-                    <td class="p-4 text-center"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">${p.unidades}</span></td>
+            document.getElementById('top-products-body').innerHTML = topProds.map(p => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-4"><div class="font-bold">${p.sku}</div><div class="text-xs text-slate-500 truncate max-w-[200px]">${p.titulo}</div></td>
+                    <td class="p-4 text-center"><span class="px-2 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">${p.unidades}</span></td>
                     <td class="p-4 text-right font-bold text-green-600">${formatCLP(p.ingresos)}</td>
                 </tr>
-            `).join('') : `<tr><td colspan="3" class="p-4 text-center text-slate-400">Sin datos en las fechas seleccionadas</td></tr>`;
+            `).join('');
 
-            const sBody = document.getElementById('latest-sales-body');
             const revData = [...filteredData].reverse();
-            sBody.innerHTML = revData.length ? revData.map(v => {
+            document.getElementById('latest-sales-body').innerHTML = revData.map(v => {
                 const isGreen = v.estado.toLowerCase().includes('entregado');
-                const isBlue = v.estado.toLowerCase().includes('camino');
-                const colorC = isGreen ? 'bg-green-100 text-green-600' : isBlue ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600';
-                const textC = isGreen ? 'text-green-600' : 'text-orange-500';
-                const sName = v.sku !== 'Sin SKU' ? v.sku : v.titulo;
+                const colorC = isGreen ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600';
                 return `
-                <div class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl transition-colors mb-1 border border-transparent hover:border-slate-100">
+                <div class="flex justify-between items-center p-3 hover:bg-slate-50 rounded-xl mb-1 border border-transparent">
                     <div class="flex items-center gap-4">
                         <div class="p-2 rounded-full ${colorC}"><i class="fa-regular fa-file-lines"></i></div>
-                        <div>
-                            <p class="font-bold text-slate-800 text-sm truncate max-w-[150px]">${sName}</p>
-                            <p class="text-xs text-slate-500">${v.fecha} • #${v.id.slice(-6)}</p>
-                        </div>
+                        <div><p class="font-bold text-sm truncate max-w-[150px]">${v.sku !== 'Sin SKU' ? v.sku : v.titulo}</p><p class="text-xs text-slate-500">${v.fecha}</p></div>
                     </div>
-                    <div class="text-right">
-                        <p class="font-bold text-slate-800">${formatCLP(v.ingresosNetos)}</p>
-                        <p class="text-xs font-semibold ${textC}">${v.estado}</p>
-                    </div>
+                    <div class="text-right"><p class="font-bold">${formatCLP(v.ingresosNetos)}</p><p class="text-xs font-semibold ${isGreen ? 'text-green-600' : 'text-orange-500'}">${v.estado}</p></div>
                 </div>`;
-            }).join('') : `<div class="p-4 text-center text-slate-400">Sin operaciones en las fechas seleccionadas</div>`;
+            }).join('');
         };
+
+        const applyFilters = () => updateApp(false);
+        skuFilter.addEventListener('change', applyFilters);
+        statusFilter.addEventListener('change', applyFilters);
+        dateStartFilter.addEventListener('change', applyFilters);
+        dateEndFilter.addEventListener('change', applyFilters);
         
-        // Nota: initMockData() ya no se llama aquí al cargar la página.
-        // Ahora se llama dentro de validarAcceso() cuando la contraseña es correcta,
-        // para asegurar que las gráficas calculen su tamaño sobre un contenedor visible.
+        clearFiltersBtn.addEventListener('click', () => {
+            skuFilter.value = 'all';
+            statusFilter.value = 'all';
+            dateStartFilter.value = globalMinDateStr;
+            dateEndFilter.value = globalMaxDateStr;
+            applyFilters();
+        });
     </script>
 </body>
 </html>
