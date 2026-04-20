@@ -282,7 +282,7 @@
                     </div>
                     <div>
                         <h3 class="text-xl font-bold tracking-tight">Registro Histórico por Factura</h3>
-                        <p class="text-slate-400 text-xs font-medium">Consolidado por Nº de Factura con % de incidencia sobre las ventas</p>
+                        <p class="text-slate-400 text-xs font-medium">Consolidado con almacenamiento automático y opciones de limpieza</p>
                     </div>
                 </div>
             </div>
@@ -299,10 +299,11 @@
                             <th class="p-4 text-right text-emerald-700">Col. FULL</th>
                             <th class="p-4 text-right text-rose-700 bg-rose-50/50">Total Cargos</th>
                             <th class="p-4 text-right bg-indigo-50/30 text-indigo-900 font-black">Margen Neto</th>
+                            <th class="p-4 text-center w-12"><i class="fa-solid fa-gear"></i></th>
                         </tr>
                     </thead>
                     <tbody id="monthly-records-body" class="divide-y divide-slate-100">
-                        <tr><td colspan="9" class="p-12 text-center text-slate-400 italic text-sm">Sube archivos para iniciar el historial...</td></tr>
+                        <tr><td colspan="10" class="p-12 text-center text-slate-400 italic text-sm">Sube archivos para iniciar el historial...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -345,6 +346,39 @@
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
         const calcPct = (val, total) => total > 0 ? `<span class="text-[10px] text-slate-500 font-medium block mt-0.5">${((val/total)*100).toFixed(1)}%</span>` : '<span class="text-[10px] text-slate-400 block mt-0.5">0.0%</span>';
 
+        // PERSISTENCIA DE DATOS
+        const saveData = () => {
+            localStorage.setItem('varinBillingHistory', JSON.stringify(sessionMainHistory));
+        };
+
+        const loadData = () => {
+            const saved = localStorage.getItem('varinBillingHistory');
+            if (saved) {
+                try {
+                    sessionMainHistory = JSON.parse(saved).map(d => ({
+                        ...d,
+                        fechaObj: new Date(d.fechaObj)
+                    }));
+                } catch (e) {
+                    console.error("Error cargando historial", e);
+                    sessionMainHistory = [];
+                }
+            }
+        };
+
+        // ACCIÓN ELIMINAR FACTURA
+        window.deleteInvoice = (invKey) => {
+            if (confirm(`¿Estás seguro de eliminar los registros de la factura: ${invKey}?`)) {
+                sessionMainHistory = sessionMainHistory.filter(d => (d.numFactura || 'Sin N°') !== invKey);
+                saveData();
+                if (sessionMainHistory.length === 0) {
+                    latestUploadData = [];
+                    viewMode = 'single';
+                }
+                updateApp(true);
+            }
+        };
+
         function validarAcceso() {
             const input = document.getElementById('pass-input').value;
             if (input === CLAVE_MAESTRA) {
@@ -353,6 +387,18 @@
                     document.getElementById('login-section').classList.add('hidden');
                     document.getElementById('main-body').className = "bg-slate-50 text-slate-900 p-4 min-h-screen block";
                     document.getElementById('dashboard-section').classList.remove('hidden');
+                    
+                    loadData();
+                    if (sessionMainHistory.length > 0) {
+                        viewMode = 'accumulated';
+                        const btnText = document.getElementById('btn-acumulado-text');
+                        const btnNode = document.getElementById('btn-acumulado');
+                        btnText.textContent = "Última Factura";
+                        btnNode.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+                        btnNode.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+                    }
+                    updateApp(true);
+                    
                     setTimeout(() => { document.getElementById('dashboard-section').classList.remove('opacity-0'); }, 50);
                 }, 400);
             } else {
@@ -434,11 +480,13 @@
                         const isCargoVenta = (!isPublicidad && !isEnvio && !isAlmacenamiento && !isColecta && !/impuesto/i.test(detalle));
                         const isVentaDirecta = detalle === 'Cargo por venta';
 
-                        // Extraer Número de Factura (En ML suele ser la Columna A o contener 'Factura')
                         let numFactura = 'Sin N°';
                         const fKey = Object.keys(row).find(k => k.toLowerCase().includes('factura'));
                         if (fKey && row[fKey]) {
-                            numFactura = row[fKey].trim();
+                            const raw = row[fKey].trim();
+                            if (raw && !raw.toLowerCase().includes('disponible') && !raw.toLowerCase().includes('pendiente')) {
+                                numFactura = raw;
+                            }
                         }
 
                         parsed.push({
@@ -459,9 +507,18 @@
                         });
                     }
                 }
+                
                 if (parsed.length > 0) {
+                    const newFacturas = new Set(parsed.map(d => d.numFactura));
+                    
+                    // Eliminar registros antiguos que correspondan a las facturas que se están subiendo
+                    // para permitir sobrescribir de manera automática.
+                    sessionMainHistory = sessionMainHistory.filter(d => !newFacturas.has(d.numFactura));
+                    
                     sessionMainHistory = [...sessionMainHistory, ...parsed];
-                    latestUploadData = [...latestUploadData, ...parsed];
+                    latestUploadData = parsed;
+                    
+                    saveData();
                     updateApp(true); 
                 }
             } catch (err) { showError(err.message); }
@@ -535,6 +592,7 @@
                 }
                 
                 console.error = originalConsoleError;
+                e.target.value = null; // reset input
             };
             reader.readAsArrayBuffer(file);
         };
@@ -550,7 +608,19 @@
         const updateApp = (isNewFile = false) => {
             const sourceData = viewMode === 'accumulated' ? sessionMainHistory : latestUploadData;
 
-            if (sourceData.length === 0) return;
+            if (sourceData.length === 0) {
+                // Set UI to zero
+                ['kpi-ventas', 'kpi-gasto-total', 'kpi-cargo-venta', 'kpi-cargo-envio', 'kpi-cargo-publi', 'kpi-cargo-full', 'kpi-full-alm', 'kpi-full-col', 'op-gasto-total'].forEach(id => document.getElementById(id).textContent = '$0');
+                document.getElementById('kpi-porcentaje-costos').textContent = '(0.0%)';
+                ['op-articulos', 'op-envios', 'op-anulaciones'].forEach(id => document.getElementById(id).textContent = '0');
+                document.getElementById('full-details-body').innerHTML = '<p class="text-center text-slate-400 p-8">No hay cargos FULL en este periodo.</p>';
+                document.getElementById('charges-table-body').innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Sube la Factura ML para ver el análisis detallado.</td></tr>';
+                document.getElementById('monthly-records-body').innerHTML = '<tr><td colspan="10" class="p-12 text-center text-slate-400 italic text-sm">Sube archivos para iniciar el historial...</td></tr>';
+                if (financeChartInstance) financeChartInstance.destroy();
+                document.getElementById('header-status').innerHTML = `Esperando reportes...`;
+                document.getElementById('date-badge').classList.add('hidden');
+                return;
+            }
 
             const allDates = sourceData.map(d => d.fechaObj.getTime());
             if (allDates.length > 0) {
@@ -577,23 +647,20 @@
             const groups = {};
             const fullItems = [];
 
-            // Datos para el Historial por Factura (Toda la sesión, ignorando filtros)
+            // Historial (Usamos la data global, sin filtrar por fechas temporales)
             const invoiceData = {};
 
             sessionMainHistory.forEach(d => {
-                // REGISTRO HISTÓRICO (Agrupado por Nº Factura)
                 const invKey = d.numFactura || 'Sin N°';
                 if (!invoiceData[invKey]) {
                     invoiceData[invKey] = {
                         sales: 0, cVenta: 0, cEnvio: 0, cPubli: 0, cFullAlm: 0, cFullCol: 0,
-                        latestDate: 0 // Para ordenar de más nuevo a antiguo
+                        latestDate: 0 
                     };
                 }
 
                 const time = d.fechaObj.getTime();
-                if (time > invoiceData[invKey].latestDate) {
-                    invoiceData[invKey].latestDate = time;
-                }
+                if (time > invoiceData[invKey].latestDate) invoiceData[invKey].latestDate = time;
 
                 if (d.ventaTotal) invoiceData[invKey].sales += d.ventaTotal;
 
@@ -603,8 +670,8 @@
                 else if (d.isEnvio) invoiceData[invKey].cEnvio += d.valorCargo;
                 else if (d.isCargoVenta) invoiceData[invKey].cVenta += d.valorCargo;
 
-                // DATOS DEL PERIODO FILTRADO (Dashboard principal)
-                if (d.fechaObj >= start && d.fechaObj <= end) {
+                // Datos Dashboard Superior
+                if (d.fechaObj >= start && d.fechaObj <= end && sourceData.includes(d)) {
                     tVenta += d.ventaTotal;
                     tArt += d.cantVendida;
                     if (d.numEnvio) envios.add(d.numEnvio);
@@ -622,7 +689,6 @@
                     }
                     else if (d.isCargoVenta) cVenta += d.valorCargo;
 
-                    // Agrupamos para la tabla de desglose
                     if (!d.isAlmacenamiento && !d.isColecta) {
                         let cat = d.detalle.replace(/anulaci[oó]n del /i, '');
                         cat = cat.charAt(0).toUpperCase() + cat.slice(1);
@@ -635,7 +701,6 @@
             const totalFull = cFullAlm + cFullCol;
             const totalGasto = cVenta + cEnvio + cPubli + totalFull;
 
-            // Actualización de KPIs Superiores
             document.getElementById('kpi-ventas').textContent = formatCLP(tVenta);
             document.getElementById('kpi-gasto-total').textContent = formatCLP(totalGasto);
             document.getElementById('kpi-porcentaje-costos').textContent = `(${(tVenta > 0 ? (totalGasto/tVenta)*100 : 0).toFixed(1)}%)`;
@@ -650,7 +715,6 @@
             document.getElementById('op-anulaciones').textContent = countAnul;
             document.getElementById('op-gasto-total').textContent = formatCLP(totalGasto);
 
-            // Modal FULL
             document.getElementById('full-details-body').innerHTML = fullItems.length > 0 ? fullItems.map(d => {
                 const badgeInfo = d.isAlmacenamiento ? "Almacenamiento" : "Colecta";
                 return `
@@ -663,7 +727,6 @@
                 </div>
             `}).join('') : '<p class="text-center text-slate-400 p-8">No hay cargos FULL en este periodo.</p>';
 
-            // Llenar tabla de Desglose General
             const tBody = document.getElementById('charges-table-body');
             let rows = Object.keys(groups).map(k => {
                 const n = groups[k].b + groups[k].a;
@@ -680,7 +743,6 @@
             }
             tBody.innerHTML = rows || '<tr><td colspan="4" class="p-8 text-center text-slate-400">Sube la Factura ML para ver el análisis detallado.</td></tr>';
 
-            // --- ACTUALIZACIÓN DE REGISTRO HISTÓRICO (Ordenado por fecha más reciente) ---
             const sortedInvoices = Object.keys(invoiceData).sort((a, b) => invoiceData[b].latestDate - invoiceData[a].latestDate);
             const monthlyBody = document.getElementById('monthly-records-body');
             
@@ -729,12 +791,16 @@
                             <td class="p-4 text-right bg-indigo-50/20">
                                 <span class="text-lg font-black ${marginColor}">${formatCLP(realMargin)}</span>
                             </td>
+                            <td class="p-4 text-center">
+                                <button onclick="deleteInvoice('${inv}')" class="text-rose-400 hover:text-rose-600 transition-colors" title="Eliminar Factura">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             }
 
-            // Actualizar Gráfico
             const cData = {};
             filteredMain.forEach(d => {
                 const w = getWeekInfo(d.fechaObj);
