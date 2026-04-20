@@ -53,7 +53,7 @@
                         placeholder="••••••••">
                 </div>
 
-                <button onclick="validarAcceso()" 
+                <button id="login-btn" 
                     class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
                     Entrar al Dashboard
                 </button>
@@ -256,25 +256,30 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // Configuración segura de Firebase
-        let firebaseConfig = {};
+        // Configuración segura (Soporte para GitHub Pages y Local)
+        let useFirebase = false;
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                if (Object.keys(firebaseConfig).length > 0) {
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    useFirebase = true;
+                }
             }
         } catch (e) {
-            console.error("Error parseando firebase config", e);
+            console.warn("Ejecutando sin Firebase (modo GitHub Pages / Local). Los datos se guardarán en el navegador.");
         }
-        
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
-        let currentUser = null;
 
-        // Inicializar Auth
+        // Inicializar Auth solo si Firebase está activo
         const initAuth = async () => {
+            if (!useFirebase) return;
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -287,22 +292,31 @@
         };
         initAuth();
 
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-        });
+        if (useFirebase) {
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+            });
+        }
 
-        // Persistencia: Guardar y Cargar de la Nube
+        // Persistencia: Guardar y Cargar (Híbrido Nube / LocalStorage)
         async function guardarDatosEnNube(dataToSave) {
-            if (!currentUser) return;
             const syncEl = document.getElementById('sync-indicator');
             if (syncEl) syncEl.classList.remove('hidden');
+            
+            const serialized = dataToSave.map(item => ({...item, fechaObj: item.fechaObj.toISOString()}));
+            const jsonString = JSON.stringify(serialized);
+
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
-                const serialized = dataToSave.map(item => ({...item, fechaObj: item.fechaObj.toISOString()}));
-                await setDoc(docRef, {
-                    data: JSON.stringify(serialized),
-                    timestamp: new Date().toISOString()
-                });
+                if (useFirebase && currentUser) {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
+                    await setDoc(docRef, {
+                        data: jsonString,
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    // Fallback para GitHub Pages
+                    localStorage.setItem('varin_dashboard_data', jsonString);
+                }
             } catch (error) {
                 console.error("Error guardando datos", error);
             } finally {
@@ -311,12 +325,23 @@
         }
 
         async function cargarDatosDeNube() {
-            if (!currentUser) return null;
+            document.getElementById('header-status').textContent = "Recuperando datos...";
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const parsed = JSON.parse(docSnap.data().data);
+                let jsonString = null;
+                
+                if (useFirebase && currentUser) {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        jsonString = docSnap.data().data;
+                    }
+                } else {
+                    // Fallback para GitHub Pages
+                    jsonString = localStorage.getItem('varin_dashboard_data');
+                }
+
+                if (jsonString) {
+                    const parsed = JSON.parse(jsonString);
                     return parsed.map(item => ({...item, fechaObj: new Date(item.fechaObj)}));
                 }
             } catch (error) {
@@ -350,7 +375,7 @@
                     // Mostrar el dashboard
                     dashboardSection.classList.remove('hidden');
                     
-                    // Intentar recuperar información guardada en la nube
+                    // Intentar recuperar información guardada
                     document.getElementById('header-status').innerHTML = `Sincronizando datos...`;
                     const datosRecuperados = await cargarDatosDeNube();
                     
@@ -376,7 +401,8 @@
             }
         }
 
-        // Listener para la tecla "Enter"
+        // Listeners del Login asignados de forma segura
+        document.getElementById('login-btn').addEventListener('click', window.validarAcceso);
         document.getElementById('pass-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 window.validarAcceso();
@@ -495,7 +521,7 @@
                     errorContainer.classList.add('hidden');
                     updateApp(true);
                     
-                    // Sincronizar con la nube
+                    // Sincronizar (Nube o LocalStorage)
                     guardarDatosEnNube(allData);
                 } else {
                     throw new Error('El archivo no contiene filas de ventas válidas.');
