@@ -261,7 +261,8 @@
         let globalMinDateStr = '';
         let globalMaxDateStr = '';
 
-        const CLAVE_MAESTRA = "secreto";
+        // NUEVA CLAVE: ventas
+        const CLAVE_MAESTRA = "ventas";
 
         // Auth Init
         const initAuth = async () => {
@@ -326,12 +327,7 @@
             syncEl.classList.remove('hidden');
             
             try {
-                // Para evitar exceder límites de documento único (1MB), guardamos las ventas como un array JSON stringificado
-                // o podríamos guardarlas en una subcolección. Para este caso, usaremos un documento único si es pequeño, 
-                // pero lo más robusto es guardarlo serializado para preservar la estructura.
                 const salesRef = doc(db, 'artifacts', appId, 'users', user.uid, 'dashboard', 'last_upload');
-                
-                // Convertimos fechas a strings para el JSON
                 const serializableData = data.map(d => ({...d, fechaObj: d.fechaObj.toISOString()}));
                 
                 await setDoc(salesRef, { 
@@ -361,7 +357,6 @@
             return null;
         };
 
-        // Re-attach listeners for file processing
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
 
         const skuFilter = document.getElementById('sku-filter');
@@ -457,8 +452,6 @@
                     document.getElementById('header-status').innerHTML = `Analizando <b>${allData.length}</b> ventas del archivo cargado.`;
                     errorContainer.classList.add('hidden');
                     updateApp(true);
-                    
-                    // Persistir en la nube
                     saveDataToCloud(allData);
                 } else {
                     throw new Error('El archivo no contiene filas de ventas válidas.');
@@ -515,7 +508,7 @@
             const sVal = skuFilter.value;
             const stVal = statusFilter.value;
             const dsVal = dateStartFilter.value;
-            const deVal = dateEndFilter.value;
+            const deVal = deVal = dateEndFilter.value;
 
             if (sVal !== 'all' || stVal !== 'all' || dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) {
                 clearFiltersBtn.classList.remove('hidden');
