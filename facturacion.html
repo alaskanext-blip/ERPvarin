@@ -575,7 +575,10 @@
             const invMap = {};
             sessionMainHistory.forEach(d => {
                 const k = d.numFactura || 'Sin N°';
-                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, t:0, sc: new Map() };
+                const time = d.fechaObj.getTime();
+                if (!invMap[k]) {
+                    invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, t:0, minT: time, maxT: time, sc: new Map() };
+                }
                 
                 if (d.numVenta && !invMap[k].sc.has(d.numVenta)) {
                     invMap[k].s += d.ventaTotal || 0;
@@ -587,15 +590,22 @@
                 else if (d.isAlmacenamiento) invMap[k].calm += d.valorCargo;
                 else if (d.isColecta) invMap[k].ccol += d.valorCargo;
                 else if (d.isCargoVenta) invMap[k].cv += d.valorCargo;
-                invMap[k].t = Math.max(invMap[k].t, d.fechaObj.getTime());
+                
+                invMap[k].t = Math.max(invMap[k].t, time);
+                invMap[k].minT = Math.min(invMap[k].minT, time);
+                invMap[k].maxT = Math.max(invMap[k].maxT, time);
             });
 
             document.getElementById('monthly-records-body').innerHTML = Object.keys(invMap).sort((a,b) => invMap[b].t - invMap[a].t).map(k => {
                 const d = invMap[k];
                 const totalC = d.cv + d.ce + d.ca + d.calm + d.ccol;
+                const periodStr = `${new Date(d.minT).toLocaleDateString('es-CL')} - ${new Date(d.maxT).toLocaleDateString('es-CL')}`;
                 return `
                     <tr class="hover:bg-slate-100 border-b border-slate-100 last:border-0 text-[13px]">
-                        <td class="p-4 font-bold">${k}</td>
+                        <td class="p-4">
+                            <div class="font-bold text-slate-800">${k}</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">${periodStr}</div>
+                        </td>
                         <td class="p-4 text-right text-indigo-700 font-bold">${formatCLP(d.s)}</td>
                         <td class="p-4 text-right">${formatCLP(d.cv)}</td>
                         <td class="p-4 text-right">${formatCLP(d.ce)}</td>
@@ -655,7 +665,8 @@
             const invMap = {};
             sessionMainHistory.forEach(d => {
                 const k = d.numFactura || 'Sin N°';
-                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, sc: new Map() };
+                const time = d.fechaObj.getTime();
+                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, minT: time, maxT: time, sc: new Map() };
                 if (d.numVenta && !invMap[k].sc.has(d.numVenta)) {
                     invMap[k].s += d.ventaTotal || 0;
                     invMap[k].sc.set(d.numVenta, true);
@@ -665,6 +676,9 @@
                 else if (d.isAlmacenamiento) invMap[k].calm += d.valorCargo;
                 else if (d.isColecta) invMap[k].ccol += d.valorCargo;
                 else if (d.isCargoVenta) invMap[k].cv += d.valorCargo;
+                
+                invMap[k].minT = Math.min(invMap[k].minT, time);
+                invMap[k].maxT = Math.max(invMap[k].maxT, time);
             });
 
             const excelData = Object.keys(invMap).map(k => {
@@ -672,6 +686,7 @@
                 const totalC = d.cv + d.ce + d.ca + d.calm + d.ccol;
                 return {
                     "N° Factura": k,
+                    "Período": `${new Date(d.minT).toLocaleDateString('es-CL')} - ${new Date(d.maxT).toLocaleDateString('es-CL')}`,
                     "Ventas Brutas": d.s,
                     "Cargos Venta": d.cv,
                     "Cargos Envío": d.ce,
