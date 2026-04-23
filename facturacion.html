@@ -50,9 +50,7 @@
 </head>
 <body id="main-body" class="bg-gradient-custom text-slate-200 min-h-screen flex items-center justify-center p-4 transition-all duration-700">
 
-    <!-- ========================================== -->
-    <!-- MÓDULO DE LOGIN -->
-    <!-- ========================================== -->
+    <!-- LOGIN -->
     <div id="login-section" class="w-full max-w-md transition-all duration-500">
         <div class="glass-card p-8 rounded-3xl shadow-2xl">
             <div class="text-center mb-8">
@@ -84,12 +82,10 @@
     </div>
 
 
-    <!-- ========================================== -->
-    <!-- DASHBOARD DE FACTURACIÓN -->
-    <!-- ========================================== -->
+    <!-- DASHBOARD -->
     <div id="dashboard-section" class="hidden opacity-0 w-full max-w-7xl mx-auto my-4">
         
-        <!-- HEADER Y CARGA DE ARCHIVO -->
+        <!-- HEADER -->
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-fade-in">
             <div class="flex-1">
                 <h1 class="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
@@ -134,7 +130,7 @@
                     <p class="text-slate-500 text-sm font-medium">Ventas Totales Brutas</p>
                 </div>
                 <h3 class="text-3xl font-bold text-slate-800" id="kpi-ventas">$0</h3>
-                <p class="text-xs text-slate-400 mt-1">Suma del periodo seleccionado</p>
+                <p class="text-xs text-slate-400 mt-1">Suma única por Número de Venta</p>
             </div>
 
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center border-l-4 border-l-red-500">
@@ -149,19 +145,19 @@
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
                 <p class="text-slate-500 text-xs font-medium mb-1">Cargos por Venta</p>
                 <h3 class="text-xl font-bold text-orange-500" id="kpi-cargo-venta">$0</h3>
-                <p class="text-[10px] text-slate-400 mt-1 truncate">Neto de anulaciones</p>
+                <span id="pct-label-venta" class="text-[10px] text-slate-400 font-bold">0% de venta</span>
             </div>
 
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
                 <p class="text-slate-500 text-xs font-medium mb-1">Cargos por Envío</p>
                 <h3 class="text-xl font-bold text-orange-500" id="kpi-cargo-envio">$0</h3>
-                <p class="text-[10px] text-slate-400 mt-1 truncate">Neto de anulaciones</p>
+                <span id="pct-label-envio" class="text-[10px] text-slate-400 font-bold">0% de venta</span>
             </div>
 
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
                 <p class="text-slate-500 text-xs font-medium mb-1">Publicidad (Ads)</p>
                 <h3 class="text-xl font-bold text-orange-500" id="kpi-cargo-publi">$0</h3>
-                <p class="text-[10px] text-slate-400 mt-1 truncate">Neto de anulaciones</p>
+                <span id="pct-label-publi" class="text-[10px] text-slate-400 font-bold">0% de venta</span>
             </div>
 
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center cursor-pointer hover:bg-emerald-50 transition-colors border-l-4 border-l-emerald-500" onclick="openFullModal()">
@@ -176,12 +172,6 @@
                 </div>
             </div>
 
-        </div>
-
-        <!-- ERROR MESSAGE -->
-        <div id="error-container" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg flex items-center gap-3">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <p id="error-text"></p>
         </div>
 
         <!-- FILTROS -->
@@ -239,19 +229,14 @@
                 </div>
             </div>
 
-            <!-- Gráfico -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
-                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center justify-between">
-                    Ventas vs Gastos (Semanal)
-                    <span class="text-xs font-normal text-slate-400">Datos del periodo filtrado</span>
-                </h3>
                 <div class="chart-container">
                     <canvas id="financeChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- TABLA DETALLE CARGOS -->
+        <!-- TABLA DETALLE -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in mb-10" style="animation-delay: 0.4s">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 class="text-lg font-bold text-slate-800">Desglose de Cargos del Periodo</h3>
@@ -266,25 +251,16 @@
                             <th class="p-4 font-bold text-right bg-slate-50">Total Neto</th>
                         </tr>
                     </thead>
-                    <tbody id="charges-table-body" class="divide-y divide-slate-100">
-                        <!-- Dinámico -->
-                    </tbody>
+                    <tbody id="charges-table-body" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- HISTORIAL ACUMULADO POR FACTURA -->
+        <!-- HISTORIAL GLOBAL -->
         <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-fade-in mb-10" style="animation-delay: 0.5s">
-            <div class="p-6 flex justify-between items-center bg-slate-900 text-white">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center">
-                        <i class="fa-solid fa-file-lines text-lg"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-bold tracking-tight">Registro Histórico por Factura</h3>
-                        <p class="text-slate-400 text-xs font-medium">Consolidado con almacenamiento automático y opciones de limpieza</p>
-                    </div>
-                </div>
+            <div class="p-6 bg-slate-900 text-white flex items-center gap-3">
+                <i class="fa-solid fa-file-lines text-2xl"></i>
+                <h3 class="text-xl font-bold">Registro Histórico por Factura</h3>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse min-w-[1000px]">
@@ -302,9 +278,7 @@
                             <th class="p-4 text-center w-12"><i class="fa-solid fa-gear"></i></th>
                         </tr>
                     </thead>
-                    <tbody id="monthly-records-body" class="divide-y divide-slate-100">
-                        <tr><td colspan="10" class="p-12 text-center text-slate-400 italic text-sm">Sube archivos para iniciar el historial...</td></tr>
-                    </tbody>
+                    <tbody id="monthly-records-body" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
         </div>
@@ -317,127 +291,66 @@
         <div class="modal-overlay absolute inset-0" onclick="closeFullModal()"></div>
         <div class="bg-white w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl z-10 flex flex-col overflow-hidden">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-emerald-600 text-white">
-                <div>
-                    <h2 class="text-2xl font-bold">Detalle de Factura FULL</h2>
-                    <p class="text-emerald-100 text-sm">Cargos de Almacenamiento y Colecta detectados en la Factura</p>
-                </div>
-                <button onclick="closeFullModal()" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">
-                    <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
+                <h2 class="text-2xl font-bold">Detalle de Factura FULL</h2>
+                <button onclick="closeFullModal()"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <div class="p-6 overflow-y-auto custom-scrollbar bg-slate-50 flex-1">
-                <div id="full-details-body" class="space-y-2">
-                    <!-- Dinámico -->
-                </div>
+                <div id="full-details-body" class="space-y-2"></div>
             </div>
         </div>
     </div>
 
-    <!-- LOGIC -->
     <script>
         const CLAVE_MAESTRA = "factura"; 
         let sessionMainHistory = [];
         let latestUploadData = []; 
         let viewMode = 'single';   
         let financeChartInstance = null;
-        let globalMinDateStr = '';
-        let globalMaxDateStr = '';
+        let globalMinDateStr = '', globalMaxDateStr = '';
 
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
-        const calcPct = (val, total) => total > 0 ? `<span class="text-[10px] text-slate-500 font-medium block mt-0.5">${((val/total)*100).toFixed(1)}%</span>` : '<span class="text-[10px] text-slate-400 block mt-0.5">0.0%</span>';
 
-        // PERSISTENCIA DE DATOS
-        const saveData = () => {
-            localStorage.setItem('varinBillingHistory', JSON.stringify(sessionMainHistory));
-        };
-
+        const saveData = () => localStorage.setItem('varinBillingHistory', JSON.stringify(sessionMainHistory));
         const loadData = () => {
             const saved = localStorage.getItem('varinBillingHistory');
             if (saved) {
                 try {
-                    sessionMainHistory = JSON.parse(saved).map(d => ({
-                        ...d,
-                        fechaObj: new Date(d.fechaObj)
-                    }));
-                } catch (e) {
-                    console.error("Error cargando historial", e);
-                    sessionMainHistory = [];
-                }
+                    sessionMainHistory = JSON.parse(saved).map(d => ({ ...d, fechaObj: new Date(d.fechaObj) }));
+                } catch (e) { sessionMainHistory = []; }
             }
         };
 
-        // ACCIÓN ELIMINAR FACTURA
         window.deleteInvoice = (invKey) => {
             if (confirm(`¿Estás seguro de eliminar los registros de la factura: ${invKey}?`)) {
                 sessionMainHistory = sessionMainHistory.filter(d => (d.numFactura || 'Sin N°') !== invKey);
                 saveData();
-                if (sessionMainHistory.length === 0) {
-                    latestUploadData = [];
-                    viewMode = 'single';
-                }
                 updateApp(true);
             }
         };
 
         function validarAcceso() {
-            const input = document.getElementById('pass-input').value;
-            if (input === CLAVE_MAESTRA) {
-                document.getElementById('login-section').classList.add('opacity-0', 'scale-95', 'pointer-events-none');
-                setTimeout(() => {
-                    document.getElementById('login-section').classList.add('hidden');
-                    document.getElementById('main-body').className = "bg-slate-50 text-slate-900 p-4 min-h-screen block";
-                    document.getElementById('dashboard-section').classList.remove('hidden');
-                    
-                    loadData();
-                    if (sessionMainHistory.length > 0) {
-                        viewMode = 'accumulated';
-                        const btnText = document.getElementById('btn-acumulado-text');
-                        const btnNode = document.getElementById('btn-acumulado');
-                        btnText.textContent = "Última Factura";
-                        btnNode.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
-                        btnNode.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
-                    }
-                    updateApp(true);
-                    
-                    setTimeout(() => { document.getElementById('dashboard-section').classList.remove('opacity-0'); }, 50);
-                }, 400);
-            } else {
-                document.getElementById('error-box').classList.remove('hidden');
-            }
+            if (document.getElementById('pass-input').value === CLAVE_MAESTRA) {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('main-body').className = "bg-slate-50 text-slate-900 p-4 min-h-screen block";
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                loadData();
+                if (sessionMainHistory.length > 0) viewMode = 'accumulated';
+                updateApp(true);
+                setTimeout(() => { document.getElementById('dashboard-section').classList.remove('opacity-0'); }, 50);
+            } else document.getElementById('error-box').classList.remove('hidden');
         }
 
         const parseAmount = (valStr) => {
             if (valStr === undefined || valStr === null) return 0;
             let s = String(valStr).trim().replace(/\$/g, '').replace(/\s/g, '');
-            if (!s) return 0;
-            
+            if (!s || s === "-") return 0;
             if (s.includes('.') && s.includes(',')) {
                 if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
                 else s = s.replace(/,/g, '');
-            } else if (s.includes(',')) {
-                s = s.replace(/\,/g, '.');
-            } else if (s.includes('.')) {
-                if (/\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
-            }
+            } else if (s.includes(',')) s = s.replace(/\,/g, '.');
+            else if (s.includes('.')) if (/\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
             const num = parseFloat(s);
             return isNaN(num) ? 0 : num;
-        };
-
-        const getWeekInfo = (dateObj) => {
-            const d = new Date(dateObj.getTime());
-            d.setHours(0, 0, 0, 0);
-            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-            const week1 = new Date(d.getFullYear(), 0, 4);
-            const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-            return `Sem ${weekNum} (${d.getFullYear()})`;
-        };
-
-        const openFullModal = () => { document.getElementById('modal-full').classList.remove('hidden'); };
-        const closeFullModal = () => { document.getElementById('modal-full').classList.add('hidden'); };
-
-        const showError = (msg) => {
-            document.getElementById('error-container').classList.remove('hidden');
-            document.getElementById('error-text').textContent = msg;
         };
 
         const processMainData = (text) => {
@@ -445,13 +358,13 @@
                 const lines = text.split('\n');
                 let headerIndex = -1;
                 for (let i = 0; i < Math.min(50, lines.length); i++) {
-                    const rowLower = lines[i].toLowerCase();
-                    if (rowLower.includes('detalle') && (rowLower.includes('valor del cargo') || rowLower.includes('importe'))) {
+                    const l = lines[i].toLowerCase();
+                    if (l.includes('detalle') && (l.includes('valor del cargo') || l.includes('importe') || l.includes('monto'))) {
                         headerIndex = i;
                         break;
                     }
                 }
-                if (headerIndex === -1) throw new Error('Formato Factura ML no reconocido.');
+                if (headerIndex === -1) throw new Error('Formato no reconocido.');
 
                 const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
                 const parsed = [];
@@ -463,374 +376,226 @@
                     
                     const detalle = row['Detalle'];
                     if (detalle) {
-                        const dateStr = row['Fecha del cargo'] || row['Fecha de venta'] || row['Fecha'];
+                        const dateStr = row['Fecha del cargo'] || row['Fecha de cargo'] || row['Fecha de venta'] || row['Fecha'];
                         let dateObj = new Date();
                         if (dateStr) {
                             const p = dateStr.split(/[-/]/);
-                            if (p.length === 3) dateObj = p[0].length === 4 ? new Date(p[0], p[1]-1, p[2]) : new Date(p[2], p[1]-1, p[0]);
+                            if (p.length >= 3) dateObj = p[0].length === 4 ? new Date(p[0], p[1]-1, p[2]) : new Date(p[2], p[1]-1, p[0]);
                         }
                         
-                        const valor = parseAmount(row['Valor del cargo'] || row['Importe'] || row['Monto']);
+                        const valor = parseAmount(row['Valor del cargo'] || row['Monto del cargo'] || row['Importe'] || row['Monto']);
+                        const isAlm = /almacenamiento/i.test(detalle);
+                        const isCol = /colecta/i.test(detalle);
+                        const isAds = /publicidad|ads/i.test(detalle);
+                        const isEnv = /env[ií]o/i.test(detalle) && !isAlm && !isCol;
+                        const isVen = (!isAds && !isEnv && !isAlm && !isCol && !/impuesto/i.test(detalle));
                         
-                        const isAlmacenamiento = /almacenamiento/i.test(detalle);
-                        const isColecta = /colecta/i.test(detalle);
-                        const esAnulacion = /anulaci[oó]n/i.test(detalle);
-                        const isPublicidad = /publicidad|ads/i.test(detalle);
-                        const isEnvio = /env[ií]o/i.test(detalle) && !isAlmacenamiento && !isColecta;
-                        const isCargoVenta = (!isPublicidad && !isEnvio && !isAlmacenamiento && !isColecta && !/impuesto/i.test(detalle));
-                        const isVentaDirecta = detalle === 'Cargo por venta';
-
-                        let numFactura = 'Sin N°';
+                        let fact = 'Sin N°';
                         const fKey = Object.keys(row).find(k => k.toLowerCase().includes('factura'));
                         if (fKey && row[fKey]) {
                             const raw = row[fKey].trim();
-                            if (raw && !raw.toLowerCase().includes('disponible') && !raw.toLowerCase().includes('pendiente')) {
-                                numFactura = raw;
-                            }
+                            if (raw && !raw.toLowerCase().includes('disponible') && !raw.toLowerCase().includes('pendiente')) fact = raw;
                         }
 
                         parsed.push({
-                            fechaObj: dateObj, 
-                            detalle: detalle, 
-                            valorCargo: valor,
-                            esAnulacion: esAnulacion,
-                            isPublicidad: isPublicidad,
-                            isEnvio: isEnvio,
-                            isCargoVenta: isCargoVenta,
-                            isAlmacenamiento: isAlmacenamiento,
-                            isColecta: isColecta,
-                            ventaTotal: isVentaDirecta ? parseAmount(row['Total de la venta']) : 0,
-                            cantVendida: isVentaDirecta ? (parseInt(row['Cantidad vendida']) || 0) : 0,
+                            fechaObj: dateObj, detalle, valorCargo: valor,
+                            esAnulacion: /anulaci[oó]n/i.test(detalle),
+                            isPublicidad: isAds, isEnvio: isEnv, isCargoVenta: isVen, isAlmacenamiento: isAlm, isColecta: isCol,
+                            ventaTotal: parseAmount(row['Total de la venta']),
+                            cantVendida: parseInt(row['Cantidad vendida']) || 0,
                             numEnvio: row['Número de envío'] || '',
-                            numFactura: numFactura,
-                            rawDetalle: detalle
+                            numFactura: fact,
+                            numVenta: row['Número de venta'] || ''
                         });
                     }
                 }
-                
                 if (parsed.length > 0) {
-                    const newFacturas = new Set(parsed.map(d => d.numFactura));
-                    
-                    // Eliminar registros antiguos que correspondan a las facturas que se están subiendo
-                    // para permitir sobrescribir de manera automática.
-                    sessionMainHistory = sessionMainHistory.filter(d => !newFacturas.has(d.numFactura));
-                    
+                    const fSet = new Set(parsed.map(d => d.numFactura));
+                    sessionMainHistory = sessionMainHistory.filter(d => !fSet.has(d.numFactura));
                     sessionMainHistory = [...sessionMainHistory, ...parsed];
                     latestUploadData = parsed;
-                    
                     saveData();
-                    updateApp(true); 
+                    updateApp(true);
                 }
-            } catch (err) { showError(err.message); }
+            } catch (err) { alert(err.message); }
         };
 
         const toggleViewMode = () => {
-            if (sessionMainHistory.length === 0) {
-                showError("Aún no hay datos en el historial. Sube una factura primero.");
-                return;
-            }
-            
             viewMode = viewMode === 'accumulated' ? 'single' : 'accumulated';
-            
-            const btnText = document.getElementById('btn-acumulado-text');
-            const btnNode = document.getElementById('btn-acumulado');
-            
-            if (viewMode === 'accumulated') {
-                btnText.textContent = "Última Factura";
-                btnNode.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
-                btnNode.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
-            } else {
-                btnText.textContent = "Acumulado";
-                btnNode.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
-                btnNode.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
-            }
-            
-            updateApp(true); 
+            document.getElementById('btn-acumulado-text').textContent = viewMode === 'accumulated' ? "Última Carga" : "Acumulado";
+            updateApp(true);
         };
 
         const handleFileUpload = (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-
-            latestUploadData = [];
-            viewMode = 'single';
-            const btnText = document.getElementById('btn-acumulado-text');
-            if (btnText) btnText.textContent = "Acumulado";
-            const btnNode = document.getElementById('btn-acumulado');
-            if (btnNode) {
-                btnNode.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
-                btnNode.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
-            }
-
-            const originalConsoleError = console.error;
-            console.error = function(...args) {
-                const msg = args.map(a => String(a)).join(' ');
-                if (msg.includes('Bad uncompressed size')) return;
-                originalConsoleError.apply(console, args);
-            };
-
             reader.onload = (evt) => {
                 const buffer = evt.target.result;
                 const bytes = new Uint8Array(buffer);
-                const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
-                const isOldExcel = bytes[0] === 0xD0 && bytes[1] === 0xCF;
-                
-                if (isZip || isOldExcel) {
-                    try {
-                        const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-                        workbook.SheetNames.forEach(name => {
-                            processMainData(XLSX.utils.sheet_to_csv(workbook.Sheets[name]));
-                        });
-                    } catch (err) { 
-                        const text = new TextDecoder().decode(buffer);
-                        processMainData(text);
-                    }
-                } else { 
-                    const text = new TextDecoder().decode(buffer);
-                    processMainData(text);
-                }
-                
-                console.error = originalConsoleError;
-                e.target.value = null; // reset input
+                if (bytes[0] === 0x50 && bytes[1] === 0x4B) {
+                    const wb = XLSX.read(buffer, { type: 'array' });
+                    wb.SheetNames.forEach(n => processMainData(XLSX.utils.sheet_to_csv(wb.Sheets[n])));
+                } else processMainData(new TextDecoder().decode(buffer));
             };
             reader.readAsArrayBuffer(file);
         };
 
         document.getElementById('file-upload').addEventListener('change', handleFileUpload);
 
-        function resetDates() {
-            document.getElementById('date-start').value = globalMinDateStr;
-            document.getElementById('date-end').value = globalMaxDateStr;
-            updateApp();
-        }
+        const updateApp = (resetRange = false) => {
+            const data = viewMode === 'accumulated' ? sessionMainHistory : latestUploadData;
+            if (data.length === 0) return;
 
-        const updateApp = (isNewFile = false) => {
-            const sourceData = viewMode === 'accumulated' ? sessionMainHistory : latestUploadData;
-
-            if (sourceData.length === 0) {
-                // Set UI to zero
-                ['kpi-ventas', 'kpi-gasto-total', 'kpi-cargo-venta', 'kpi-cargo-envio', 'kpi-cargo-publi', 'kpi-cargo-full', 'kpi-full-alm', 'kpi-full-col', 'op-gasto-total'].forEach(id => document.getElementById(id).textContent = '$0');
-                document.getElementById('kpi-porcentaje-costos').textContent = '(0.0%)';
-                ['op-articulos', 'op-envios', 'op-anulaciones'].forEach(id => document.getElementById(id).textContent = '0');
-                document.getElementById('full-details-body').innerHTML = '<p class="text-center text-slate-400 p-8">No hay cargos FULL en este periodo.</p>';
-                document.getElementById('charges-table-body').innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Sube la Factura ML para ver el análisis detallado.</td></tr>';
-                document.getElementById('monthly-records-body').innerHTML = '<tr><td colspan="10" class="p-12 text-center text-slate-400 italic text-sm">Sube archivos para iniciar el historial...</td></tr>';
-                if (financeChartInstance) financeChartInstance.destroy();
-                document.getElementById('header-status').innerHTML = `Esperando reportes...`;
-                document.getElementById('date-badge').classList.add('hidden');
-                return;
+            const allTs = data.map(d => d.fechaObj.getTime());
+            if (resetRange) {
+                globalMinDateStr = new Date(Math.min(...allTs)).toISOString().split('T')[0];
+                globalMaxDateStr = new Date(Math.max(...allTs)).toISOString().split('T')[0];
+                document.getElementById('date-start').value = globalMinDateStr;
+                document.getElementById('date-end').value = globalMaxDateStr;
             }
 
-            const allDates = sourceData.map(d => d.fechaObj.getTime());
-            if (allDates.length > 0) {
-                globalMinDateStr = new Date(Math.min(...allDates)).toISOString().split('T')[0];
-                globalMaxDateStr = new Date(Math.max(...allDates)).toISOString().split('T')[0];
+            const start = new Date(document.getElementById('date-start').value + "T00:00:00");
+            const end = new Date(document.getElementById('date-end').value + "T23:59:59");
+            const filtered = data.filter(d => d.fechaObj >= start && d.fechaObj <= end);
+
+            let vTotal = 0, cVenta = 0, cEnvio = 0, cAds = 0, cAlm = 0, cCol = 0, tArt = 0, countAnul = 0;
+            const envSet = new Set(), groups = {}, fullItems = [], salesCounted = new Set();
+
+            filtered.forEach(d => {
+                // Lógica de cálculo de venta: Sumar Total de la venta (col V) para cada ID de venta único (col O)
+                if (d.numVenta && !salesCounted.has(d.numVenta) && d.ventaTotal > 0) {
+                    vTotal += d.ventaTotal;
+                    salesCounted.add(d.numVenta);
+                }
+
+                tArt += d.cantVendida;
+                if (d.esAnulacion) countAnul++;
+                if (d.numEnvio) envSet.add(d.numEnvio);
                 
-                if (isNewFile) {
-                    document.getElementById('date-start').value = globalMinDateStr;
-                    document.getElementById('date-end').value = globalMaxDateStr;
-                }
-            }
+                if (d.isPublicidad) cAds += d.valorCargo;
+                else if (d.isEnvio) cEnvio += d.valorCargo;
+                else if (d.isAlmacenamiento) { cAlm += d.valorCargo; fullItems.push(d); }
+                else if (d.isColecta) { cCol += d.valorCargo; fullItems.push(d); }
+                else if (d.isCargoVenta) cVenta += d.valorCargo;
 
-            const startStr = document.getElementById('date-start').value;
-            const endStr = document.getElementById('date-end').value;
-            const start = new Date(startStr + "T00:00:00");
-            const end = new Date(endStr + "T23:59:59");
-
-            const filteredMain = sourceData.filter(d => d.fechaObj >= start && d.fechaObj <= end);
-
-            let tVenta = 0, tArt = 0, countAnul = 0;
-            let cVenta = 0, cEnvio = 0, cPubli = 0;
-            let cFullAlm = 0, cFullCol = 0;
-            const envios = new Set();
-            const groups = {};
-            const fullItems = [];
-
-            // Historial (Usamos la data global, sin filtrar por fechas temporales)
-            const invoiceData = {};
-
-            sessionMainHistory.forEach(d => {
-                const invKey = d.numFactura || 'Sin N°';
-                if (!invoiceData[invKey]) {
-                    invoiceData[invKey] = {
-                        sales: 0, cVenta: 0, cEnvio: 0, cPubli: 0, cFullAlm: 0, cFullCol: 0,
-                        latestDate: 0 
-                    };
-                }
-
-                const time = d.fechaObj.getTime();
-                if (time > invoiceData[invKey].latestDate) invoiceData[invKey].latestDate = time;
-
-                if (d.ventaTotal) invoiceData[invKey].sales += d.ventaTotal;
-
-                if (d.isAlmacenamiento) invoiceData[invKey].cFullAlm += d.valorCargo;
-                else if (d.isColecta) invoiceData[invKey].cFullCol += d.valorCargo;
-                else if (d.isPublicidad) invoiceData[invKey].cPubli += d.valorCargo;
-                else if (d.isEnvio) invoiceData[invKey].cEnvio += d.valorCargo;
-                else if (d.isCargoVenta) invoiceData[invKey].cVenta += d.valorCargo;
-
-                // Datos Dashboard Superior
-                if (d.fechaObj >= start && d.fechaObj <= end && sourceData.includes(d)) {
-                    tVenta += d.ventaTotal;
-                    tArt += d.cantVendida;
-                    if (d.numEnvio) envios.add(d.numEnvio);
-                    if (d.esAnulacion) countAnul++;
-                    
-                    if (d.isPublicidad) cPubli += d.valorCargo;
-                    else if (d.isEnvio) cEnvio += d.valorCargo;
-                    else if (d.isAlmacenamiento) {
-                        cFullAlm += d.valorCargo;
-                        fullItems.push(d);
-                    }
-                    else if (d.isColecta) {
-                        cFullCol += d.valorCargo;
-                        fullItems.push(d);
-                    }
-                    else if (d.isCargoVenta) cVenta += d.valorCargo;
-
-                    if (!d.isAlmacenamiento && !d.isColecta) {
-                        let cat = d.detalle.replace(/anulaci[oó]n del /i, '');
-                        cat = cat.charAt(0).toUpperCase() + cat.slice(1);
-                        if (!groups[cat]) groups[cat] = { b: 0, a: 0 };
-                        if (d.esAnulacion) groups[cat].a += d.valorCargo; else groups[cat].b += d.valorCargo;
-                    }
-                }
+                const cat = d.detalle.replace(/anulaci[oó]n del /i, '');
+                if (!groups[cat]) groups[cat] = { b: 0, a: 0 };
+                if (d.esAnulacion) groups[cat].a += d.valorCargo; else groups[cat].b += d.valorCargo;
             });
 
-            const totalFull = cFullAlm + cFullCol;
-            const totalGasto = cVenta + cEnvio + cPubli + totalFull;
-
-            document.getElementById('kpi-ventas').textContent = formatCLP(tVenta);
-            document.getElementById('kpi-gasto-total').textContent = formatCLP(totalGasto);
-            document.getElementById('kpi-porcentaje-costos').textContent = `(${(tVenta > 0 ? (totalGasto/tVenta)*100 : 0).toFixed(1)}%)`;
+            const tGasto = cVenta + cEnvio + cAds + cAlm + cCol;
+            document.getElementById('kpi-ventas').textContent = formatCLP(vTotal);
+            document.getElementById('kpi-gasto-total').textContent = formatCLP(tGasto);
+            document.getElementById('kpi-porcentaje-costos').textContent = `(${(vTotal > 0 ? (tGasto/vTotal)*100 : 0).toFixed(1)}%)`;
+            
+            // Actualización de montos y etiquetas de porcentaje
             document.getElementById('kpi-cargo-venta').textContent = formatCLP(cVenta);
+            document.getElementById('pct-label-venta').textContent = `${(vTotal > 0 ? (Math.abs(cVenta)/vTotal)*100 : 0).toFixed(1)}% de venta`;
+            
             document.getElementById('kpi-cargo-envio').textContent = formatCLP(cEnvio);
-            document.getElementById('kpi-cargo-publi').textContent = formatCLP(cPubli);
-            document.getElementById('kpi-cargo-full').textContent = formatCLP(totalFull);
-            document.getElementById('kpi-full-alm').textContent = formatCLP(cFullAlm);
-            document.getElementById('kpi-full-col').textContent = formatCLP(cFullCol);
+            document.getElementById('pct-label-envio').textContent = `${(vTotal > 0 ? (Math.abs(cEnvio)/vTotal)*100 : 0).toFixed(1)}% de venta`;
+            
+            document.getElementById('kpi-cargo-publi').textContent = formatCLP(cAds);
+            document.getElementById('pct-label-publi').textContent = `${(vTotal > 0 ? (Math.abs(cAds)/vTotal)*100 : 0).toFixed(1)}% de venta`;
+            
+            document.getElementById('kpi-cargo-full').textContent = formatCLP(cAlm + cCol);
+            document.getElementById('kpi-full-alm').textContent = formatCLP(cAlm);
+            document.getElementById('kpi-full-col').textContent = formatCLP(cCol);
             document.getElementById('op-articulos').textContent = tArt;
-            document.getElementById('op-envios').textContent = envios.size;
+            document.getElementById('op-envios').textContent = envSet.size;
             document.getElementById('op-anulaciones').textContent = countAnul;
-            document.getElementById('op-gasto-total').textContent = formatCLP(totalGasto);
+            document.getElementById('op-gasto-total').textContent = formatCLP(tGasto);
 
-            document.getElementById('full-details-body').innerHTML = fullItems.length > 0 ? fullItems.map(d => {
-                const badgeInfo = d.isAlmacenamiento ? "Almacenamiento" : "Colecta";
-                return `
+            document.getElementById('full-details-body').innerHTML = fullItems.map(d => `
                 <div class="bg-white p-3 rounded-lg border border-slate-100 flex justify-between items-center shadow-sm">
                     <div>
                         <p class="font-bold text-slate-800 text-xs">${d.detalle}</p>
-                        <p class="text-[10px] text-slate-500">${d.fechaObj.toLocaleDateString('es-CL')} • <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${badgeInfo}</span></p>
+                        <p class="text-[10px] text-slate-500">${d.fechaObj.toLocaleDateString()} • <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">${d.isAlmacenamiento ? 'Almacenamiento' : 'Colecta'}</span></p>
                     </div>
                     <span class="font-bold text-emerald-600">${formatCLP(d.valorCargo)}</span>
                 </div>
-            `}).join('') : '<p class="text-center text-slate-400 p-8">No hay cargos FULL en este periodo.</p>';
+            `).join('') || '<p class="text-center text-slate-400 p-8">No hay cargos FULL.</p>';
 
-            const tBody = document.getElementById('charges-table-body');
-            let rows = Object.keys(groups).map(k => {
-                const n = groups[k].b + groups[k].a;
-                return `<tr class="hover:bg-slate-50 text-sm"><td class="p-4 font-medium text-slate-700">${k}</td><td class="p-4 text-right text-slate-500">${formatCLP(groups[k].b)}</td><td class="p-4 text-right text-emerald-600">${groups[k].a !== 0 ? formatCLP(groups[k].a) : '-'}</td><td class="p-4 text-right font-bold text-slate-900 bg-slate-50/30">${formatCLP(n)}</td></tr>`;
-            }).join('');
-            
-            if (totalFull > 0) {
-                if (cFullAlm !== 0) {
-                    rows += `<tr class="bg-emerald-50 text-sm font-bold text-emerald-700"><td class="p-4">Cargos Almacenamiento FULL</td><td class="p-4 text-right">${formatCLP(cFullAlm)}</td><td class="p-4 text-right">-</td><td class="p-4 text-right font-black bg-emerald-100/30">${formatCLP(cFullAlm)}</td></tr>`;
+            document.getElementById('charges-table-body').innerHTML = Object.keys(groups).map(k => `
+                <tr class="hover:bg-slate-50 text-sm">
+                    <td class="p-4 font-medium">${k}</td>
+                    <td class="p-4 text-right">${formatCLP(groups[k].b)}</td>
+                    <td class="p-4 text-right text-emerald-600">${groups[k].a ? formatCLP(groups[k].a) : '-'}</td>
+                    <td class="p-4 text-right font-bold bg-slate-50">${formatCLP(groups[k].b + groups[k].a)}</td>
+                </tr>
+            `).join('');
+
+            const invMap = {};
+            sessionMainHistory.forEach(d => {
+                const k = d.numFactura || 'Sin N°';
+                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, t:0, sc: new Set() };
+                if (d.numVenta && !invMap[k].sc.has(d.numVenta) && d.ventaTotal > 0) {
+                    invMap[k].s += d.ventaTotal;
+                    invMap[k].sc.add(d.numVenta);
                 }
-                if (cFullCol !== 0) {
-                    rows += `<tr class="bg-emerald-50 text-sm font-bold text-emerald-700"><td class="p-4">Cargos Servicio Colecta FULL</td><td class="p-4 text-right">${formatCLP(cFullCol)}</td><td class="p-4 text-right">-</td><td class="p-4 text-right font-black bg-emerald-100/30">${formatCLP(cFullCol)}</td></tr>`;
-                }
-            }
-            tBody.innerHTML = rows || '<tr><td colspan="4" class="p-8 text-center text-slate-400">Sube la Factura ML para ver el análisis detallado.</td></tr>';
-
-            const sortedInvoices = Object.keys(invoiceData).sort((a, b) => invoiceData[b].latestDate - invoiceData[a].latestDate);
-            const monthlyBody = document.getElementById('monthly-records-body');
-            
-            if (sortedInvoices.length > 0) {
-                monthlyBody.innerHTML = sortedInvoices.map(inv => {
-                    const data = invoiceData[inv];
-                    const vnt = data.sales;
-                    const totalCargos = Math.abs(data.cVenta) + Math.abs(data.cEnvio) + Math.abs(data.cPubli) + Math.abs(data.cFullAlm) + Math.abs(data.cFullCol);
-                    const realMargin = vnt - totalCargos;
-                    const marginColor = realMargin >= 0 ? 'text-emerald-600' : 'text-rose-600';
-                    const dateStr = data.latestDate > 0 ? new Date(data.latestDate).toLocaleDateString('es-CL') : '-';
-
-                    return `
-                        <tr class="hover:bg-slate-100 transition-colors border-b border-slate-100 last:border-0">
-                            <td class="p-4">
-                                <div class="font-bold text-slate-800">${inv}</div>
-                                <div class="text-[10px] text-slate-500 font-mono mt-1">Últ. reg: ${dateStr}</div>
-                            </td>
-                            <td class="p-4 text-right">
-                                <span class="font-bold text-indigo-700">${formatCLP(vnt)}</span>
-                            </td>
-                            <td class="p-4 text-right">
-                                <span class="font-medium text-slate-700">${formatCLP(Math.abs(data.cVenta))}</span>
-                                ${calcPct(Math.abs(data.cVenta), vnt)}
-                            </td>
-                            <td class="p-4 text-right">
-                                <span class="font-medium text-slate-700">${formatCLP(Math.abs(data.cEnvio))}</span>
-                                ${calcPct(Math.abs(data.cEnvio), vnt)}
-                            </td>
-                            <td class="p-4 text-right">
-                                <span class="font-medium text-slate-700">${formatCLP(Math.abs(data.cPubli))}</span>
-                                ${calcPct(Math.abs(data.cPubli), vnt)}
-                            </td>
-                            <td class="p-4 text-right bg-emerald-50/50">
-                                <span class="font-bold text-emerald-700">${formatCLP(Math.abs(data.cFullAlm))}</span>
-                                ${calcPct(Math.abs(data.cFullAlm), vnt)}
-                            </td>
-                            <td class="p-4 text-right bg-emerald-50/50">
-                                <span class="font-bold text-emerald-700">${formatCLP(Math.abs(data.cFullCol))}</span>
-                                ${calcPct(Math.abs(data.cFullCol), vnt)}
-                            </td>
-                            <td class="p-4 text-right bg-rose-50/50">
-                                <span class="font-bold text-rose-700">${formatCLP(totalCargos)}</span>
-                                ${calcPct(totalCargos, vnt)}
-                            </td>
-                            <td class="p-4 text-right bg-indigo-50/20">
-                                <span class="text-lg font-black ${marginColor}">${formatCLP(realMargin)}</span>
-                            </td>
-                            <td class="p-4 text-center">
-                                <button onclick="deleteInvoice('${inv}')" class="text-rose-400 hover:text-rose-600 transition-colors" title="Eliminar Factura">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
-
-            const cData = {};
-            filteredMain.forEach(d => {
-                const w = getWeekInfo(d.fechaObj);
-                if (!cData[w]) cData[w] = { v: 0, c: 0, t: d.fechaObj.getTime() };
-                cData[w].v += d.ventaTotal || 0;
-                cData[w].c += d.valorCargo || 0;
+                if (d.isPublicidad) invMap[k].ca += d.valorCargo;
+                else if (d.isEnvio) invMap[k].ce += d.valorCargo;
+                else if (d.isAlmacenamiento) invMap[k].calm += d.valorCargo;
+                else if (d.isColecta) invMap[k].ccol += d.valorCargo;
+                else if (d.isCargoVenta) invMap[k].cv += d.valorCargo;
+                invMap[k].t = Math.max(invMap[k].t, d.fechaObj.getTime());
             });
-            const labels = Object.keys(cData).sort((a,b) => cData[a].t - cData[b].t);
+
+            document.getElementById('monthly-records-body').innerHTML = Object.keys(invMap).sort((a,b) => invMap[b].t - invMap[a].t).map(k => {
+                const d = invMap[k];
+                const totalC = d.cv + d.ce + d.ca + d.calm + d.ccol;
+                return `
+                    <tr class="hover:bg-slate-100 border-b border-slate-100 last:border-0 text-[13px]">
+                        <td class="p-4 font-bold">${k}</td>
+                        <td class="p-4 text-right text-indigo-700 font-bold">${formatCLP(d.s)}</td>
+                        <td class="p-4 text-right">${formatCLP(d.cv)}</td>
+                        <td class="p-4 text-right">${formatCLP(d.ce)}</td>
+                        <td class="p-4 text-right">${formatCLP(d.ca)}</td>
+                        <td class="p-4 text-right text-emerald-700">${formatCLP(d.calm)}</td>
+                        <td class="p-4 text-right text-emerald-700">${formatCLP(d.ccol)}</td>
+                        <td class="p-4 text-right font-bold text-rose-700 bg-rose-50/30">${formatCLP(totalC)}</td>
+                        <td class="p-4 text-right font-black ${d.s - totalC >=0 ? 'text-emerald-600':'text-rose-600'} bg-indigo-50/20">${formatCLP(d.s - totalC)}</td>
+                        <td class="p-4 text-center"><button onclick="deleteInvoice('${k}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            updateChart(filtered);
+            document.getElementById('header-status').textContent = `Analizando ${filtered.length} registros.`;
+            document.getElementById('date-range').textContent = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+            document.getElementById('date-badge').classList.remove('hidden');
+        };
+
+        const updateChart = (filtered) => {
+            const cData = {};
+            filtered.forEach(d => {
+                const day = d.fechaObj.toISOString().split('T')[0];
+                if (!cData[day]) cData[day] = { v: 0, c: 0, s: new Set() };
+                if (d.numVenta && !cData[day].s.has(d.numVenta) && d.ventaTotal > 0) {
+                    cData[day].v += d.ventaTotal;
+                    cData[day].s.add(d.numVenta);
+                }
+                cData[day].c += d.valorCargo;
+            });
+            const labels = Object.keys(cData).sort();
             if (financeChartInstance) financeChartInstance.destroy();
             financeChartInstance = new Chart(document.getElementById('financeChart'), {
                 type: 'bar',
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Ventas Brutas', data: labels.map(l => cData[l].v), backgroundColor: '#6366f1', borderRadius: 6 },
-                        { label: 'Gasto Consolidado', data: labels.map(l => Math.abs(cData[l].c)), backgroundColor: '#f43f5e', borderRadius: 6 }
+                        { label: 'Ventas Únicas', data: labels.map(l => cData[l].v), backgroundColor: '#6366f1', borderRadius: 6 },
+                        { label: 'Gastos', data: labels.map(l => Math.abs(cData[l].c)), backgroundColor: '#f43f5e', borderRadius: 6 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCLP(v) } } } }
+                options: { responsive: true, maintainAspectRatio: false }
             });
-
-            const modeLabel = viewMode === 'accumulated' ? 'historial acumulado' : 'la última factura';
-            document.getElementById('header-status').innerHTML = `Analizando <b>${filteredMain.length}</b> registros de ${modeLabel}.`;
-            if (globalMinDateStr) {
-                document.getElementById('date-range').textContent = `${start.toLocaleDateString('es-CL', {day:'2-digit', month:'short'})} al ${end.toLocaleDateString('es-CL', {day:'2-digit', month:'short'})}`;
-                document.getElementById('date-badge').classList.remove('hidden');
-            }
-            document.getElementById('clear-filters').classList.toggle('hidden', document.getElementById('date-start').value === globalMinDateStr && document.getElementById('date-end').value === globalMaxDateStr);
         };
 
+        const openFullModal = () => document.getElementById('modal-full').classList.remove('hidden');
+        const closeFullModal = () => document.getElementById('modal-full').classList.add('hidden');
+        const resetDates = () => updateApp(true);
         document.getElementById('date-start').addEventListener('change', () => updateApp());
         document.getElementById('date-end').addEventListener('change', () => updateApp());
     </script>
