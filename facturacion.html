@@ -230,6 +230,10 @@
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
+                    Ventas vs Gastos (Agrupado por Semana)
+                    <span class="text-xs font-normal text-slate-400">Basado en periodo filtrado</span>
+                </h3>
                 <div class="chart-container">
                     <canvas id="financeChart"></canvas>
                 </div>
@@ -258,12 +262,18 @@
 
         <!-- HISTORIAL GLOBAL -->
         <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-fade-in mb-10" style="animation-delay: 0.5s">
-            <div class="p-6 bg-slate-900 text-white flex items-center gap-3">
-                <i class="fa-solid fa-file-lines text-2xl"></i>
-                <h3 class="text-xl font-bold">Registro Histórico por Factura</h3>
+            <div class="p-6 bg-slate-900 text-white flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-file-lines text-2xl"></i>
+                    <h3 class="text-xl font-bold">Registro Histórico por Factura</h3>
+                </div>
+                <button onclick="exportHistoryToExcel()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg active:scale-95">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Descargar Excel
+                </button>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse min-w-[1000px]">
+                <table id="history-table" class="w-full text-left border-collapse min-w-[1000px]">
                     <thead>
                         <tr class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b border-slate-200">
                             <th class="p-4 w-48">Nº Factura</th>
@@ -318,6 +328,15 @@
                     sessionMainHistory = JSON.parse(saved).map(d => ({ ...d, fechaObj: new Date(d.fechaObj) }));
                 } catch (e) { sessionMainHistory = []; }
             }
+        };
+
+        const getWeekInfo = (dateObj) => {
+            const d = new Date(dateObj.getTime());
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+            const week1 = new Date(d.getFullYear(), 0, 4);
+            const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+            return `Sem ${weekNum} (${d.getFullYear()})`;
         };
 
         window.deleteInvoice = (invKey) => {
@@ -430,13 +449,40 @@
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
+
+            // Supresión temporal de errores ruidosos de la librería xlsx en el log de consola
+            const originalConsoleError = console.error;
+            console.error = function(...args) {
+                const msg = args.map(a => String(a)).join(' ');
+                if (msg.includes('Bad uncompressed size')) return;
+                originalConsoleError.apply(console, args);
+            };
+
             reader.onload = (evt) => {
                 const buffer = evt.target.result;
                 const bytes = new Uint8Array(buffer);
+                
+                // Intento de lectura binaria (XLSX / ZIP)
                 if (bytes[0] === 0x50 && bytes[1] === 0x4B) {
-                    const wb = XLSX.read(buffer, { type: 'array' });
-                    wb.SheetNames.forEach(n => processMainData(XLSX.utils.sheet_to_csv(wb.Sheets[n])));
-                } else processMainData(new TextDecoder().decode(buffer));
+                    try {
+                        const wb = XLSX.read(bytes, { type: 'array' });
+                        wb.SheetNames.forEach(n => processMainData(XLSX.utils.sheet_to_csv(wb.Sheets[n])));
+                        console.error = originalConsoleError;
+                        return;
+                    } catch (err) {
+                        // Fallback silencioso a procesamiento de texto si falla la estructura ZIP
+                    }
+                }
+                
+                // Procesamiento como texto (CSV)
+                try {
+                    processMainData(new TextDecoder().decode(buffer));
+                } catch (err) {
+                    alert("Error al procesar el archivo como texto.");
+                }
+                
+                console.error = originalConsoleError;
+                e.target.value = null;
             };
             reader.readAsArrayBuffer(file);
         };
@@ -460,16 +506,13 @@
             const filtered = data.filter(d => d.fechaObj >= start && d.fechaObj <= end);
 
             let vTotal = 0, cVenta = 0, cEnvio = 0, cAds = 0, cAlm = 0, cCol = 0, tArt = 0, countAnul = 0;
-            const envSet = new Set(), groups = {}, fullItems = [], salesCounted = new Set();
+            const envSet = new Set(), groups = {}, fullItems = [], salesMap = new Map();
 
             filtered.forEach(d => {
-                // Lógica de cálculo de venta: Sumar Total de la venta (col V) para cada ID de venta único (col O)
-                if (d.numVenta && !salesCounted.has(d.numVenta) && d.ventaTotal > 0) {
-                    vTotal += d.ventaTotal;
-                    salesCounted.add(d.numVenta);
+                if (d.numVenta && !salesMap.has(d.numVenta)) {
+                    salesMap.set(d.numVenta, { venta: d.ventaTotal || 0, cant: d.cantVendida || 0 });
                 }
 
-                tArt += d.cantVendida;
                 if (d.esAnulacion) countAnul++;
                 if (d.numEnvio) envSet.add(d.numEnvio);
                 
@@ -484,12 +527,15 @@
                 if (d.esAnulacion) groups[cat].a += d.valorCargo; else groups[cat].b += d.valorCargo;
             });
 
+            const uniqueSales = Array.from(salesMap.values());
+            vTotal = uniqueSales.reduce((acc, curr) => acc + curr.venta, 0);
+            tArt = uniqueSales.reduce((acc, curr) => acc + curr.cant, 0);
+
             const tGasto = cVenta + cEnvio + cAds + cAlm + cCol;
             document.getElementById('kpi-ventas').textContent = formatCLP(vTotal);
             document.getElementById('kpi-gasto-total').textContent = formatCLP(tGasto);
             document.getElementById('kpi-porcentaje-costos').textContent = `(${(vTotal > 0 ? (tGasto/vTotal)*100 : 0).toFixed(1)}%)`;
             
-            // Actualización de montos y etiquetas de porcentaje
             document.getElementById('kpi-cargo-venta').textContent = formatCLP(cVenta);
             document.getElementById('pct-label-venta').textContent = `${(vTotal > 0 ? (Math.abs(cVenta)/vTotal)*100 : 0).toFixed(1)}% de venta`;
             
@@ -529,11 +575,13 @@
             const invMap = {};
             sessionMainHistory.forEach(d => {
                 const k = d.numFactura || 'Sin N°';
-                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, t:0, sc: new Set() };
-                if (d.numVenta && !invMap[k].sc.has(d.numVenta) && d.ventaTotal > 0) {
-                    invMap[k].s += d.ventaTotal;
-                    invMap[k].sc.add(d.numVenta);
+                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, t:0, sc: new Map() };
+                
+                if (d.numVenta && !invMap[k].sc.has(d.numVenta)) {
+                    invMap[k].s += d.ventaTotal || 0;
+                    invMap[k].sc.set(d.numVenta, true);
                 }
+
                 if (d.isPublicidad) invMap[k].ca += d.valorCargo;
                 else if (d.isEnvio) invMap[k].ce += d.valorCargo;
                 else if (d.isAlmacenamiento) invMap[k].calm += d.valorCargo;
@@ -570,15 +618,17 @@
         const updateChart = (filtered) => {
             const cData = {};
             filtered.forEach(d => {
-                const day = d.fechaObj.toISOString().split('T')[0];
-                if (!cData[day]) cData[day] = { v: 0, c: 0, s: new Set() };
-                if (d.numVenta && !cData[day].s.has(d.numVenta) && d.ventaTotal > 0) {
-                    cData[day].v += d.ventaTotal;
-                    cData[day].s.add(d.numVenta);
+                const weekKey = getWeekInfo(d.fechaObj);
+                if (!cData[weekKey]) cData[weekKey] = { v: 0, c: 0, s: new Set(), ts: d.fechaObj.getTime() };
+                
+                if (d.numVenta && !cData[weekKey].s.has(d.numVenta)) {
+                    cData[weekKey].v += d.ventaTotal || 0;
+                    cData[weekKey].s.add(d.numVenta);
                 }
-                cData[day].c += d.valorCargo;
+                cData[weekKey].c += d.valorCargo;
             });
-            const labels = Object.keys(cData).sort();
+            const labels = Object.keys(cData).sort((a,b) => cData[a].ts - cData[b].ts);
+            
             if (financeChartInstance) financeChartInstance.destroy();
             financeChartInstance = new Chart(document.getElementById('financeChart'), {
                 type: 'bar',
@@ -586,12 +636,58 @@
                     labels,
                     datasets: [
                         { label: 'Ventas Únicas', data: labels.map(l => cData[l].v), backgroundColor: '#6366f1', borderRadius: 6 },
-                        { label: 'Gastos', data: labels.map(l => Math.abs(cData[l].c)), backgroundColor: '#f43f5e', borderRadius: 6 }
+                        { label: 'Gastos Consolidados', data: labels.map(l => Math.abs(cData[l].c)), backgroundColor: '#f43f5e', borderRadius: 6 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            ticks: { callback: (v) => formatCLP(v) }
+                        }
+                    }
+                }
             });
         };
+
+        function exportHistoryToExcel() {
+            const invMap = {};
+            sessionMainHistory.forEach(d => {
+                const k = d.numFactura || 'Sin N°';
+                if (!invMap[k]) invMap[k] = { s:0, cv:0, ce:0, ca:0, calm:0, ccol:0, sc: new Map() };
+                if (d.numVenta && !invMap[k].sc.has(d.numVenta)) {
+                    invMap[k].s += d.ventaTotal || 0;
+                    invMap[k].sc.set(d.numVenta, true);
+                }
+                if (d.isPublicidad) invMap[k].ca += d.valorCargo;
+                else if (d.isEnvio) invMap[k].ce += d.valorCargo;
+                else if (d.isAlmacenamiento) invMap[k].calm += d.valorCargo;
+                else if (d.isColecta) invMap[k].ccol += d.valorCargo;
+                else if (d.isCargoVenta) invMap[k].cv += d.valorCargo;
+            });
+
+            const excelData = Object.keys(invMap).map(k => {
+                const d = invMap[k];
+                const totalC = d.cv + d.ce + d.ca + d.calm + d.ccol;
+                return {
+                    "N° Factura": k,
+                    "Ventas Brutas": d.s,
+                    "Cargos Venta": d.cv,
+                    "Cargos Envío": d.ce,
+                    "Publicidad": d.ca,
+                    "Almacenamiento FULL": d.calm,
+                    "Colecta FULL": d.ccol,
+                    "Total Cargos": totalC,
+                    "Margen Neto": d.s - totalC
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Historial_Varin");
+            XLSX.writeFile(wb, "Reporte_Historico_Varin.xlsx");
+        }
 
         const openFullModal = () => document.getElementById('modal-full').classList.remove('hidden');
         const closeFullModal = () => document.getElementById('modal-full').classList.add('hidden');
