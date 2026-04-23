@@ -30,10 +30,11 @@
         }
     </style>
 </head>
+<!-- El body inicia con los estilos del login (oscuro, centrado) -->
 <body id="main-body" class="bg-gradient-custom text-slate-200 min-h-screen flex items-center justify-center p-6 transition-colors duration-500">
 
     <!-- ========================================== -->
-    <!-- MÓDULO DE LOGIN                            -->
+    <!-- MÓDULO DE LOGIN (PUERTA DE ENLACE)         -->
     <!-- ========================================== -->
     <div id="login-section" class="w-full max-w-md">
         <div class="glass-card p-8 rounded-3xl shadow-2xl transition-all duration-500">
@@ -57,6 +58,7 @@
                     Entrar al Dashboard
                 </button>
 
+                <!-- Mensaje de error -->
                 <div id="error-box" class="hidden flex items-center gap-3 bg-red-500/10 border border-red-500/50 p-4 rounded-xl text-red-400 text-sm">
                     <i class="fa-solid fa-circle-exclamation text-lg"></i>
                     <span>Clave incorrecta. Por favor, verifica la clave.</span>
@@ -65,12 +67,13 @@
         </div>
     </div>
 
+
     <!-- ========================================== -->
-    <!-- DASHBOARD DE VENTAS                        -->
+    <!-- DASHBOARD DE VENTAS (OCULTO POR DEFECTO)   -->
     <!-- ========================================== -->
     <div id="dashboard-section" class="hidden opacity-0 transition-opacity duration-500 w-full max-w-7xl mx-auto">
         
-        <!-- HEADER -->
+        <!-- HEADER Y CARGA DE ARCHIVO -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div>
                 <h1 class="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
@@ -97,6 +100,7 @@
                     Cargar Excel
                     <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" id="file-upload" />
                 </label>
+                <!-- Botón para cerrar sesión agregado -->
                 <button onclick="window.location.reload()" class="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-slate-200 hover:border-red-100" title="Bloquear Pantalla">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
@@ -115,6 +119,7 @@
                 <i class="fa-solid fa-filter"></i> Filtros:
             </div>
             
+            <!-- Filtro de Fechas -->
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
                 <span class="text-slate-400 text-sm ml-1">Del:</span>
                 <input type="date" id="date-start" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
@@ -122,6 +127,7 @@
                 <input type="date" id="date-end" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
             </div>
 
+            <!-- Filtros Originales -->
             <select id="sku-filter" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
                 <option value="all">Todos los Productos (SKU)</option>
             </select>
@@ -174,7 +180,7 @@
                     <div class="p-3 bg-purple-50 text-purple-600 rounded-xl"><i class="fa-solid fa-truck-fast text-xl"></i></div>
                 </div>
                 <div>
-                    <p class="text-slate-500 text-sm font-medium mb-1">Gastos (Valor del cargo)</p>
+                    <p class="text-slate-500 text-sm font-medium mb-1">Gasto en Envíos (ML)</p>
                     <h3 class="text-3xl font-bold text-slate-800" id="kpi-envios">$0</h3>
                 </div>
             </div>
@@ -244,12 +250,13 @@
         </div>
     </div>
 
-    <!-- LOGIC -->
+    <!-- LOGIC (Vanilla JS + Firebase) -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
+        // Configuración segura (Soporte para GitHub Pages y Local)
         let useFirebase = false;
         let db = null;
         let auth = null;
@@ -267,9 +274,10 @@
                 }
             }
         } catch (e) {
-            console.warn("Ejecutando sin Firebase.");
+            console.warn("Ejecutando sin Firebase (modo GitHub Pages / Local). Los datos se guardarán en el navegador.");
         }
 
+        // Inicializar Auth solo si Firebase está activo
         const initAuth = async () => {
             if (!useFirebase) return;
             try {
@@ -285,19 +293,28 @@
         initAuth();
 
         if (useFirebase) {
-            onAuthStateChanged(auth, (user) => { currentUser = user; });
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+            });
         }
 
+        // Persistencia: Guardar y Cargar (Híbrido Nube / LocalStorage)
         async function guardarDatosEnNube(dataToSave) {
             const syncEl = document.getElementById('sync-indicator');
             if (syncEl) syncEl.classList.remove('hidden');
+            
             const serialized = dataToSave.map(item => ({...item, fechaObj: item.fechaObj.toISOString()}));
             const jsonString = JSON.stringify(serialized);
+
             try {
                 if (useFirebase && currentUser) {
                     const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
-                    await setDoc(docRef, { data: jsonString, timestamp: new Date().toISOString() });
+                    await setDoc(docRef, {
+                        data: jsonString,
+                        timestamp: new Date().toISOString()
+                    });
                 } else {
+                    // Fallback para GitHub Pages
                     localStorage.setItem('varin_dashboard_data', jsonString);
                 }
             } catch (error) {
@@ -311,11 +328,15 @@
             document.getElementById('header-status').textContent = "Recuperando datos...";
             try {
                 let jsonString = null;
+                
                 if (useFirebase && currentUser) {
                     const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'dashboardData', 'lastUpload');
                     const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) jsonString = docSnap.data().data;
+                    if (docSnap.exists()) {
+                        jsonString = docSnap.data().data;
+                    }
                 } else {
+                    // Fallback para GitHub Pages
                     jsonString = localStorage.getItem('varin_dashboard_data');
                 }
 
@@ -329,6 +350,9 @@
             return null;
         }
 
+        // ==========================================
+        // LÓGICA DE LOGIN
+        // ==========================================
         const CLAVE_MAESTRA = "ventas";
 
         window.validarAcceso = async function() {
@@ -339,12 +363,19 @@
             const body = document.getElementById('main-body');
 
             if (input === CLAVE_MAESTRA) {
+                // Ocultar la tarjeta de login
                 loginSection.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+                
                 setTimeout(async () => {
                     loginSection.classList.add('hidden');
+                    
+                    // Cambiar las clases del Body (De Oscuro a Claro)
                     body.className = "bg-slate-50 text-slate-900 p-4 md:p-8 min-h-screen transition-colors duration-500 block overflow-x-hidden";
+                    
+                    // Mostrar el dashboard
                     dashboardSection.classList.remove('hidden');
                     
+                    // Intentar recuperar información guardada
                     document.getElementById('header-status').innerHTML = `Sincronizando datos...`;
                     const datosRecuperados = await cargarDatosDeNube();
                     
@@ -353,11 +384,16 @@
                         document.getElementById('header-status').innerHTML = `Recuperados <b>${allData.length}</b> registros de tu última sesión.`;
                         updateApp(true);
                     } else {
+                        // Inicializar los datos MOCK si no hay datos guardados
                         initMockData();
                     }
-                    setTimeout(() => { dashboardSection.classList.remove('opacity-0'); }, 50);
+                    
+                    setTimeout(() => {
+                        dashboardSection.classList.remove('opacity-0');
+                    }, 50);
                 }, 400);
             } else {
+                // Error de contraseña
                 errorBox.classList.remove('hidden');
                 document.getElementById('pass-input').value = '';
                 loginSection.classList.add('animate-pulse');
@@ -365,11 +401,18 @@
             }
         }
 
+        // Listeners del Login asignados de forma segura
         document.getElementById('login-btn').addEventListener('click', window.validarAcceso);
         document.getElementById('pass-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') window.validarAcceso();
+            if (e.key === 'Enter') {
+                window.validarAcceso();
+            }
         });
 
+
+        // ==========================================
+        // LÓGICA DEL DASHBOARD
+        // ==========================================
         let allData = [];
         let filteredData = [];
         let trendChartInstance = null;
@@ -380,6 +423,7 @@
 
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
 
+        // UI Elements
         const skuFilter = document.getElementById('sku-filter');
         const statusFilter = document.getElementById('status-filter');
         const dateStartFilter = document.getElementById('date-start');
@@ -389,6 +433,7 @@
         const errorContainer = document.getElementById('error-container');
         const errorText = document.getElementById('error-text');
 
+        // Utils for Dates
         function dateToInputString(dateObj) {
             const y = dateObj.getFullYear();
             const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -408,10 +453,12 @@
             return new Date();
         }
 
+        // MOCK DATA INITIALIZATION
         function initMockData() {
             allData = [
                 { id: `2000011961080799`, fecha: '10 de marzo de 2026', fechaObj: new Date(2026, 2, 10), estado: 'Entregado', region: 'Biobío', unidades: 1, ingresosBrutos: 89990, costoEnvio: -14000, comision: -14398, ingresosNetos: 61592, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
-                { id: `2000011961080800`, fecha: '12 de marzo de 2026', fechaObj: new Date(2026, 2, 12), estado: 'Entregado', region: 'Metropolitana', unidades: 2, ingresosBrutos: 179980, costoEnvio: -28000, comision: -28796, ingresosNetos: 123184, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' }
+                { id: `2000011961080800`, fecha: '12 de marzo de 2026', fechaObj: new Date(2026, 2, 12), estado: 'Entregado', region: 'Metropolitana', unidades: 2, ingresosBrutos: 179980, costoEnvio: -28000, comision: -28796, ingresosNetos: 123184, sku: 'VA-E002', titulo: 'Ventilador De Techo Varin® Black Design Tuya® Wifi' },
+                { id: `2000011961080801`, fecha: '15 de marzo de 2026', fechaObj: new Date(2026, 2, 15), estado: 'En camino', region: 'Valparaíso', unidades: 1, ingresosBrutos: 85000, costoEnvio: -14000, comision: -13600, ingresosNetos: 57400, sku: 'VA-E004', titulo: 'Ventilador De Techo Varin® Bambú Design' }
             ];
             document.getElementById('header-status').innerHTML = `Mostrando datos de demostración. Sube tu reporte para analizar.`;
             updateApp(true);
@@ -421,25 +468,20 @@
             try {
                 const lines = text.split('\n');
                 let headerIndex = -1;
-                
-                // Buscar encabezados de forma más robusta
                 for (let i = 0; i < Math.min(30, lines.length); i++) {
-                    if ((lines[i].includes('Número de venta') || lines[i].includes('# de venta')) && 
-                        (lines[i].includes('Fecha') || lines[i].includes('Cantidad vendida'))) {
+                    if (lines[i].includes('# de venta') && lines[i].includes('Fecha de venta')) {
                         headerIndex = i;
                         break;
                     }
                 }
 
-                if (headerIndex === -1) throw new Error('No se encontraron los encabezados correctos. Verifica tu archivo.');
+                if (headerIndex === -1) throw new Error('No se encontraron los encabezados de Mercado Libre. Verifica el archivo.');
 
                 const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
-                
-                // Mapeo (Agrupación/Deduplicación) por Llave Única
-                const parsedDataMap = new Map();
+                const parsedData = [];
                 
                 const estadoPaqueteIndex = headers.indexOf('Estado');
-                const regionIndex = headers.indexOf('Estado', estadoPaqueteIndex + 1); // Manejar doble cabecera "Estado" en ML
+                const regionIndex = headers.indexOf('Estado', estadoPaqueteIndex + 1);
 
                 for (let i = headerIndex + 1; i < lines.length; i++) {
                     if (!lines[i].trim()) continue;
@@ -449,76 +491,37 @@
                         row[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
                     });
 
-                    // 1. LLAVE: Número de venta (Columna O)
-                    const idVenta = row['Número de venta'] || row['# de venta'];
-                    if (!idVenta) continue;
-
-                    const sku = row['SKU'] || 'Sin SKU';
-                    
-                    // 2. UNIDADES: Cantidad vendida (Columna T)
-                    const cantidadVendida = parseInt(row['Cantidad vendida']) || parseInt(row['Unidades']) || 1;
-                    
-                    // 3. GASTOS: Valor del cargo (Columna H)
-                    const valorCargo = parseFloat(row['Valor del cargo']) || parseFloat(row['Costos de envío (CLP)']) || 0;
-                    
-                    const uniqueKey = `${idVenta}_${sku}`;
-
-                    if (!parsedDataMap.has(uniqueKey)) {
-                        const fechaString = row['Fecha de venta'] ? row['Fecha de venta'].split(' hs.')[0].trim() : (row['Fecha'] || '').split(' hs.')[0].trim();
+                    if (row['# de venta']) {
+                        const fechaString = row['Fecha de venta'].split(' hs.')[0].trim();
                         const estadoPaquete = estadoPaqueteIndex !== -1 && values[estadoPaqueteIndex] ? values[estadoPaqueteIndex].trim().replace(/"/g, '') : 'Desconocido';
                         const region = regionIndex !== -1 && values[regionIndex] ? values[regionIndex].trim().replace(/"/g, '') : 'Desconocida';
                         
-                        // CÁLCULO DE INGRESOS
-                        // Interpretación explícita solicitada: Usar columna O multiplicada por columna T si aplica como precio
-                        let ingresosCalc = 0;
-                        const numVentaVal = parseFloat(row['Número de venta']);
-                        if (!isNaN(numVentaVal) && row['Número de venta'] !== undefined && numVentaVal < 1000000000) {
-                            // Asume que Col O era el Precio en este CSV modificado
-                            ingresosCalc = numVentaVal * cantidadVendida;
-                        } else {
-                            // Fallback estándar (Agrupación normal)
-                            ingresosCalc = parseFloat(row['Ingresos por productos (CLP)']) || parseFloat(row['Monto']) || 0;
-                        }
-
-                        parsedDataMap.set(uniqueKey, {
-                            id: idVenta,
+                        parsedData.push({
+                            id: row['# de venta'],
                             fecha: fechaString,
                             fechaObj: parseMLDate(fechaString),
                             estado: estadoPaquete,
                             region: region,
-                            unidades: cantidadVendida, // Se registra 1 sola vez por Llave (Deduplicación exacta de Col T)
-                            ingresosBrutos: ingresosCalc > 0 ? ingresosCalc : 0, 
-                            costoEnvio: valorCargo, // Inicia la sumatoria de gastos (Col H)
-                            comision: 0,
-                            ingresosNetos: 0,
-                            sku: sku,
+                            unidades: parseInt(row['Unidades']) || 1,
+                            ingresosBrutos: parseFloat(row['Ingresos por productos (CLP)']) || 0,
+                            costoEnvio: parseFloat(row['Costos de envío (CLP)']) || 0,
+                            comision: (parseFloat(row['Cargo por venta e impuestos (CLP)']) || 0) + (parseFloat(row['Descuentos y bonificaciones']) || 0),
+                            ingresosNetos: parseFloat(row['Total (CLP)']) || 0,
+                            sku: row['SKU'] || 'Sin SKU',
                             titulo: row['Título de la publicación'] || 'Producto'
                         });
-                    } else {
-                        // REGLA: "Para los gastos debes sumar la columna H, Valor del cargo"
-                        // Solo sumamos el gasto extra de las siguientes filas, evitando duplicar las Unidades y los Ingresos
-                        const item = parsedDataMap.get(uniqueKey);
-                        item.costoEnvio += valorCargo;
-                        
-                        // Si el CSV no multiplicó y el monto positivo vino en otra fila (Ej. cobro de ML), lo agregamos
-                        const montoExtra = parseFloat(row['Ingresos por productos (CLP)']) || parseFloat(row['Monto']) || 0;
-                        if (montoExtra > 0 && item.ingresosBrutos === 0) item.ingresosBrutos += montoExtra;
                     }
                 }
-
-                // Generamos la lista final limpia
-                const parsedData = Array.from(parsedDataMap.values()).map(item => {
-                    item.ingresosNetos = item.ingresosBrutos + item.costoEnvio; 
-                    return item;
-                });
 
                 if (parsedData.length > 0) {
                     parsedData.sort((a, b) => a.fechaObj - b.fechaObj);
                     allData = parsedData;
                     
-                    document.getElementById('header-status').innerHTML = `Analizando <b>${allData.length}</b> ventas depuradas (llave única).`;
+                    document.getElementById('header-status').innerHTML = `Analizando <b>${allData.length}</b> ventas del archivo cargado.`;
                     errorContainer.classList.add('hidden');
                     updateApp(true);
+                    
+                    // Sincronizar (Nube o LocalStorage)
                     guardarDatosEnNube(allData);
                 } else {
                     throw new Error('El archivo no contiene filas de ventas válidas.');
@@ -533,6 +536,7 @@
             errorContainer.classList.remove('hidden');
         }
 
+        // File Input Listener
         fileUpload.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -557,7 +561,10 @@
             else reader.readAsArrayBuffer(file);
         });
 
-        function applyFilters() { updateApp(false); }
+        // FUNCIONES PRINCIPALES
+        function applyFilters() { 
+            updateApp(false); 
+        }
 
         function updateApp(isNewUpload) {
             if (isNewUpload) {
@@ -628,10 +635,8 @@
 
         function updateKPIs() {
             const kpis = filteredData.reduce((acc, curr) => {
-                acc.b += curr.ingresosBrutos; 
-                acc.n += curr.ingresosNetos;
-                acc.e += Math.abs(curr.costoEnvio); // Totalizando Valor del Cargo (Gastos)
-                acc.u += curr.unidades; // Acumula las unidades ya deduplicadas
+                acc.b += curr.ingresosBrutos; acc.n += curr.ingresosNetos;
+                acc.e += Math.abs(curr.costoEnvio); acc.u += curr.unidades;
                 return acc;
             }, { b: 0, n: 0, e: 0, u: 0 });
 
@@ -642,6 +647,7 @@
         }
 
         function updateCharts() {
+            // Trend Data
             const trendMap = {};
             filteredData.forEach(d => {
                 const dateKey = d.fechaObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
@@ -669,6 +675,7 @@
                             scales: { y: { display: false }, x: { grid: { display: false } } } }
             });
 
+            // Status Data
             const statusMap = {};
             filteredData.forEach(d => statusMap[d.estado] = (statusMap[d.estado] || 0) + 1);
             const sLabels = Object.keys(statusMap);
@@ -683,6 +690,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
 
+            // Region Data
             const regionMap = {};
             filteredData.forEach(d => regionMap[d.region] = (regionMap[d.region] || 0) + 1);
             const sortedRegions = Object.keys(regionMap).sort((a, b) => regionMap[b] - regionMap[a]);
@@ -703,10 +711,7 @@
             filteredData.forEach(d => {
                 const sku = d.sku !== 'Sin SKU' ? d.sku : d.titulo.substring(0, 15)+'...';
                 if(!pMap[sku]) pMap[sku] = { sku, titulo: d.titulo, ingresos: 0, unidades: 0 };
-                
-                // Estos valores ya fueron deduplicados por la Llave "Número de Venta" durante la extracción
-                pMap[sku].ingresos += d.ingresosBrutos; 
-                pMap[sku].unidades += d.unidades; 
+                pMap[sku].ingresos += d.ingresosBrutos; pMap[sku].unidades += d.unidades;
             });
             const topProds = Object.values(pMap).sort((a,b) => b.ingresos - a.ingresos).slice(0, 5);
             
@@ -744,6 +749,7 @@
             }).join('') : `<div class="p-4 text-center text-slate-400">Sin operaciones en las fechas seleccionadas</div>`;
         }
 
+        // Asignación de Event Listeners al final (Previene errores de Referencia)
         skuFilter.addEventListener('change', applyFilters);
         statusFilter.addEventListener('change', applyFilters);
         dateStartFilter.addEventListener('change', applyFilters);
