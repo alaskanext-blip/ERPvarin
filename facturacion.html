@@ -127,10 +127,13 @@
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 xl:col-span-2">
                 <div class="flex items-center gap-3 mb-2">
                     <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-cash-register"></i></div>
-                    <p class="text-slate-500 text-sm font-medium">Ventas Totales Brutas</p>
+                    <p class="text-slate-500 text-sm font-medium">Ventas Totales Brutas (Ingreso Manual)</p>
                 </div>
-                <h3 class="text-3xl font-bold text-slate-800" id="kpi-ventas">$0</h3>
-                <p class="text-xs text-slate-400 mt-1">Suma única por Número de Venta</p>
+                <div class="relative mt-2">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-lg">$</span>
+                    <input type="number" id="input-ventas-manual" class="w-full text-3xl font-bold text-slate-800 pl-8 pr-4 py-2 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-500 transition-colors bg-emerald-50/30" placeholder="0" value="0" oninput="updateApp()">
+                </div>
+                <p class="text-xs text-slate-400 mt-2">Base dinámica para el cálculo de porcentajes</p>
             </div>
 
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center border-l-4 border-l-red-500">
@@ -231,7 +234,7 @@
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
                 <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
-                    Ventas vs Gastos (Agrupado por Semana)
+                    Evolución de Gastos (Agrupado por Semana)
                     <span class="text-xs font-normal text-slate-400">Basado en periodo filtrado</span>
                 </h3>
                 <div class="chart-container">
@@ -277,14 +280,12 @@
                     <thead>
                         <tr class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold border-b border-slate-200">
                             <th class="p-4 w-48">Nº Factura</th>
-                            <th class="p-4 text-right">Ventas Brutas</th>
                             <th class="p-4 text-right">Cargos Venta</th>
                             <th class="p-4 text-right">Cargos Envío</th>
                             <th class="p-4 text-right">Publicidad</th>
                             <th class="p-4 text-right text-emerald-700">Alm. FULL</th>
                             <th class="p-4 text-right text-emerald-700">Col. FULL</th>
                             <th class="p-4 text-right text-rose-700 bg-rose-50/50">Total Cargos</th>
-                            <th class="p-4 text-right bg-indigo-50/30 text-indigo-900 font-black">Margen Neto</th>
                             <th class="p-4 text-center w-12"><i class="fa-solid fa-gear"></i></th>
                         </tr>
                     </thead>
@@ -528,11 +529,10 @@
             });
 
             const uniqueSales = Array.from(salesMap.values());
-            vTotal = uniqueSales.reduce((acc, curr) => acc + curr.venta, 0);
+            vTotal = parseFloat(document.getElementById('input-ventas-manual').value) || 0;
             tArt = uniqueSales.reduce((acc, curr) => acc + curr.cant, 0);
 
             const tGasto = cVenta + cEnvio + cAds + cAlm + cCol;
-            document.getElementById('kpi-ventas').textContent = formatCLP(vTotal);
             document.getElementById('kpi-gasto-total').textContent = formatCLP(tGasto);
             document.getElementById('kpi-porcentaje-costos').textContent = `(${(vTotal > 0 ? (tGasto/vTotal)*100 : 0).toFixed(1)}%)`;
             
@@ -606,14 +606,12 @@
                             <div class="font-bold text-slate-800">${k}</div>
                             <div class="text-[10px] text-slate-500 mt-0.5">${periodStr}</div>
                         </td>
-                        <td class="p-4 text-right text-indigo-700 font-bold">${formatCLP(d.s)}</td>
                         <td class="p-4 text-right">${formatCLP(d.cv)}</td>
                         <td class="p-4 text-right">${formatCLP(d.ce)}</td>
                         <td class="p-4 text-right">${formatCLP(d.ca)}</td>
                         <td class="p-4 text-right text-emerald-700">${formatCLP(d.calm)}</td>
                         <td class="p-4 text-right text-emerald-700">${formatCLP(d.ccol)}</td>
                         <td class="p-4 text-right font-bold text-rose-700 bg-rose-50/30">${formatCLP(totalC)}</td>
-                        <td class="p-4 text-right font-black ${d.s - totalC >=0 ? 'text-emerald-600':'text-rose-600'} bg-indigo-50/20">${formatCLP(d.s - totalC)}</td>
                         <td class="p-4 text-center"><button onclick="deleteInvoice('${k}')" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-trash"></i></button></td>
                     </tr>
                 `;
@@ -629,12 +627,8 @@
             const cData = {};
             filtered.forEach(d => {
                 const weekKey = getWeekInfo(d.fechaObj);
-                if (!cData[weekKey]) cData[weekKey] = { v: 0, c: 0, s: new Set(), ts: d.fechaObj.getTime() };
+                if (!cData[weekKey]) cData[weekKey] = { c: 0, ts: d.fechaObj.getTime() };
                 
-                if (d.numVenta && !cData[weekKey].s.has(d.numVenta)) {
-                    cData[weekKey].v += d.ventaTotal || 0;
-                    cData[weekKey].s.add(d.numVenta);
-                }
                 cData[weekKey].c += d.valorCargo;
             });
             const labels = Object.keys(cData).sort((a,b) => cData[a].ts - cData[b].ts);
@@ -645,7 +639,6 @@
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Ventas Únicas', data: labels.map(l => cData[l].v), backgroundColor: '#6366f1', borderRadius: 6 },
                         { label: 'Gastos Consolidados', data: labels.map(l => Math.abs(cData[l].c)), backgroundColor: '#f43f5e', borderRadius: 6 }
                     ]
                 },
@@ -687,14 +680,12 @@
                 return {
                     "N° Factura": k,
                     "Período": `${new Date(d.minT).toLocaleDateString('es-CL')} - ${new Date(d.maxT).toLocaleDateString('es-CL')}`,
-                    "Ventas Brutas": d.s,
                     "Cargos Venta": d.cv,
                     "Cargos Envío": d.ce,
                     "Publicidad": d.ca,
                     "Almacenamiento FULL": d.calm,
                     "Colecta FULL": d.ccol,
-                    "Total Cargos": totalC,
-                    "Margen Neto": d.s - totalC
+                    "Total Cargos": totalC
                 };
             });
 
