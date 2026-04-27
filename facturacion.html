@@ -131,7 +131,7 @@
                 </div>
                 <div class="relative mt-2">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-lg">$</span>
-                    <input type="number" id="input-ventas-manual" class="w-full text-3xl font-bold text-slate-800 pl-8 pr-4 py-2 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-500 transition-colors bg-emerald-50/30" placeholder="0" value="0" oninput="updateApp()">
+                    <input type="text" id="input-ventas-manual" class="w-full text-3xl font-bold text-slate-800 pl-8 pr-4 py-2 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-500 transition-colors bg-emerald-50/30" placeholder="0" value="0" oninput="formatInputVentas(this)">
                 </div>
                 <p class="text-xs text-slate-400 mt-2">Base dinámica para el cálculo de porcentajes</p>
             </div>
@@ -320,6 +320,19 @@
         let globalMinDateStr = '', globalMaxDateStr = '';
 
         const formatCLP = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
+
+        window.formatInputVentas = (element) => {
+            // Se remueven todos los caracteres no numéricos
+            let rawValue = element.value.replace(/\D/g, '');
+            if (!rawValue) {
+                element.value = '';
+                updateApp();
+                return;
+            }
+            // Formatea el número insertando los puntos para miles
+            element.value = new Intl.NumberFormat('es-CL').format(parseInt(rawValue, 10));
+            updateApp();
+        };
 
         const saveData = () => localStorage.setItem('varinBillingHistory', JSON.stringify(sessionMainHistory));
         const loadData = () => {
@@ -529,7 +542,11 @@
             });
 
             const uniqueSales = Array.from(salesMap.values());
-            vTotal = parseFloat(document.getElementById('input-ventas-manual').value) || 0;
+            
+            // Obtenemos el valor crudo en números para no tener problemas con los puntos.
+            let rawInputVal = document.getElementById('input-ventas-manual').value.replace(/\D/g, '');
+            vTotal = parseFloat(rawInputVal) || 0;
+            
             tArt = uniqueSales.reduce((acc, curr) => acc + curr.cant, 0);
 
             const tGasto = cVenta + cEnvio + cAds + cAlm + cCol;
