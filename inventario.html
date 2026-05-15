@@ -53,13 +53,16 @@
                 <i class="ph ph-arrows-left-right text-xl"></i> <span class="font-medium text-sm tracking-wide">Registro Manual</span>
             </button>
             <button data-target="view-carga" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
-                <i class="ph ph-file-xls text-xl"></i> <span class="font-medium text-sm tracking-wide">Carga Masiva (ML)</span>
+                <i class="ph ph-upload-simple text-xl"></i> <span class="font-medium text-sm tracking-wide">Subir Data</span>
+            </button>
+            <button data-target="view-reportes" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-chart-bar text-xl"></i> <span class="font-medium text-sm tracking-wide">Reportes</span>
             </button>
         </nav>
         
         <div class="p-6 bg-zinc-950 space-y-3">
             <button onclick="App.exportToExcel()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-200 text-black py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
-                <i class="ph ph-download-simple text-lg"></i> Exportar Reporte
+                <i class="ph ph-download-simple text-lg"></i> Exportar Stock
             </button>
             <button onclick="App.exportDetail()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-list-numbers text-lg"></i> Exportar Detalle
@@ -83,11 +86,19 @@
                     <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
                     <p class="text-zinc-500 text-sm mt-1">Gestión centralizada de existencias Varin Traaq.</p>
                 </div>
-                <!-- Buscador por SKU -->
-                <div class="relative w-full sm:w-72">
-                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
-                    <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
-                    <datalist id="sku-list"></datalist>
+                <!-- Buscador por SKU y Filtro de Mes -->
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <div class="relative w-full sm:w-48">
+                        <i class="ph ph-calendar-blank absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg z-10"></i>
+                        <select id="filter-month" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm cursor-pointer appearance-none">
+                            <option value="">Todos los meses</option>
+                        </select>
+                    </div>
+                    <div class="relative w-full sm:w-72">
+                        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
+                        <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
+                        <datalist id="sku-list"></datalist>
+                    </div>
                 </div>
             </header>
             
@@ -217,23 +228,75 @@
             <!-- VISTA: CARGA MASIVA -->
             <section id="view-carga" class="view-section h-full overflow-y-auto pb-10 text-center">
                 <div class="max-w-3xl w-full mx-auto space-y-8">
-                    <header>
-                        <div class="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <i class="ph ph-file-xls text-black text-4xl"></i>
+                    <!-- Importación Ventas ML -->
+                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
+                        <header>
+                            <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="ph ph-shopping-cart text-sky-600 text-3xl"></i>
+                            </div>
+                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Ventas de Mercado Libre</h2>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">
+                                Sube el reporte de ventas de ML. El sistema omitirá automáticamente las ventas ya registradas.
+                            </p>
+                        </header>
+                        
+                        <div class="relative border-2 border-dashed border-sky-200 rounded-lg p-10 bg-sky-50/50 hover:bg-sky-50 hover:border-sky-400 transition-all cursor-pointer group">
+                            <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div class="pointer-events-none flex flex-col items-center">
+                                <i class="ph ph-upload-simple text-3xl text-sky-500 group-hover:text-sky-700 mb-3 transition-colors"></i>
+                                <p class="text-sky-900 font-medium">Subir reporte ML (.csv, .xlsx)</p>
+                            </div>
                         </div>
-                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Importación Incremental Mercado Libre</h2>
-                        <p class="text-zinc-500 text-sm mt-3 max-w-lg mx-auto">
-                            El sistema detectará y omitirá automáticamente las ventas que ya fueron cargadas previamente.
-                        </p>
-                    </header>
-                    
-                    <div class="relative border-2 border-dashed border-zinc-300 rounded-lg p-16 bg-white hover:bg-zinc-50 hover:border-black transition-all cursor-pointer group shadow-sm">
-                        <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                        <div class="pointer-events-none flex flex-col items-center">
-                            <i class="ph ph-upload-simple text-3xl text-zinc-400 group-hover:text-black mb-4 transition-colors"></i>
-                            <p class="text-zinc-900 font-medium text-lg">Subir reporte de ventas</p>
-                            <p class="text-xs text-zinc-400 mt-2 tracking-wide uppercase">Solo se agregarán los nuevos registros</p>
+                    </div>
+
+                    <hr class="border-zinc-200 my-8">
+
+                    <!-- Importación Detalle Historico -->
+                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
+                        <header>
+                            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="ph ph-database text-emerald-600 text-3xl"></i>
+                            </div>
+                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Restaurar / Importar Detalle Histórico</h2>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">
+                                Sube un archivo de "Detalle de Movimientos" para restaurar o poblar la base de datos. <br>
+                                <span class="font-semibold text-red-600">Nota:</span> Esta acción no borra lo actual, solo añade los registros.
+                            </p>
+                        </header>
+                        
+                        <div class="relative border-2 border-dashed border-emerald-200 rounded-lg p-10 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-400 transition-all cursor-pointer group">
+                            <input type="file" id="file-upload-historico" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div class="pointer-events-none flex flex-col items-center">
+                                <i class="ph ph-file-csv text-3xl text-emerald-500 group-hover:text-emerald-700 mb-3 transition-colors"></i>
+                                <p class="text-emerald-900 font-medium">Subir Detalle Histórico (.csv)</p>
+                            </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: REPORTES -->
+            <section id="view-reportes" class="view-section h-full">
+                <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col h-full">
+                    <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                        <div>
+                            <h3 class="font-medium text-zinc-800 tracking-tight">Unidades Vendidas por SKU</h3>
+                            <p class="text-xs text-zinc-500 mt-1">Resumen de salidas según los filtros globales aplicados (Mes / SKU).</p>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto flex-1 p-6">
+                        <table class="w-full text-sm text-left relative border border-zinc-200 rounded-lg overflow-hidden">
+                            <thead class="bg-zinc-100 text-zinc-600 font-medium border-b border-zinc-200 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Vendido / Salidas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-table-body" class="divide-y divide-zinc-100">
+                                <!-- Filas de reporte generadas por JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -244,6 +307,7 @@
         const App = {
             inventory: [],
             currentSkuFilter: '',
+            currentMonthFilter: '',
             editingId: null,
             
             init() {
@@ -287,11 +351,13 @@
                 this.toastIcon = document.getElementById('toast-icon');
                 this.formManual = document.getElementById('form-manual');
                 this.fileInput = document.getElementById('file-upload');
+                this.fileInputHistorico = document.getElementById('file-upload-historico');
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
                 this.kpi3 = document.getElementById('kpi-bodega3');
                 this.tableBody = document.getElementById('table-body');
                 this.skuFilterInput = document.getElementById('filter-sku');
+                this.monthFilterInput = document.getElementById('filter-month');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
             },
@@ -313,8 +379,13 @@
                 });
                 this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
+                this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
                 this.skuFilterInput.addEventListener('input', (e) => {
                     this.currentSkuFilter = e.target.value.trim().toUpperCase();
+                    this.renderDashboard();
+                });
+                this.monthFilterInput.addEventListener('change', (e) => {
+                    this.currentMonthFilter = e.target.value;
                     this.renderDashboard();
                 });
             },
@@ -391,16 +462,51 @@
                 }
             },
 
+            populateMonthFilter() {
+                const months = new Set();
+                this.inventory.forEach(item => {
+                    if (item.sortDate) {
+                        months.add(item.sortDate.substring(0, 7)); // YYYY-MM
+                    }
+                });
+                
+                const sortedMonths = [...months].sort().reverse();
+                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                
+                let html = '<option value="">Todos los meses</option>';
+                sortedMonths.forEach(m => {
+                    const [year, month] = m.split('-');
+                    const monthName = monthNames[parseInt(month) - 1];
+                    html += `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
+                });
+                
+                if (this.monthFilterInput.innerHTML !== html) {
+                    this.monthFilterInput.innerHTML = html;
+                }
+            },
+
             renderDashboard() {
+                this.populateMonthFilter();
+                
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                 this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
-                const filteredInventory = this.currentSkuFilter ? this.inventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter)) : this.inventory;
+                
+                // Aplicar filtros globales (SKU y Mes)
+                let filteredInventory = this.inventory;
+                if (this.currentSkuFilter) {
+                    filteredInventory = filteredInventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
+                }
+                if (this.currentMonthFilter) {
+                    filteredInventory = filteredInventory.filter(item => item.sortDate && item.sortDate.startsWith(this.currentMonthFilter));
+                }
+
                 const sortedInventory = [...filteredInventory].sort((a, b) => {
                     const timeA = new Date(a.sortDate || '2000-01-01').getTime();
                     const timeB = new Date(b.sortDate || '2000-01-01').getTime();
                     if (timeA !== timeB) return timeB - timeA;
                     return b.id - a.id;
                 });
+                
                 const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
                 this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
@@ -410,56 +516,93 @@
                 if (!tableBody) return;
 
                 if(sortedInventory.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar.</td></tr>`;
-                    return;
-                }
+                    tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar con los filtros actuales.</td></tr>`;
+                } else {
+                    const rowsHtml = sortedInventory.slice(0, 100).map(item => {
+                        const isEditing = this.editingId === item.id;
+                        const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
+                        const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
+                        
+                        if (isEditing) {
+                            return `
+                                <tr class="bg-zinc-50" data-id="${item.id}">
+                                    <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${item.sku}" oninput="App.syncDescription(this.value, this.closest('tr').querySelector('.edit-name'))"></td>
+                                    <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${item.name}"></td>
+                                    <td class="px-6 py-4">
+                                        <select class="edit-warehouse p-1 border rounded text-[10px] uppercase font-semibold">
+                                            <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
+                                            <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
+                                            <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
+                                    <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
+                                    <td class="px-6 py-4 text-center space-x-1">
+                                        <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
+                                        <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                        }
 
-                const rowsHtml = sortedInventory.slice(0, 100).map(item => {
-                    const isEditing = this.editingId === item.id;
-                    const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
-                    const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
-                    
-                    if (isEditing) {
+                        let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
+                        if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
+                        else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
+                        
                         return `
-                            <tr class="bg-zinc-50" data-id="${item.id}">
-                                <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${item.sku}" oninput="App.syncDescription(this.value, this.closest('tr').querySelector('.edit-name'))"></td>
-                                <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${item.name}"></td>
-                                <td class="px-6 py-4">
-                                    <select class="edit-warehouse p-1 border rounded text-[10px] uppercase font-semibold">
-                                        <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
-                                        <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
-                                        <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
-                                    </select>
-                                </td>
-                                <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
-                                <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
-                                <td class="px-6 py-4 text-center space-x-1">
-                                    <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
-                                    <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
+                            <tr class="hover:bg-zinc-50 transition-colors group">
+                                <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                                <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
+                                <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
+                                <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
+                                <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
+                                <td class="px-6 py-4 text-center space-x-2">
+                                    <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
+                                    <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
                                 </td>
                             </tr>
                         `;
-                    }
+                    }).join('');
+                    tableBody.innerHTML = rowsHtml;
+                }
+                
+                this.renderReport(filteredInventory);
+            },
+            
+            renderReport(filteredData) {
+                const tbody = document.getElementById('report-table-body');
+                if (!tbody) return;
 
-                    let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
-                    if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
-                    else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
-                    
-                    return `
-                        <tr class="hover:bg-zinc-50 transition-colors group">
-                            <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
-                            <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
-                            <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
-                            <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
-                            <td class="px-6 py-4 text-center space-x-2">
-                                <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
-                                <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-                tableBody.innerHTML = rowsHtml;
+                const sales = {};
+                filteredData.forEach(item => {
+                    let qty = parseInt(item.quantity) || 0;
+                    // Consideramos salidas (cantidades negativas) SOLAMENTE de la bodega 'Full ML'
+                    if (qty < 0 && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
+                        if (!sales[item.sku]) {
+                            sales[item.sku] = { name: item.name, totalSold: 0 };
+                        }
+                        sales[item.sku].totalSold += Math.abs(qty);
+                    }
+                });
+
+                const sortedSales = Object.keys(sales).map(sku => ({
+                    sku,
+                    name: sales[sku].name,
+                    totalSold: sales[sku].totalSold
+                })).sort((a, b) => b.totalSold - a.totalSold);
+
+                if (sortedSales.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin salidas registradas en el período/filtros seleccionados.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = sortedSales.map(item => `
+                    <tr class="hover:bg-zinc-50 transition-colors">
+                        <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                        <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
+                        <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.totalSold}</td>
+                    </tr>
+                `).join('');
             },
 
             handleManualEntry(e) {
@@ -589,6 +732,98 @@
                 e.target.value = null;
             },
 
+            handleHistoricoUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const text = event.target.result;
+                        // Procesar CSV manualmente para el archivo histórico simple
+                        const lines = text.split('\n').filter(line => line.trim() !== '');
+                        
+                        if (lines.length <= 1) {
+                            throw new Error("El archivo está vacío o solo tiene cabeceras.");
+                        }
+
+                        // Verificar cabeceras esperadas (opcional, pero buena práctica)
+                        const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+                        const requiredHeaders = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad'];
+                        
+                        // Simplificación: Asumimos el orden del exportDetail: Fecha, SKU, Producto, Bodega, Cantidad, Estado
+                        let newRecords = [];
+                        let parseErrors = 0;
+
+                        for (let i = 1; i < lines.length; i++) {
+                            // Parsear línea considerando comillas que agrupan campos
+                            const rowRegex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
+                            const rawMatches = lines[i].match(rowRegex);
+                            
+                            if (!rawMatches) continue;
+
+                            // Limpiar comillas de cada campo
+                            const row = rawMatches.map(val => val.replace(/^"|"$/g, '').trim());
+
+                            if (row.length >= 5) {
+                                const fechaStr = row[0]; // e.g., "15 may 2026"
+                                const sku = row[1];
+                                const nombre = row[2];
+                                const bodega = row[3];
+                                const cantidadStr = row[4];
+                                const estado = row.length > 5 ? row[5] : '';
+
+                                // Intentar parsear la fecha para generar el sortDate
+                                let sortDate = new Date().toISOString().split('T')[0];
+                                const partesFecha = fechaStr.split(' ');
+                                if (partesFecha.length === 3) {
+                                    const d = partesFecha[0].padStart(2, '0');
+                                    const meses = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
+                                    const m = meses[partesFecha[1].substring(0,3).toLowerCase()] || '01';
+                                    const y = partesFecha[2];
+                                    sortDate = `${y}-${m}-${d}`;
+                                }
+
+                                const cantidad = parseInt(cantidadStr);
+                                if (isNaN(cantidad)) {
+                                    parseErrors++;
+                                    continue;
+                                }
+
+                                newRecords.push({
+                                    id: Date.now() + i, // Generar IDs únicos
+                                    sortDate: sortDate,
+                                    date: fechaStr,
+                                    sku: sku,
+                                    name: nombre,
+                                    warehouse: bodega,
+                                    quantity: cantidad,
+                                    status: estado
+                                });
+                            } else {
+                                parseErrors++;
+                            }
+                        }
+
+                        if (newRecords.length > 0) {
+                            // Agregar los nuevos registros a los existentes
+                            this.inventory = [...newRecords, ...this.inventory];
+                            this.saveAndRender();
+                            let msg = `Importación histórica exitosa: ${newRecords.length} registros agregados.`;
+                            if (parseErrors > 0) msg += ` (${parseErrors} filas ignoradas por formato incorrecto).`;
+                            this.showNotification(msg);
+                        } else {
+                            this.showNotification("No se encontraron registros válidos para importar.", "error");
+                        }
+
+                    } catch (err) {
+                        console.error(err);
+                        this.showNotification("Error procesando el archivo: " + err.message, 'error');
+                    }
+                };
+                reader.readAsText(file, 'utf-8'); // Leer como texto, ideal para CSV exportado
+                e.target.value = null;
+            },
+
             exportToExcel() {
                 if (this.inventory.length === 0) return this.showNotification("Sin datos.", "error");
                 const aggregated = {};
@@ -603,7 +838,8 @@
                 const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'Total Unidades'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
                 
-                const rows = Object.keys(aggregated).map(sku => {
+                const sortedSkus = Object.keys(aggregated).sort((a, b) => a.localeCompare(b));
+                const rows = sortedSkus.map(sku => {
                     const data = aggregated[sku];
                     const total = data.whHub + data.office + data.fullML;
                     return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${total}`;
