@@ -652,6 +652,36 @@
                 const reportAll = {};
                 const reportFullML = {};
 
+                // 1. Detección Inteligente de Traslados
+                // Empareja salidas con entradas idénticas (mismo SKU, cantidad y fecha) en diferentes bodegas.
+                const transferIds = new Set();
+                const groupedBase = {};
+                
+                baseData.forEach(item => {
+                    if(!item.sortDate) return;
+                    const key = `${item.sku}_${item.sortDate}`;
+                    if (!groupedBase[key]) groupedBase[key] = { ins: [], outs: [] };
+                    
+                    let qty = parseInt(item.quantity) || 0;
+                    if (qty > 0) groupedBase[key].ins.push({...item, parsedQty: qty});
+                    else if (qty < 0) groupedBase[key].outs.push({...item, parsedQty: Math.abs(qty)});
+                });
+
+                Object.values(groupedBase).forEach(group => {
+                    group.outs.forEach(outItem => {
+                        const inIndex = group.ins.findIndex(inItem => 
+                            !transferIds.has(inItem.id) && 
+                            inItem.parsedQty === outItem.parsedQty && 
+                            inItem.warehouse !== outItem.warehouse
+                        );
+                        // Si encuentra su "pareja", se registran como traslado para ignorarlos en las ventas
+                        if (inIndex !== -1) {
+                            transferIds.add(outItem.id);
+                            transferIds.add(group.ins[inIndex].id);
+                        }
+                    });
+                });
+
                 // Filtramos la data individualmente según el mes seleccionado en cada reporte
                 const dataR1 = this.report1MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report1MonthFilter)) : baseData;
                 const dataR2 = this.report2MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report2MonthFilter)) : baseData;
@@ -659,7 +689,8 @@
                 // Calcular datos para Tabla 1 (Office + Full ML) usando dataR1
                 dataR1.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
-                    if (qty < 0 && (item.warehouse === 'Office' || item.warehouse === 'Bodega 2' || item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
+                    // SUMAR SOLO SI: Es salida (<0), pertenece a Office/Full ML, y NO es un traslado
+                    if (qty < 0 && !transferIds.has(item.id) && (item.warehouse === 'Office' || item.warehouse === 'Bodega 2' || item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
                         if (!reportAll[item.sku]) {
                             reportAll[item.sku] = { name: item.name, outputs: 0 };
                         }
@@ -670,7 +701,8 @@
                 // Calcular datos para Tabla 2 (Solo Full ML) usando dataR2
                 dataR2.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
-                    if (qty < 0 && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
+                    // SUMAR SOLO SI: Es salida (<0), pertenece a Full ML, y NO es un traslado
+                    if (qty < 0 && !transferIds.has(item.id) && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
                         if (!reportFullML[item.sku]) {
                             reportFullML[item.sku] = { name: item.name, outputs: 0 };
                         }
