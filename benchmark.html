@@ -60,34 +60,54 @@
                 if (!chartRef.current || !data || data.length === 0) return;
                 if (chartInstance.current) { chartInstance.current.destroy(); }
                 const ctx = chartRef.current.getContext('2d');
+                
+                const hasCeilingFans = data.some(d => d.ceilingFanUnits > 0);
+                
+                const datasets = [
+                    {
+                        label: 'Ventas Totales ($)',
+                        data: data.map(d => d.sales),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        yAxisID: 'y-sales',
+                        tension: 0.3,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: isExporting ? 2 : 4,
+                    },
+                    {
+                        label: 'Unidades Vendidas',
+                        data: data.map(d => d.units),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        yAxisID: 'y-units',
+                        tension: 0.3,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: isExporting ? 2 : 4,
+                    }
+                ];
+
+                if (hasCeilingFans) {
+                    datasets.push({
+                        label: 'Ventiladores Techo (Unidades)',
+                        data: data.map(d => d.ceilingFanUnits),
+                        borderColor: '#f59e0b', // amber-500
+                        backgroundColor: 'transparent',
+                        yAxisID: 'y-units',
+                        tension: 0.3,
+                        fill: false,
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: isExporting ? 2 : 4,
+                    });
+                }
+
                 chartInstance.current = new window.Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: data.map(d => d.month),
-                        datasets: [
-                            {
-                                label: 'Ventas Totales ($)',
-                                data: data.map(d => d.sales),
-                                borderColor: '#10b981',
-                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                yAxisID: 'y-sales',
-                                tension: 0.3,
-                                fill: true,
-                                borderWidth: 2,
-                                pointRadius: isExporting ? 2 : 4,
-                            },
-                            {
-                                label: 'Unidades Vendidas',
-                                data: data.map(d => d.units),
-                                borderColor: '#3b82f6',
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                yAxisID: 'y-units',
-                                tension: 0.3,
-                                fill: true,
-                                borderWidth: 2,
-                                pointRadius: isExporting ? 2 : 4,
-                            }
-                        ]
+                        datasets: datasets
                     },
                     options: {
                         responsive: true,
@@ -334,10 +354,16 @@
                 if (years.length === 0) years.push("2026"); 
                 years.forEach(y => months.forEach(m => {
                     const key = `${m} ${y}`;
-                    grouped[key] = { month: key, units: 0, sales: 0, sortKey: getMonthValue(key) };
+                    grouped[key] = { month: key, units: 0, sales: 0, ceilingFanUnits: 0, sortKey: getMonthValue(key) };
                 }));
                 catFiltered.forEach(d => {
-                    if (grouped[d.Mes]) { grouped[d.Mes].units += d.Unidades; grouped[d.Mes].sales += (d.Precio * d.Unidades); }
+                    if (grouped[d.Mes]) { 
+                        grouped[d.Mes].units += d.Unidades; 
+                        grouped[d.Mes].sales += (d.Precio * d.Unidades); 
+                        if (d.Categoria === 'Ventiladores' && d.Nombre.toLowerCase().includes("techo")) {
+                            grouped[d.Mes].ceilingFanUnits += d.Unidades;
+                        }
+                    }
                 });
                 return Object.values(grouped).sort((a,b) => a.sortKey - b.sortKey);
             }, [data, selectedCategory]);
