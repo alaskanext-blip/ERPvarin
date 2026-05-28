@@ -278,12 +278,12 @@
             <!-- VISTA: REPORTES -->
             <section id="view-reportes" class="view-section h-full overflow-y-auto pb-10">
                 <div class="space-y-8">
-                    <!-- TABLA 1: Todas las salidas -->
+                    <!-- TABLA 1: Todas las bodegas -->
                     <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
                         <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                             <div>
-                                <h3 class="font-medium text-zinc-800 tracking-tight">Total Salidas por SKU (Todas las Bodegas)</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Consolidado de mermas, traslados o ventas en general.</p>
+                                <h3 class="font-medium text-zinc-800 tracking-tight">Reporte General por SKU (Todas las Bodegas)</h3>
+                                <p class="text-xs text-zinc-500 mt-1">Total de productos ingresados menos las salidas.</p>
                             </div>
                         </div>
                         <div class="p-6 overflow-x-auto">
@@ -292,7 +292,9 @@
                                     <tr>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Salidas</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Ingresados</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Salidas</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Neto (Ventas)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="report-table-all" class="divide-y divide-zinc-100">
@@ -306,8 +308,8 @@
                     <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
                         <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                             <div>
-                                <h3 class="font-medium text-emerald-800 tracking-tight">Ventas por SKU (Solo Full ML)</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Resumen exclusivo de salidas desde la bodega Full ML.</p>
+                                <h3 class="font-medium text-emerald-800 tracking-tight">Reporte por SKU (Solo Full ML)</h3>
+                                <p class="text-xs text-zinc-500 mt-1">Total de productos ingresados menos salidas exclusivo en bodega Full ML.</p>
                             </div>
                             <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
                                 <i class="ph ph-shopping-bag text-emerald-600"></i>
@@ -319,7 +321,7 @@
                                     <tr>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Vendido</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
                                     </tr>
                                 </thead>
                                 <tbody id="report-table-fullml" class="divide-y divide-zinc-100">
@@ -604,65 +606,70 @@
                 const tbodyFullML = document.getElementById('report-table-fullml');
                 if (!tbodyAll || !tbodyFullML) return;
 
-                const salesAll = {};
-                const salesFullML = {};
+                const reportAll = {};
+                const reportFullML = {};
 
                 filteredData.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
                     
-                    // Solo tomamos en cuenta las salidas (cantidades negativas)
-                    if (qty < 0) {
-                        // Acumular para TODAS las bodegas
-                        if (!salesAll[item.sku]) {
-                            salesAll[item.sku] = { name: item.name, totalSold: 0 };
-                        }
-                        salesAll[item.sku].totalSold += Math.abs(qty);
+                    // Acumular para TODAS las bodegas
+                    if (!reportAll[item.sku]) {
+                        reportAll[item.sku] = { name: item.name, inputs: 0, outputs: 0, net: 0 };
+                    }
+                    if (qty > 0) reportAll[item.sku].inputs += qty;
+                    else reportAll[item.sku].outputs += Math.abs(qty);
+                    
+                    reportAll[item.sku].net += qty; // Ingresos - Abs(Salidas)
 
-                        // Acumular SOLO para Full ML
-                        if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) {
-                            if (!salesFullML[item.sku]) {
-                                salesFullML[item.sku] = { name: item.name, totalSold: 0 };
-                            }
-                            salesFullML[item.sku].totalSold += Math.abs(qty);
+                    // Acumular SOLO para Full ML
+                    if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) {
+                        if (!reportFullML[item.sku]) {
+                            reportFullML[item.sku] = { name: item.name, inputs: 0, outputs: 0, net: 0 };
                         }
+                        if (qty > 0) reportFullML[item.sku].inputs += qty;
+                        else reportFullML[item.sku].outputs += Math.abs(qty);
+                        
+                        reportFullML[item.sku].net += qty; // Ingresos - Abs(Salidas)
                     }
                 });
 
-                // Ordenar ambos reportes de mayor a menor cantidad de salidas
-                const sortedAll = Object.keys(salesAll).map(sku => ({
+                // Ordenar ambos reportes por el Total Neto (mayor a menor)
+                const sortedAll = Object.keys(reportAll).map(sku => ({
                     sku,
-                    name: salesAll[sku].name,
-                    totalSold: salesAll[sku].totalSold
-                })).sort((a, b) => b.totalSold - a.totalSold);
+                    ...reportAll[sku]
+                })).sort((a, b) => b.net - a.net);
 
-                const sortedFullML = Object.keys(salesFullML).map(sku => ({
+                const sortedFullML = Object.keys(reportFullML).map(sku => ({
                     sku,
-                    name: salesFullML[sku].name,
-                    totalSold: salesFullML[sku].totalSold
-                })).sort((a, b) => b.totalSold - a.totalSold);
+                    ...reportFullML[sku]
+                })).sort((a, b) => b.outputs - a.outputs);
 
                 // Renderizar tabla global
                 if (sortedAll.length === 0) {
-                    tbodyAll.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin salidas registradas en el período/filtros seleccionados.</td></tr>`;
+                    tbodyAll.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin registros en el período/filtros seleccionados.</td></tr>`;
                 } else {
                     tbodyAll.innerHTML = sortedAll.map(item => `
                         <tr class="hover:bg-zinc-50 transition-colors">
                             <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4 text-right font-bold text-sky-600">${item.totalSold}</td>
+                            <td class="px-6 py-4 text-right text-emerald-600 font-medium">+${item.inputs}</td>
+                            <td class="px-6 py-4 text-right text-red-500 font-medium">-${item.outputs}</td>
+                            <td class="px-6 py-4 text-right font-bold text-sky-600">${item.net}</td>
                         </tr>
                     `).join('');
                 }
 
                 // Renderizar tabla Full ML
-                if (sortedFullML.length === 0) {
-                    tbodyFullML.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin salidas en Full ML para el período/filtros seleccionados.</td></tr>`;
+                const salesFullML = sortedFullML.filter(item => item.outputs > 0);
+                
+                if (salesFullML.length === 0) {
+                    tbodyFullML.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Full ML para el período/filtros seleccionados.</td></tr>`;
                 } else {
-                    tbodyFullML.innerHTML = sortedFullML.map(item => `
+                    tbodyFullML.innerHTML = salesFullML.map(item => `
                         <tr class="hover:bg-emerald-50/50 transition-colors">
                             <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.totalSold}</td>
+                            <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.outputs}</td>
                         </tr>
                     `).join('');
                 }
