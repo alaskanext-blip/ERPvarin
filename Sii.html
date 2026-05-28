@@ -15,9 +15,9 @@
     <!-- Babel para JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Chart.js y SheetJS (para Excel) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js y SheetJS (XLSX) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8fafc; }
@@ -42,7 +42,7 @@
         const IconCreditNote = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>;
         const IconBuilding = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>;
         const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
-        const IconUser = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const IconBriefcase = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
 
         // --- UTILIDADES ---
         const formatCurrency = (val) => new Intl.NumberFormat('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0}).format(val || 0);
@@ -138,7 +138,7 @@
             const [loading, setLoading] = useState(false);
             const [selectedMonth, setSelectedMonth] = useState('Todos');
 
-            // Leer archivos CSV nativamente (sin librerías pesadas) ya que el SII entrega CSV separados por punto y coma.
+            // Lector de CSV manual (para esquivar librerías en archivos grandes de SII)
             const parseCSV = async (file) => {
                 const text = await file.text();
                 const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
@@ -151,7 +151,6 @@
                     headers.forEach((h, i) => { obj[h.trim()] = values[i] ? values[i].trim() : ''; });
                     return obj;
                 });
-
                 return { headers, data };
             };
 
@@ -167,72 +166,95 @@
 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
-                    
-                    // --- MANEJO DE BOLETAS DE HONORARIOS (EXCEL) ---
-                    if (file.name.includes('Informe BH')) {
+                    const fileNameLow = file.name.toLowerCase();
+
+                    // --- 1. LECTURA EXCEL DE HONORARIOS ---
+                    if (fileNameLow.includes('informe bh') || file.name.endsWith('.xlsx')) {
                         const buffer = await file.arrayBuffer();
                         const workbook = window.XLSX.read(buffer, { type: 'array' });
-                        // Asumimos que los datos están en la primera hoja
-                        const firstSheetName = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[firstSheetName];
-                        // Convertir a JSON, asumiendo que la primera fila tiene los encabezados
-                        const jsonData = window.XLSX.utils.sheet_to_json(worksheet);
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-                        jsonData.forEach(row => {
-                            // Extraer fecha (asumiendo columna "Fecha" o similar)
-                            const fechaStr = row['Fecha'] || row['Fecha Emisión'] || row['Fecha de Emisión'];
-                            let mesStr = "Desconocido";
-                            
-                            if (fechaStr) {
-                                // Intentar parsear la fecha (DD/MM/YYYY o similar)
-                                const parts = String(fechaStr).split(/[-/]/);
-                                if (parts.length >= 2) {
-                                    // Asumiendo formato DD/MM/YYYY, el mes es parts[1] y el año parts[2]
-                                    let monthIndex = parseInt(parts[1]) - 1;
-                                    let year = parts[2];
-                                    
-                                    // Si el año solo tiene 2 dígitos, asumir 20XX
-                                    if (year && year.length === 2) year = "20" + year;
-                                    
-                                    // Fallback si el formato es YYYY-MM-DD
-                                    if (parts[0].length === 4) {
-                                        year = parts[0];
-                                        monthIndex = parseInt(parts[1]) - 1;
-                                    }
+                        // Encontrar fila de cabeceras
+                        let headerIdx = -1;
+                        for (let r = 0; r < Math.min(20, rows.length); r++) {
+                            if (!rows[r]) continue;
+                            const rStr = rows[r].join(" ").toLowerCase();
+                            if (rStr.includes("brutos") && rStr.includes("fecha")) {
+                                headerIdx = r;
+                                break;
+                            }
+                        }
 
+                        if (headerIdx !== -1) {
+                            const headers = rows[headerIdx].map(h => String(h).trim());
+                            const iFecha = headers.findIndex(h => h.toLowerCase() === 'fecha');
+                            const iRut = headers.findIndex(h => h.toLowerCase() === 'rut');
+                            const iNombre = headers.findIndex(h => h.toLowerCase().includes('nombre') || h.toLowerCase().includes('razón'));
+                            const iBrutos = headers.findIndex(h => h.toLowerCase() === 'brutos');
+                            const iRetenido = headers.findIndex(h => h.toLowerCase() === 'retenido');
+                            const iPagado = headers.findIndex(h => h.toLowerCase() === 'pagado');
+
+                            for (let r = headerIdx + 1; r < rows.length; r++) {
+                                const row = rows[r];
+                                if (!row || !row[iFecha]) continue;
+
+                                const fechaVal = row[iFecha];
+                                let mesStr = "Desconocido";
+                                
+                                // Extraer mes de la fecha del Excel
+                                let dateObj;
+                                if (typeof fechaVal === 'number') {
+                                    dateObj = new Date(Math.round((fechaVal - 25569) * 86400 * 1000));
+                                } else {
+                                    dateObj = new Date(fechaVal);
+                                }
+                                
+                                if (dateObj && !isNaN(dateObj.getTime())) {
                                     const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-                                    if (monthIndex >= 0 && monthIndex < 12 && year) {
-                                        mesStr = `${monthNames[monthIndex]} ${year}`;
+                                    mesStr = `${monthNames[dateObj.getUTCMonth()]} ${dateObj.getUTCFullYear()}`;
+                                } else if (typeof fechaVal === 'string') {
+                                    const matchDate = fechaVal.match(/(\d{4})-(\d{2})-\d{2}/);
+                                    if (matchDate) {
+                                        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                                        mesStr = `${monthNames[parseInt(matchDate[2]) - 1]} ${matchDate[1]}`;
                                     }
                                 }
-                            }
 
-                            if (mesStr !== "Desconocido") {
                                 newHonorarios.push({
                                     Mes: mesStr,
-                                    Rut: row['Rut Emisor'] || row['RUT'],
-                                    Nombre: row['Nombre Emisor'] || row['Nombre'] || row['Razón Social'],
-                                    Bruto: getInt(row['Bruto'] || row['Monto Bruto']),
-                                    Retencion: getInt(row['Retención'] || row['Retencion'] || row['Impuesto']),
-                                    Liquido: getInt(row['Líquido'] || row['Liquido'] || row['Monto Líquido'])
+                                    Rut: row[iRut],
+                                    RazonSocial: row[iNombre],
+                                    Fecha: typeof fechaVal === 'number' ? dateObj.toLocaleDateString() : fechaVal,
+                                    Brutos: getInt(row[iBrutos]),
+                                    Retenido: getInt(row[iRetenido]),
+                                    Pagado: getInt(row[iPagado])
                                 });
                             }
-                        });
-                        continue; // Saltar el procesamiento CSV para este archivo
+                        }
+                        continue; 
                     }
 
-                    // Extraer Mes del nombre del archivo (ej. 202603)
-                    const match = file.name.match(/_(\d{4})(\d{2})/);
+                    // --- 2. LECTURA CSV DE RCV DEL SII ---
+                    // Expresión regular corregida para extraer el Mes_Año (ej _202603.csv o _202604 (1).csv)
+                    const match = file.name.match(/_(\d{4})(\d{2})(?:\s*\(\d+\))?\.csv$/i);
                     let mesStr = "Desconocido";
                     if (match) {
                         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
                         mesStr = `${monthNames[parseInt(match[2]) - 1]} ${match[1]}`;
+                    } else {
+                        // Plan B estricto para buscar cualquier fecha válida 202X MM
+                        const fallbackMatch = file.name.match(/(202[0-9])(0[1-9]|1[0-2])/);
+                        if (fallbackMatch) {
+                            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                            mesStr = `${monthNames[parseInt(fallbackMatch[2]) - 1]} ${fallbackMatch[1]}`;
+                        }
                     }
 
                     const parsed = await parseCSV(file);
                     if (!parsed) continue;
 
-                    // 1. ES RESUMEN DE VENTAS
                     if (file.name.includes('RESUMEN_VENTA')) {
                         parsed.data.forEach(row => {
                             if (row['Tipo Documento']) {
@@ -245,9 +267,7 @@
                                 });
                             }
                         });
-                    } 
-                    // 2. ES DETALLE DE COMPRAS
-                    else if (file.name.includes('COMPRA_REGISTRO')) {
+                    } else if (file.name.includes('COMPRA_REGISTRO')) {
                         parsed.data.forEach(row => {
                             if (row['RUT Proveedor']) {
                                 newDetalleCompras.push({
@@ -261,9 +281,7 @@
                                 });
                             }
                         });
-                    }
-                    // 3. ES DETALLE DE VENTAS
-                    else if (file.name.includes('RCV_VENTA_')) {
+                    } else if (file.name.includes('RCV_VENTA_')) {
                         parsed.data.forEach(row => {
                             if (row['Rut cliente'] || row['RUT Cliente']) {
                                 newDetalleVentas.push({
@@ -280,7 +298,7 @@
                     }
                 }
 
-                // Lógica de reemplazo por mes (Evitar duplicados)
+                // Evitar duplicados por mes
                 if (newResumenVentas.length > 0) {
                     const mesesAfectados = new Set(newResumenVentas.map(d => d.Mes));
                     setDataVentasResumen(prev => [...prev.filter(d => !mesesAfectados.has(d.Mes)), ...newResumenVentas]);
@@ -299,7 +317,7 @@
                 }
 
                 setLoading(false);
-                event.target.value = ''; // Reset input
+                event.target.value = '';
             };
 
             const handleDeleteMonth = () => {
@@ -328,7 +346,6 @@
             }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios]);
 
             useEffect(() => {
-                // Auto-seleccionar el último mes si está en "Todos" y se cargaron datos
                 if (selectedMonth === 'Todos' && availableMonths.length > 1) {
                     setSelectedMonth(availableMonths[availableMonths.length - 1]);
                 }
@@ -339,7 +356,7 @@
                 const months = availableMonths.filter(m => m !== 'Todos');
                 const labels = [];
                 const ventas = [];
-                const compras = [];
+                const comprasYHonorarios = [];
 
                 months.forEach(m => {
                     labels.push(m);
@@ -358,64 +375,55 @@
                     });
                     ventas.push(vNeto);
 
-                    // Total Compras Netas del Mes
+                    // Total Compras Netas del Mes + Honorarios
                     const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m);
-                    let cNeto = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
-                    
-                    // Sumar Gastos por Honorarios al total de compras (usando el Bruto como gasto)
-                    const honorariosMes = dataHonorarios.filter(d => d.Mes === m);
-                    const hBruto = honorariosMes.reduce((acc, curr) => acc + curr.Bruto, 0);
-                    
-                    compras.push(cNeto + hBruto);
+                    const cNeto = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
+
+                    const honMes = dataHonorarios.filter(d => d.Mes === m);
+                    const hBruto = honMes.reduce((acc, curr) => acc + curr.Brutos, 0);
+
+                    comprasYHonorarios.push(cNeto + hBruto);
                 });
 
-                return { labels, ventas, compras };
+                return { labels, ventas, compras: comprasYHonorarios };
             }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios]);
 
             // --- PROCESAMIENTO DE DATOS POR MES PARA TARJETAS/TABLAS ---
             const processedData = useMemo(() => {
-                // Filtrar por mes
                 const resVentas = dataVentasResumen.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
                 const detVentas = dataVentasDetalle.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
                 const detCompras = dataComprasDetalle.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
-                const honorarios = dataHonorarios.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
+                const detHonorarios = dataHonorarios.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
 
-                // Clasificar Resumen de Ventas
                 let facturas = { docs: 0, neto: 0, total: 0 };
                 let boletas = { docs: 0, neto: 0, total: 0 };
                 let notasCredito = { docs: 0, neto: 0, total: 0 };
 
                 resVentas.forEach(r => {
                     const tipoStr = String(r.Tipo).toLowerCase();
-                    // Facturas: 33, 34, 43
                     if (tipoStr.includes('(33)') || tipoStr.includes('(34)') || tipoStr.includes('(43)')) {
                         facturas.docs += r.Documentos; facturas.neto += r.Neto; facturas.total += r.Total;
-                    } 
-                    // Boletas: 39, 41, 48
-                    else if (tipoStr.includes('(39)') || tipoStr.includes('(41)') || tipoStr.includes('(48)')) {
+                    } else if (tipoStr.includes('(39)') || tipoStr.includes('(41)') || tipoStr.includes('(48)')) {
                         boletas.docs += r.Documentos; boletas.neto += r.Neto; boletas.total += r.Total;
-                    }
-                    // Notas de Crédito: 61
-                    else if (tipoStr.includes('(61)')) {
+                    } else if (tipoStr.includes('(61)')) {
                         notasCredito.docs += r.Documentos; notasCredito.neto += r.Neto; notasCredito.total += r.Total;
                     }
                 });
 
-                // Total Ingresos = Facturas + Boletas - Notas de Crédito
                 const totalIngresos = {
                     neto: facturas.neto + boletas.neto - notasCredito.neto,
                     total: facturas.total + boletas.total - notasCredito.total
                 };
 
-                // Resumen Honorarios
-                const resumenHonorarios = {
-                    docs: honorarios.length,
-                    bruto: honorarios.reduce((acc, curr) => acc + curr.Bruto, 0),
-                    retencion: honorarios.reduce((acc, curr) => acc + curr.Retencion, 0),
-                    liquido: honorarios.reduce((acc, curr) => acc + curr.Liquido, 0)
-                };
+                let honorarios = { docs: 0, brutos: 0, retenido: 0, pagado: 0 };
+                detHonorarios.forEach(h => {
+                    honorarios.docs += 1;
+                    honorarios.brutos += h.Brutos;
+                    honorarios.retenido += h.Retenido;
+                    honorarios.pagado += h.Pagado;
+                });
 
-                return { facturas, boletas, notasCredito, totalIngresos, detVentas, detCompras, honorarios, resumenHonorarios };
+                return { facturas, boletas, notasCredito, totalIngresos, honorarios, detVentas, detCompras, detHonorarios };
 
             }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth]);
 
@@ -433,7 +441,7 @@
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-black text-slate-800 tracking-tight">Visor Contable SII</h1>
-                                    <p className="text-sm text-slate-500 font-medium">Contabilidad Simple &bull; RCV</p>
+                                    <p className="text-sm text-slate-500 font-medium">Contabilidad Simple &bull; RCV &bull; Honorarios</p>
                                 </div>
                             </div>
                             
@@ -455,8 +463,8 @@
                                 )}
 
                                 <label className="cursor-pointer bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-bold transition-all shadow-sm flex-1 md:flex-none justify-center">
-                                    {loading ? <span className="animate-pulse">Cargando...</span> : <><IconUpload /> Subir Archivos RCV</>}
-                                    <input type="file" multiple accept=".csv,.xlsx" className="hidden" onChange={handleFileUpload} />
+                                    {loading ? <span className="animate-pulse">Cargando...</span> : <><IconUpload /> Subir Archivos</>}
+                                    <input type="file" multiple accept=".csv, .xlsx, .xls" className="hidden" onChange={handleFileUpload} />
                                 </label>
                             </div>
                         </div>
@@ -466,7 +474,7 @@
                                 <div className="text-slate-300 mb-4"><IconBuilding /></div>
                                 <h3 className="text-xl font-bold text-slate-700 mb-2">Sube tus archivos del SII</h3>
                                 <p className="text-slate-500 max-w-md text-sm">
-                                    Sube los archivos <b>RCV_RESUMEN_VENTA</b>, <b>RCV_VENTA</b>, <b>RCV_COMPRA_REGISTRO</b> (en CSV) y tu <b>Informe BH 2026.xlsx</b> para visualizar tus ingresos y gastos mensuales.
+                                    Sube los archivos <b>RCV_RESUMEN_VENTA</b>, <b>RCV_VENTA</b>, <b>RCV_COMPRA_REGISTRO</b> (en CSV) o el <b>Informe BH</b> (Excel) para comenzar a visualizar los ingresos y gastos mensuales.
                                 </p>
                             </div>
                         )}
@@ -474,19 +482,19 @@
                         {hasData && processedData && (
                             <div className="space-y-8">
                                 
-                                {/* ---------------- SECCIÓN RESUMEN DE VENTAS ---------------- */}
+                                {/* ---------------- SECCIÓN RESUMEN Y GASTOS ---------------- */}
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                        <IconTrendingUp /> Resumen de Ingresos <span className="text-slate-400 text-sm font-normal">({selectedMonth})</span>
+                                        <IconTrendingUp /> Resumen de Ingresos y Gastos <span className="text-slate-400 text-sm font-normal">({selectedMonth})</span>
                                     </h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                                         
                                         {/* TARJETA FACTURAS */}
                                         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
                                             <div className="absolute top-0 right-0 p-4 text-blue-100"><IconInvoice /></div>
                                             <div className="text-sm font-bold text-blue-600 mb-1">FACTURAS</div>
                                             <div className="text-xs text-slate-400 mb-4">{processedData.facturas.docs} documentos emitidos</div>
-                                            
                                             <div className="flex justify-between items-end mb-1">
                                                 <span className="text-xs text-slate-500">Monto Neto</span>
                                                 <span className="font-bold text-slate-700">{formatCurrency(processedData.facturas.neto)}</span>
@@ -497,19 +505,33 @@
                                             </div>
                                         </div>
 
-                                        {/* TARJETA HONORARIOS (NUEVA) */}
-                                        <div className="bg-white rounded-xl p-5 border border-amber-200 shadow-sm relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-4 text-amber-100"><IconUser /></div>
-                                            <div className="text-sm font-bold text-amber-600 mb-1">HONORARIOS (GASTO)</div>
-                                            <div className="text-xs text-slate-400 mb-4">{processedData.resumenHonorarios.docs} boletas recibidas</div>
-                                            
+                                        {/* TARJETA BOLETAS */}
+                                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-4 text-emerald-100"><IconReceipt /></div>
+                                            <div className="text-sm font-bold text-emerald-600 mb-1">BOLETAS</div>
+                                            <div className="text-xs text-slate-400 mb-4">{processedData.boletas.docs} documentos emitidos</div>
                                             <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-amber-700">Monto Bruto</span>
-                                                <span className="font-bold text-slate-700">{formatCurrency(processedData.resumenHonorarios.bruto)}</span>
+                                                <span className="text-xs text-slate-500">Monto Neto</span>
+                                                <span className="font-bold text-slate-700">{formatCurrency(processedData.boletas.neto)}</span>
                                             </div>
-                                            <div className="flex justify-between items-end border-t border-amber-100 pt-1">
-                                                <span className="text-xs font-bold text-amber-800">Monto Líquido</span>
-                                                <span className="font-black text-slate-800 text-lg">{formatCurrency(processedData.resumenHonorarios.liquido)}</span>
+                                            <div className="flex justify-between items-end border-t border-slate-100 pt-1">
+                                                <span className="text-xs font-bold text-slate-800">Monto Total</span>
+                                                <span className="font-black text-slate-800 text-lg">{formatCurrency(processedData.boletas.total)}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* TARJETA NOTAS DE CRÉDITO */}
+                                        <div className="bg-white rounded-xl p-5 border border-red-100 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-4 text-red-50"><IconCreditNote /></div>
+                                            <div className="text-sm font-bold text-red-500 mb-1">NOTAS DE CRÉDITO</div>
+                                            <div className="text-xs text-red-300 mb-4">{processedData.notasCredito.docs} documentos (Restan)</div>
+                                            <div className="flex justify-between items-end mb-1">
+                                                <span className="text-xs text-red-400">Monto Neto</span>
+                                                <span className="font-bold text-red-600">-{formatCurrency(processedData.notasCredito.neto)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-end border-t border-red-50 pt-1">
+                                                <span className="text-xs font-bold text-red-800">Monto Total</span>
+                                                <span className="font-black text-red-600 text-lg">-{formatCurrency(processedData.notasCredito.total)}</span>
                                             </div>
                                         </div>
 
@@ -517,14 +539,28 @@
                                         <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md relative overflow-hidden text-white">
                                             <div className="text-sm font-black text-blue-300 mb-1">TOTAL INGRESOS</div>
                                             <div className="text-xs text-slate-400 mb-4">Facturas + Boletas - N.C.</div>
-                                            
                                             <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-slate-300">Neto Total Periodo</span>
+                                                <span className="text-xs text-slate-300">Neto Total</span>
                                                 <span className="font-bold text-slate-100">{formatCurrency(processedData.totalIngresos.neto)}</span>
                                             </div>
                                             <div className="flex justify-between items-end border-t border-slate-600 pt-1">
                                                 <span className="text-xs font-bold text-white">Ingreso Total</span>
                                                 <span className="font-black text-white text-xl text-emerald-400">{formatCurrency(processedData.totalIngresos.total)}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* TARJETA HONORARIOS (NUEVO) */}
+                                        <div className="bg-amber-50 rounded-xl p-5 border border-amber-200 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-4 text-amber-100"><IconBriefcase /></div>
+                                            <div className="text-sm font-bold text-amber-700 mb-1">HONORARIOS (Gasto)</div>
+                                            <div className="text-xs text-amber-500 mb-4">{processedData.honorarios.docs} boletas recibidas</div>
+                                            <div className="flex justify-between items-end mb-1">
+                                                <span className="text-xs text-amber-600">Monto Bruto</span>
+                                                <span className="font-bold text-amber-800">{formatCurrency(processedData.honorarios.brutos)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-end border-t border-amber-200 pt-1">
+                                                <span className="text-xs font-bold text-amber-800">Líquido Pagado</span>
+                                                <span className="font-black text-amber-900 text-lg">{formatCurrency(processedData.honorarios.pagado)}</span>
                                             </div>
                                         </div>
 
