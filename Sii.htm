@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor Contable SII | Simple</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel para JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Chart.js y SheetJS (para Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8fafc; }
+        /* Scrollbar personalizado para las tablas */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- ICONOS SVG ---
+        const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+        const IconInvoice = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+        const IconReceipt = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17V7"/></svg>;
+        const IconCreditNote = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>;
+        const IconBuilding = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>;
+        const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+        const IconUser = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+
+        // --- UTILIDADES ---
+        const formatCurrency = (val) => new Intl.NumberFormat('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0}).format(val || 0);
+        const formatNumber = (val) => new Intl.NumberFormat('es-CL').format(val || 0);
+        const getInt = (val) => parseInt(String(val).replace(/\D/g, ''), 10) || 0;
+
+        const monthMap = { "Enero": 1, "Febrero": 2, "Marzo": 3, "Abril": 4, "Mayo": 5, "Junio": 6, "Julio": 7, "Agosto": 8, "Septiembre": 9, "Octubre": 10, "Noviembre": 11, "Diciembre": 12 };
+        const getMonthValue = (mStr) => {
+            if (!mStr || mStr === 'Todos') return 0;
+            const parts = mStr.split(' ');
+            if (parts.length < 2) return 999999;
+            return parseInt(parts[1]) * 100 + (monthMap[parts[0]] || 0);
+        };
+
+        // --- COMPONENTE DE GRÁFICO DE LÍNEAS ---
+        const LineChart = ({ title, labels, datasetLabel, data, borderColor, bgColor }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (!chartRef.current || !data || data.length === 0) return;
+                if (chartInstance.current) chartInstance.current.destroy();
+
+                const ctx = chartRef.current.getContext('2d');
+                chartInstance.current = new window.Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: datasetLabel,
+                            data: data,
+                            borderColor: borderColor,
+                            backgroundColor: bgColor,
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: borderColor
+                        }]
+                    },
+                    options: {
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            label += '$' + new Intl.NumberFormat('es-CL').format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 11 } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { borderDash: [2, 4], color: '#e2e8f0' },
+                                ticks: { 
+                                    font: { size: 11 },
+                                    callback: (v) => '$' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : new Intl.NumberFormat('es-CL').format(v)) 
+                                }
+                            }
+                        }
+                    }
+                });
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [labels, data, borderColor, bgColor, datasetLabel]);
+
+            return (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col h-72">
+                    <h3 className="text-sm font-bold text-slate-700 mb-4">{title}</h3>
+                    <div className="flex-1 relative w-full h-full">
+                        <canvas ref={chartRef}></canvas>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [dataVentasResumen, setDataVentasResumen] = useState([]);
+            const [dataVentasDetalle, setDataVentasDetalle] = useState([]);
+            const [dataComprasDetalle, setDataComprasDetalle] = useState([]);
+            const [dataHonorarios, setDataHonorarios] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [selectedMonth, setSelectedMonth] = useState('Todos');
+
+            // Leer archivos CSV nativamente (sin librerías pesadas) ya que el SII entrega CSV separados por punto y coma.
+            const parseCSV = async (file) => {
+                const text = await file.text();
+                const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+                if (lines.length < 2) return null;
+                const headers = lines[0].split(';');
+                
+                const data = lines.slice(1).map(line => {
+                    const values = line.split(';');
+                    let obj = {};
+                    headers.forEach((h, i) => { obj[h.trim()] = values[i] ? values[i].trim() : ''; });
+                    return obj;
+                });
+
+                return { headers, data };
+            };
+
+            const handleFileUpload = async (event) => {
+                const files = event.target.files;
+                if (!files || files.length === 0) return;
+                setLoading(true);
+
+                let newResumenVentas = [];
+                let newDetalleVentas = [];
+                let newDetalleCompras = [];
+                let newHonorarios = [];
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    
+                    // --- MANEJO DE BOLETAS DE HONORARIOS (EXCEL) ---
+                    if (file.name.includes('Informe BH')) {
+                        const buffer = await file.arrayBuffer();
+                        const workbook = window.XLSX.read(buffer, { type: 'array' });
+                        // Asumimos que los datos están en la primera hoja
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        // Convertir a JSON, asumiendo que la primera fila tiene los encabezados
+                        const jsonData = window.XLSX.utils.sheet_to_json(worksheet);
+
+                        jsonData.forEach(row => {
+                            // Extraer fecha (asumiendo columna "Fecha" o similar)
+                            const fechaStr = row['Fecha'] || row['Fecha Emisión'] || row['Fecha de Emisión'];
+                            let mesStr = "Desconocido";
+                            
+                            if (fechaStr) {
+                                // Intentar parsear la fecha (DD/MM/YYYY o similar)
+                                const parts = String(fechaStr).split(/[-/]/);
+                                if (parts.length >= 2) {
+                                    // Asumiendo formato DD/MM/YYYY, el mes es parts[1] y el año parts[2]
+                                    let monthIndex = parseInt(parts[1]) - 1;
+                                    let year = parts[2];
+                                    
+                                    // Si el año solo tiene 2 dígitos, asumir 20XX
+                                    if (year && year.length === 2) year = "20" + year;
+                                    
+                                    // Fallback si el formato es YYYY-MM-DD
+                                    if (parts[0].length === 4) {
+                                        year = parts[0];
+                                        monthIndex = parseInt(parts[1]) - 1;
+                                    }
+
+                                    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                                    if (monthIndex >= 0 && monthIndex < 12 && year) {
+                                        mesStr = `${monthNames[monthIndex]} ${year}`;
+                                    }
+                                }
+                            }
+
+                            if (mesStr !== "Desconocido") {
+                                newHonorarios.push({
+                                    Mes: mesStr,
+                                    Rut: row['Rut Emisor'] || row['RUT'],
+                                    Nombre: row['Nombre Emisor'] || row['Nombre'] || row['Razón Social'],
+                                    Bruto: getInt(row['Bruto'] || row['Monto Bruto']),
+                                    Retencion: getInt(row['Retención'] || row['Retencion'] || row['Impuesto']),
+                                    Liquido: getInt(row['Líquido'] || row['Liquido'] || row['Monto Líquido'])
+                                });
+                            }
+                        });
+                        continue; // Saltar el procesamiento CSV para este archivo
+                    }
+
+                    // Extraer Mes del nombre del archivo (ej. 202603)
+                    const match = file.name.match(/_(\d{4})(\d{2})/);
+                    let mesStr = "Desconocido";
+                    if (match) {
+                        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                        mesStr = `${monthNames[parseInt(match[2]) - 1]} ${match[1]}`;
+                    }
+
+                    const parsed = await parseCSV(file);
+                    if (!parsed) continue;
+
+                    // 1. ES RESUMEN DE VENTAS
+                    if (file.name.includes('RESUMEN_VENTA')) {
+                        parsed.data.forEach(row => {
+                            if (row['Tipo Documento']) {
+                                newResumenVentas.push({
+                                    Mes: mesStr,
+                                    Tipo: row['Tipo Documento'],
+                                    Documentos: getInt(row['Total Documentos']),
+                                    Neto: getInt(row['Monto Neto']),
+                                    Total: getInt(row['Monto Total'])
+                                });
+                            }
+                        });
+                    } 
+                    // 2. ES DETALLE DE COMPRAS
+                    else if (file.name.includes('COMPRA_REGISTRO')) {
+                        parsed.data.forEach(row => {
+                            if (row['RUT Proveedor']) {
+                                newDetalleCompras.push({
+                                    Mes: mesStr,
+                                    Rut: row['RUT Proveedor'],
+                                    RazonSocial: row['Razon Social'] || row['Razón Social'],
+                                    Fecha: row['Fecha Docto'],
+                                    Neto: getInt(row['Monto Neto']),
+                                    Total: getInt(row['Monto Total']),
+                                    TipoDoc: row['Tipo Doc']
+                                });
+                            }
+                        });
+                    }
+                    // 3. ES DETALLE DE VENTAS
+                    else if (file.name.includes('RCV_VENTA_')) {
+                        parsed.data.forEach(row => {
+                            if (row['Rut cliente'] || row['RUT Cliente']) {
+                                newDetalleVentas.push({
+                                    Mes: mesStr,
+                                    Rut: row['Rut cliente'] || row['RUT Cliente'],
+                                    RazonSocial: row['Razon Social'] || row['Razón Social'],
+                                    Fecha: row['Fecha Docto'],
+                                    Neto: getInt(row['Monto Neto']),
+                                    Total: getInt(row['Monto total'] || row['Monto Total']),
+                                    TipoDoc: row['Tipo Doc']
+                                });
+                            }
+                        });
+                    }
+                }
+
+                // Lógica de reemplazo por mes (Evitar duplicados)
+                if (newResumenVentas.length > 0) {
+                    const mesesAfectados = new Set(newResumenVentas.map(d => d.Mes));
+                    setDataVentasResumen(prev => [...prev.filter(d => !mesesAfectados.has(d.Mes)), ...newResumenVentas]);
+                }
+                if (newDetalleVentas.length > 0) {
+                    const mesesAfectados = new Set(newDetalleVentas.map(d => d.Mes));
+                    setDataVentasDetalle(prev => [...prev.filter(d => !mesesAfectados.has(d.Mes)), ...newDetalleVentas]);
+                }
+                if (newDetalleCompras.length > 0) {
+                    const mesesAfectados = new Set(newDetalleCompras.map(d => d.Mes));
+                    setDataComprasDetalle(prev => [...prev.filter(d => !mesesAfectados.has(d.Mes)), ...newDetalleCompras]);
+                }
+                if (newHonorarios.length > 0) {
+                    const mesesAfectados = new Set(newHonorarios.map(d => d.Mes));
+                    setDataHonorarios(prev => [...prev.filter(d => !mesesAfectados.has(d.Mes)), ...newHonorarios]);
+                }
+
+                setLoading(false);
+                event.target.value = ''; // Reset input
+            };
+
+            const handleDeleteMonth = () => {
+                if (selectedMonth === 'Todos') {
+                    if (confirm("¿Borrar TODOS los datos de todos los meses?")) {
+                        setDataVentasResumen([]);
+                        setDataVentasDetalle([]);
+                        setDataComprasDetalle([]);
+                        setDataHonorarios([]);
+                    }
+                    return;
+                }
+                if (confirm(`¿Borrar los datos registrados de ${selectedMonth}?`)) {
+                    setDataVentasResumen(prev => prev.filter(d => d.Mes !== selectedMonth));
+                    setDataVentasDetalle(prev => prev.filter(d => d.Mes !== selectedMonth));
+                    setDataComprasDetalle(prev => prev.filter(d => d.Mes !== selectedMonth));
+                    setDataHonorarios(prev => prev.filter(d => d.Mes !== selectedMonth));
+                    setSelectedMonth('Todos');
+                }
+            };
+
+            // Meses Disponibles
+            const availableMonths = useMemo(() => {
+                const allMonths = [...dataVentasResumen.map(d=>d.Mes), ...dataVentasDetalle.map(d=>d.Mes), ...dataComprasDetalle.map(d=>d.Mes), ...dataHonorarios.map(d=>d.Mes)];
+                return ['Todos', ...Array.from(new Set(allMonths)).sort((a,b) => getMonthValue(a)-getMonthValue(b))];
+            }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios]);
+
+            useEffect(() => {
+                // Auto-seleccionar el último mes si está en "Todos" y se cargaron datos
+                if (selectedMonth === 'Todos' && availableMonths.length > 1) {
+                    setSelectedMonth(availableMonths[availableMonths.length - 1]);
+                }
+            }, [availableMonths]);
+
+            // --- PROCESAMIENTO DE DATOS PARA GRÁFICOS (Evolución Mensual) ---
+            const chartData = useMemo(() => {
+                const months = availableMonths.filter(m => m !== 'Todos');
+                const labels = [];
+                const ventas = [];
+                const compras = [];
+
+                months.forEach(m => {
+                    labels.push(m);
+                    
+                    // Total Ventas Netas del Mes
+                    const resVentasMes = dataVentasResumen.filter(d => d.Mes === m);
+                    let vNeto = 0;
+                    resVentasMes.forEach(r => {
+                        const t = String(r.Tipo).toLowerCase();
+                        if (t.includes('(33)') || t.includes('(34)') || t.includes('(43)') || 
+                            t.includes('(39)') || t.includes('(41)') || t.includes('(48)')) {
+                            vNeto += r.Neto;
+                        } else if (t.includes('(61)')) {
+                            vNeto -= r.Neto;
+                        }
+                    });
+                    ventas.push(vNeto);
+
+                    // Total Compras Netas del Mes
+                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m);
+                    let cNeto = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
+                    
+                    // Sumar Gastos por Honorarios al total de compras (usando el Bruto como gasto)
+                    const honorariosMes = dataHonorarios.filter(d => d.Mes === m);
+                    const hBruto = honorariosMes.reduce((acc, curr) => acc + curr.Bruto, 0);
+                    
+                    compras.push(cNeto + hBruto);
+                });
+
+                return { labels, ventas, compras };
+            }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios]);
+
+            // --- PROCESAMIENTO DE DATOS POR MES PARA TARJETAS/TABLAS ---
+            const processedData = useMemo(() => {
+                // Filtrar por mes
+                const resVentas = dataVentasResumen.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
+                const detVentas = dataVentasDetalle.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
+                const detCompras = dataComprasDetalle.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
+                const honorarios = dataHonorarios.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
+
+                // Clasificar Resumen de Ventas
+                let facturas = { docs: 0, neto: 0, total: 0 };
+                let boletas = { docs: 0, neto: 0, total: 0 };
+                let notasCredito = { docs: 0, neto: 0, total: 0 };
+
+                resVentas.forEach(r => {
+                    const tipoStr = String(r.Tipo).toLowerCase();
+                    // Facturas: 33, 34, 43
+                    if (tipoStr.includes('(33)') || tipoStr.includes('(34)') || tipoStr.includes('(43)')) {
+                        facturas.docs += r.Documentos; facturas.neto += r.Neto; facturas.total += r.Total;
+                    } 
+                    // Boletas: 39, 41, 48
+                    else if (tipoStr.includes('(39)') || tipoStr.includes('(41)') || tipoStr.includes('(48)')) {
+                        boletas.docs += r.Documentos; boletas.neto += r.Neto; boletas.total += r.Total;
+                    }
+                    // Notas de Crédito: 61
+                    else if (tipoStr.includes('(61)')) {
+                        notasCredito.docs += r.Documentos; notasCredito.neto += r.Neto; notasCredito.total += r.Total;
+                    }
+                });
+
+                // Total Ingresos = Facturas + Boletas - Notas de Crédito
+                const totalIngresos = {
+                    neto: facturas.neto + boletas.neto - notasCredito.neto,
+                    total: facturas.total + boletas.total - notasCredito.total
+                };
+
+                // Resumen Honorarios
+                const resumenHonorarios = {
+                    docs: honorarios.length,
+                    bruto: honorarios.reduce((acc, curr) => acc + curr.Bruto, 0),
+                    retencion: honorarios.reduce((acc, curr) => acc + curr.Retencion, 0),
+                    liquido: honorarios.reduce((acc, curr) => acc + curr.Liquido, 0)
+                };
+
+                return { facturas, boletas, notasCredito, totalIngresos, detVentas, detCompras, honorarios, resumenHonorarios };
+
+            }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth]);
+
+            const hasData = dataVentasResumen.length > 0 || dataVentasDetalle.length > 0 || dataComprasDetalle.length > 0 || dataHonorarios.length > 0;
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <div className="max-w-7xl mx-auto space-y-6">
+                        
+                        {/* CABECERA */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
+                                    <IconBuilding />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Visor Contable SII</h1>
+                                    <p className="text-sm text-slate-500 font-medium">Contabilidad Simple &bull; RCV</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-3 items-center w-full md:w-auto">
+                                {hasData && (
+                                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
+                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Mes:</span>
+                                        <select 
+                                            className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer"
+                                            value={selectedMonth} 
+                                            onChange={e => setSelectedMonth(e.target.value)}
+                                        >
+                                            {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                                        </select>
+                                        <button onClick={handleDeleteMonth} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md ml-2 transition-colors" title="Borrar mes actual">
+                                            <IconTrash />
+                                        </button>
+                                    </div>
+                                )}
+
+                                <label className="cursor-pointer bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-bold transition-all shadow-sm flex-1 md:flex-none justify-center">
+                                    {loading ? <span className="animate-pulse">Cargando...</span> : <><IconUpload /> Subir Archivos RCV</>}
+                                    <input type="file" multiple accept=".csv,.xlsx" className="hidden" onChange={handleFileUpload} />
+                                </label>
+                            </div>
+                        </div>
+
+                        {!hasData && (
+                            <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 py-24 flex flex-col items-center text-center">
+                                <div className="text-slate-300 mb-4"><IconBuilding /></div>
+                                <h3 className="text-xl font-bold text-slate-700 mb-2">Sube tus archivos del SII</h3>
+                                <p className="text-slate-500 max-w-md text-sm">
+                                    Sube los archivos <b>RCV_RESUMEN_VENTA</b>, <b>RCV_VENTA</b>, <b>RCV_COMPRA_REGISTRO</b> (en CSV) y tu <b>Informe BH 2026.xlsx</b> para visualizar tus ingresos y gastos mensuales.
+                                </p>
+                            </div>
+                        )}
+
+                        {hasData && processedData && (
+                            <div className="space-y-8">
+                                
+                                {/* ---------------- SECCIÓN RESUMEN DE VENTAS ---------------- */}
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <IconTrendingUp /> Resumen de Ingresos <span className="text-slate-400 text-sm font-normal">({selectedMonth})</span>
+                                    </h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        
+                                        {/* TARJETA FACTURAS */}
+                                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-4 text-blue-100"><IconInvoice /></div>
+                                            <div className="text-sm font-bold text-blue-600 mb-1">FACTURAS</div>
+                                            <div className="text-xs text-slate-400 mb-4">{processedData.facturas.docs} documentos emitidos</div>
+                                            
+                                            <div className="flex justify-between items-end mb-1">
+                                                <span className="text-xs text-slate-500">Monto Neto</span>
+                                                <span className="font-bold text-slate-700">{formatCurrency(processedData.facturas.neto)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-end border-t border-slate-100 pt-1">
+                                                <span className="text-xs font-bold text-slate-800">Monto Total</span>
+                                                <span className="font-black text-slate-800 text-lg">{formatCurrency(processedData.facturas.total)}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* TARJETA HONORARIOS (NUEVA) */}
+                                        <div className="bg-white rounded-xl p-5 border border-amber-200 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-4 text-amber-100"><IconUser /></div>
+                                            <div className="text-sm font-bold text-amber-600 mb-1">HONORARIOS (GASTO)</div>
+                                            <div className="text-xs text-slate-400 mb-4">{processedData.resumenHonorarios.docs} boletas recibidas</div>
+                                            
+                                            <div className="flex justify-between items-end mb-1">
+                                                <span className="text-xs text-amber-700">Monto Bruto</span>
+                                                <span className="font-bold text-slate-700">{formatCurrency(processedData.resumenHonorarios.bruto)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-end border-t border-amber-100 pt-1">
+                                                <span className="text-xs font-bold text-amber-800">Monto Líquido</span>
+                                                <span className="font-black text-slate-800 text-lg">{formatCurrency(processedData.resumenHonorarios.liquido)}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* TARJETA TOTAL INGRESOS */}
+                                        <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md relative overflow-hidden text-white">
+                                            <div className="text-sm font-black text-blue-300 mb-1">TOTAL INGRESOS</div>
+                                            <div className="text-xs text-slate-400 mb-4">Facturas + Boletas - N.C.</div>
+                                            
+                                            <div className="flex justify-between items-end mb-1">
+                                                <span className="text-xs text-slate-300">Neto Total Periodo</span>
+                                                <span className="font-bold text-slate-100">{formatCurrency(processedData.totalIngresos.neto)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-end border-t border-slate-600 pt-1">
+                                                <span className="text-xs font-bold text-white">Ingreso Total</span>
+                                                <span className="font-black text-white text-xl text-emerald-400">{formatCurrency(processedData.totalIngresos.total)}</span>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                {/* ---------------- SECCIÓN GRÁFICOS DE EVOLUCIÓN ---------------- */}
+                                {chartData && chartData.labels.length > 0 && (
+                                    <div>
+                                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                            Evolución Anual (Neto)
+                                        </h2>
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            <LineChart 
+                                                title="Ventas Netas Totales" 
+                                                labels={chartData.labels} 
+                                                datasetLabel="Ventas Netas" 
+                                                data={chartData.ventas} 
+                                                borderColor="#3b82f6" 
+                                                bgColor="rgba(59, 130, 246, 0.1)" 
+                                            />
+                                            <LineChart 
+                                                title="Compras Netas + Honorarios Brutos" 
+                                                labels={chartData.labels} 
+                                                datasetLabel="Gastos Totales" 
+                                                data={chartData.compras} 
+                                                borderColor="#f43f5e" 
+                                                bgColor="rgba(244, 63, 94, 0.1)" 
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ---------------- SECCIÓN TABLAS DETALLE ---------------- */}
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                    
+                                    {/* TABLA: DETALLE DE VENTAS */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                                        <div className="bg-slate-50 border-b border-slate-200 p-4">
+                                            <h3 className="font-bold text-slate-800 flex items-center justify-between">
+                                                Detalle de Ventas
+                                                <span className="text-xs bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{processedData.detVentas.length} Docs.</span>
+                                            </h3>
+                                        </div>
+                                        <div className="overflow-auto custom-scrollbar flex-1 p-0">
+                                            {processedData.detVentas.length > 0 ? (
+                                                <table className="w-full text-left border-collapse text-xs">
+                                                    <thead className="bg-white sticky top-0 shadow-sm">
+                                                        <tr className="text-slate-500 uppercase">
+                                                            <th className="p-3 border-b font-semibold whitespace-nowrap">RUT Cliente</th>
+                                                            <th className="p-3 border-b font-semibold">Razón Social</th>
+                                                            <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
+                                                            <th className="p-3 border-b font-semibold text-right">M. Neto</th>
+                                                            <th className="p-3 border-b font-semibold text-right">M. Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {processedData.detVentas.map((v, idx) => (
+                                                            <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                                                                <td className="p-3 text-slate-600 whitespace-nowrap">{v.Rut}</td>
+                                                                <td className="p-3 font-medium text-slate-800 truncate max-w-[150px]" title={v.RazonSocial}>{v.RazonSocial || 'Sin Razón Social'}</td>
+                                                                <td className="p-3 text-slate-500 whitespace-nowrap">{v.Fecha}</td>
+                                                                <td className="p-3 text-right text-slate-600">{formatCurrency(v.Neto)}</td>
+                                                                <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(v.Total)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                                                    Sube el archivo RCV_VENTA para ver el detalle.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* TABLA: REGISTRO DE COMPRAS */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                                        <div className="bg-slate-50 border-b border-slate-200 p-4 flex justify-between items-center">
+                                            <h3 className="font-bold text-slate-800">
+                                                Registro de Compras
+                                            </h3>
+                                            <span className="text-xs bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{processedData.detCompras.length} Docs.</span>
+                                        </div>
+                                        <div className="overflow-auto custom-scrollbar flex-1 p-0">
+                                            {processedData.detCompras.length > 0 ? (
+                                                <table className="w-full text-left border-collapse text-xs">
+                                                    <thead className="bg-white sticky top-0 shadow-sm">
+                                                        <tr className="text-slate-500 uppercase">
+                                                            <th className="p-3 border-b font-semibold">Razón Social (Proveedor)</th>
+                                                            <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha Docto</th>
+                                                            <th className="p-3 border-b font-semibold text-right">M. Neto</th>
+                                                            <th className="p-3 border-b font-semibold text-right">M. Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {processedData.detCompras.map((c, idx) => (
+                                                            <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                                                                <td className="p-3 font-medium text-slate-800 truncate max-w-[200px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
+                                                                <td className="p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
+                                                                <td className="p-3 text-right text-slate-600">{formatCurrency(c.Neto)}</td>
+                                                                <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                                                    Sube el archivo RCV_COMPRA_REGISTRO para ver el detalle.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
