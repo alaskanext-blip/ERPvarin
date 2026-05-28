@@ -276,27 +276,57 @@
             </section>
 
             <!-- VISTA: REPORTES -->
-            <section id="view-reportes" class="view-section h-full">
-                <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col h-full">
-                    <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
-                        <div>
-                            <h3 class="font-medium text-zinc-800 tracking-tight">Unidades Vendidas por SKU</h3>
-                            <p class="text-xs text-zinc-500 mt-1">Resumen de salidas según los filtros globales aplicados (Mes / SKU).</p>
+            <section id="view-reportes" class="view-section h-full overflow-y-auto pb-10">
+                <div class="space-y-8">
+                    <!-- TABLA 1: Todas las salidas -->
+                    <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
+                        <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                            <div>
+                                <h3 class="font-medium text-zinc-800 tracking-tight">Total Salidas por SKU (Todas las Bodegas)</h3>
+                                <p class="text-xs text-zinc-500 mt-1">Consolidado de mermas, traslados o ventas en general.</p>
+                            </div>
+                        </div>
+                        <div class="p-6 overflow-x-auto">
+                            <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
+                                <thead class="bg-zinc-100 text-zinc-600 font-medium border-b border-zinc-200">
+                                    <tr>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Salidas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-table-all" class="divide-y divide-zinc-100">
+                                    <!-- Filas generadas por JS -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <div class="overflow-y-auto flex-1 p-6">
-                        <table class="w-full text-sm text-left relative border border-zinc-200 rounded-lg overflow-hidden">
-                            <thead class="bg-zinc-100 text-zinc-600 font-medium border-b border-zinc-200 sticky top-0 z-10">
-                                <tr>
-                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
-                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
-                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Vendido / Salidas</th>
-                                </tr>
-                            </thead>
-                            <tbody id="report-table-body" class="divide-y divide-zinc-100">
-                                <!-- Filas de reporte generadas por JS -->
-                            </tbody>
-                        </table>
+
+                    <!-- TABLA 2: Solo Full ML -->
+                    <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
+                        <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                            <div>
+                                <h3 class="font-medium text-emerald-800 tracking-tight">Ventas por SKU (Solo Full ML)</h3>
+                                <p class="text-xs text-zinc-500 mt-1">Resumen exclusivo de salidas desde la bodega Full ML.</p>
+                            </div>
+                            <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                                <i class="ph ph-shopping-bag text-emerald-600"></i>
+                            </div>
+                        </div>
+                        <div class="p-6 overflow-x-auto">
+                            <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
+                                <thead class="bg-emerald-50 text-emerald-800 font-medium border-b border-emerald-200">
+                                    <tr>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Vendido</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-table-fullml" class="divide-y divide-zinc-100">
+                                    <!-- Filas generadas por JS -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -570,39 +600,72 @@
             },
             
             renderReport(filteredData) {
-                const tbody = document.getElementById('report-table-body');
-                if (!tbody) return;
+                const tbodyAll = document.getElementById('report-table-all');
+                const tbodyFullML = document.getElementById('report-table-fullml');
+                if (!tbodyAll || !tbodyFullML) return;
 
-                const sales = {};
+                const salesAll = {};
+                const salesFullML = {};
+
                 filteredData.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
-                    // Consideramos salidas (cantidades negativas) SOLAMENTE de la bodega 'Full ML'
-                    if (qty < 0 && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
-                        if (!sales[item.sku]) {
-                            sales[item.sku] = { name: item.name, totalSold: 0 };
+                    
+                    // Solo tomamos en cuenta las salidas (cantidades negativas)
+                    if (qty < 0) {
+                        // Acumular para TODAS las bodegas
+                        if (!salesAll[item.sku]) {
+                            salesAll[item.sku] = { name: item.name, totalSold: 0 };
                         }
-                        sales[item.sku].totalSold += Math.abs(qty);
+                        salesAll[item.sku].totalSold += Math.abs(qty);
+
+                        // Acumular SOLO para Full ML
+                        if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) {
+                            if (!salesFullML[item.sku]) {
+                                salesFullML[item.sku] = { name: item.name, totalSold: 0 };
+                            }
+                            salesFullML[item.sku].totalSold += Math.abs(qty);
+                        }
                     }
                 });
 
-                const sortedSales = Object.keys(sales).map(sku => ({
+                // Ordenar ambos reportes de mayor a menor cantidad de salidas
+                const sortedAll = Object.keys(salesAll).map(sku => ({
                     sku,
-                    name: sales[sku].name,
-                    totalSold: sales[sku].totalSold
+                    name: salesAll[sku].name,
+                    totalSold: salesAll[sku].totalSold
                 })).sort((a, b) => b.totalSold - a.totalSold);
 
-                if (sortedSales.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin salidas registradas en el período/filtros seleccionados.</td></tr>`;
-                    return;
+                const sortedFullML = Object.keys(salesFullML).map(sku => ({
+                    sku,
+                    name: salesFullML[sku].name,
+                    totalSold: salesFullML[sku].totalSold
+                })).sort((a, b) => b.totalSold - a.totalSold);
+
+                // Renderizar tabla global
+                if (sortedAll.length === 0) {
+                    tbodyAll.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin salidas registradas en el período/filtros seleccionados.</td></tr>`;
+                } else {
+                    tbodyAll.innerHTML = sortedAll.map(item => `
+                        <tr class="hover:bg-zinc-50 transition-colors">
+                            <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                            <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
+                            <td class="px-6 py-4 text-right font-bold text-sky-600">${item.totalSold}</td>
+                        </tr>
+                    `).join('');
                 }
 
-                tbody.innerHTML = sortedSales.map(item => `
-                    <tr class="hover:bg-zinc-50 transition-colors">
-                        <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
-                        <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                        <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.totalSold}</td>
-                    </tr>
-                `).join('');
+                // Renderizar tabla Full ML
+                if (sortedFullML.length === 0) {
+                    tbodyFullML.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin salidas en Full ML para el período/filtros seleccionados.</td></tr>`;
+                } else {
+                    tbodyFullML.innerHTML = sortedFullML.map(item => `
+                        <tr class="hover:bg-emerald-50/50 transition-colors">
+                            <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                            <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
+                            <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.totalSold}</td>
+                        </tr>
+                    `).join('');
+                }
             },
 
             handleManualEntry(e) {
