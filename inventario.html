@@ -280,11 +280,14 @@
                 <div class="space-y-8">
                     <!-- TABLA 1: Todas las bodegas -->
                     <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
-                        <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                        <div class="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-50/50 shrink-0">
                             <div>
                                 <h3 class="font-medium text-zinc-800 tracking-tight">Reporte General de Ventas (Office + Full ML)</h3>
                                 <p class="text-xs text-zinc-500 mt-1">Total de salidas registradas desde las bodegas Office y Full ML.</p>
                             </div>
+                            <select id="report1-month" class="p-2 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-xs shadow-sm cursor-pointer min-w-[150px]">
+                                <option value="">Todos los meses</option>
+                            </select>
                         </div>
                         <div class="p-6 overflow-x-auto">
                             <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
@@ -304,13 +307,18 @@
 
                     <!-- TABLA 2: Solo Full ML -->
                     <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
-                        <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                        <div class="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-50/50 shrink-0">
                             <div>
                                 <h3 class="font-medium text-emerald-800 tracking-tight">Reporte por SKU (Solo Full ML)</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Total de productos ingresados menos salidas exclusivo en bodega Full ML.</p>
+                                <p class="text-xs text-zinc-500 mt-1">Total de salidas exclusivas registradas en la bodega Full ML.</p>
                             </div>
-                            <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                                <i class="ph ph-shopping-bag text-emerald-600"></i>
+                            <div class="flex items-center gap-3 w-full sm:w-auto">
+                                <select id="report2-month" class="p-2 bg-white border border-emerald-200 text-emerald-800 rounded-md focus:bg-emerald-50 outline-none transition-all text-xs shadow-sm cursor-pointer min-w-[150px]">
+                                    <option value="">Todos los meses</option>
+                                </select>
+                                <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0 hidden sm:flex">
+                                    <i class="ph ph-shopping-bag text-emerald-600"></i>
+                                </div>
                             </div>
                         </div>
                         <div class="p-6 overflow-x-auto">
@@ -338,6 +346,8 @@
             inventory: [],
             currentSkuFilter: '',
             currentMonthFilter: '',
+            report1MonthFilter: '',
+            report2MonthFilter: '',
             editingId: null,
             
             init() {
@@ -388,6 +398,8 @@
                 this.tableBody = document.getElementById('table-body');
                 this.skuFilterInput = document.getElementById('filter-sku');
                 this.monthFilterInput = document.getElementById('filter-month');
+                this.report1MonthSelect = document.getElementById('report1-month');
+                this.report2MonthSelect = document.getElementById('report2-month');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
             },
@@ -410,6 +422,8 @@
                 this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
                 this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
+                
+                // Filtros Globales
                 this.skuFilterInput.addEventListener('input', (e) => {
                     this.currentSkuFilter = e.target.value.trim().toUpperCase();
                     this.renderDashboard();
@@ -418,6 +432,20 @@
                     this.currentMonthFilter = e.target.value;
                     this.renderDashboard();
                 });
+
+                // Filtros de Reportes Individuales
+                if(this.report1MonthSelect) {
+                    this.report1MonthSelect.addEventListener('change', (e) => {
+                        this.report1MonthFilter = e.target.value;
+                        this.renderDashboard(); // Se llama a renderDashboard para refrescar todo coherentemente
+                    });
+                }
+                if(this.report2MonthSelect) {
+                    this.report2MonthSelect.addEventListener('change', (e) => {
+                        this.report2MonthFilter = e.target.value;
+                        this.renderDashboard();
+                    });
+                }
             },
 
             navigate(targetId, activeBtn) {
@@ -503,15 +531,27 @@
                 const sortedMonths = [...months].sort().reverse();
                 const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
                 
-                let html = '<option value="">Todos los meses</option>';
+                let htmlGlobal = '<option value="">Todos los meses</option>';
+                let htmlR1 = '<option value="">Todos los meses</option>';
+                let htmlR2 = '<option value="">Todos los meses</option>';
+                
                 sortedMonths.forEach(m => {
                     const [year, month] = m.split('-');
                     const monthName = monthNames[parseInt(month) - 1];
-                    html += `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
+                    htmlGlobal += `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
+                    htmlR1 += `<option value="${m}" ${this.report1MonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
+                    htmlR2 += `<option value="${m}" ${this.report2MonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
                 });
                 
-                if (this.monthFilterInput.innerHTML !== html) {
-                    this.monthFilterInput.innerHTML = html;
+                // Actualizar los 3 dropdowns si han cambiado
+                if (this.monthFilterInput && this.monthFilterInput.innerHTML !== htmlGlobal) {
+                    this.monthFilterInput.innerHTML = htmlGlobal;
+                }
+                if (this.report1MonthSelect && this.report1MonthSelect.innerHTML !== htmlR1) {
+                    this.report1MonthSelect.innerHTML = htmlR1;
+                }
+                if (this.report2MonthSelect && this.report2MonthSelect.innerHTML !== htmlR2) {
+                    this.report2MonthSelect.innerHTML = htmlR2;
                 }
             },
 
@@ -521,85 +561,90 @@
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                 this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
                 
-                // Aplicar filtros globales (SKU y Mes)
-                let filteredInventory = this.inventory;
+                // 1. Data Base Filtrada SOLO por SKU (Usada para Reportes)
+                let baseData = this.inventory;
                 if (this.currentSkuFilter) {
-                    filteredInventory = filteredInventory.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
-                }
-                if (this.currentMonthFilter) {
-                    filteredInventory = filteredInventory.filter(item => item.sortDate && item.sortDate.startsWith(this.currentMonthFilter));
+                    baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
                 }
 
-                const sortedInventory = [...filteredInventory].sort((a, b) => {
+                // 2. Data filtrada por SKU + Mes Global (Usada para el Dashboard y KPIs principales)
+                let dashboardData = baseData;
+                if (this.currentMonthFilter) {
+                    dashboardData = dashboardData.filter(item => item.sortDate && item.sortDate.startsWith(this.currentMonthFilter));
+                }
+
+                const sortedDashboard = [...dashboardData].sort((a, b) => {
                     const timeA = new Date(a.sortDate || '2000-01-01').getTime();
                     const timeB = new Date(b.sortDate || '2000-01-01').getTime();
                     if (timeA !== timeB) return timeB - timeA;
                     return b.id - a.id;
                 });
                 
-                const getTot = (bodegasArray) => filteredInventory.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
+                // Calcular KPIs con la data de la vista global
+                const getTot = (bodegasArray) => dashboardData.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
                 this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
 
                 const tableBody = document.getElementById('table-body');
-                if (!tableBody) return;
+                if (tableBody) {
+                    if(sortedDashboard.length === 0) {
+                        tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar con los filtros actuales.</td></tr>`;
+                    } else {
+                        const rowsHtml = sortedDashboard.slice(0, 100).map(item => {
+                            const isEditing = this.editingId === item.id;
+                            const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
+                            const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
+                            
+                            if (isEditing) {
+                                return `
+                                    <tr class="bg-zinc-50" data-id="${item.id}">
+                                        <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${item.sku}" oninput="App.syncDescription(this.value, this.closest('tr').querySelector('.edit-name'))"></td>
+                                        <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${item.name}"></td>
+                                        <td class="px-6 py-4">
+                                            <select class="edit-warehouse p-1 border rounded text-[10px] uppercase font-semibold">
+                                                <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
+                                                <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
+                                                <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
+                                        <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
+                                        <td class="px-6 py-4 text-center space-x-1">
+                                            <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
+                                            <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }
 
-                if(sortedInventory.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar con los filtros actuales.</td></tr>`;
-                } else {
-                    const rowsHtml = sortedInventory.slice(0, 100).map(item => {
-                        const isEditing = this.editingId === item.id;
-                        const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
-                        const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
-                        
-                        if (isEditing) {
+                            let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
+                            if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
+                            else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
+                            
                             return `
-                                <tr class="bg-zinc-50" data-id="${item.id}">
-                                    <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${item.sku}" oninput="App.syncDescription(this.value, this.closest('tr').querySelector('.edit-name'))"></td>
-                                    <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${item.name}"></td>
-                                    <td class="px-6 py-4">
-                                        <select class="edit-warehouse p-1 border rounded text-[10px] uppercase font-semibold">
-                                            <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
-                                            <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
-                                            <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
-                                        </select>
-                                    </td>
-                                    <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
-                                    <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
-                                    <td class="px-6 py-4 text-center space-x-1">
-                                        <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
-                                        <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
+                                <tr class="hover:bg-zinc-50 transition-colors group">
+                                    <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                                    <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
+                                    <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
+                                    <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
+                                    <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
+                                    <td class="px-6 py-4 text-center space-x-2">
+                                        <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
+                                        <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
                                     </td>
                                 </tr>
                             `;
-                        }
-
-                        let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
-                        if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
-                        else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
-                        
-                        return `
-                            <tr class="hover:bg-zinc-50 transition-colors group">
-                                <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
-                                <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                                <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
-                                <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
-                                <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
-                                <td class="px-6 py-4 text-center space-x-2">
-                                    <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
-                                    <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-                    tableBody.innerHTML = rowsHtml;
+                        }).join('');
+                        tableBody.innerHTML = rowsHtml;
+                    }
                 }
                 
-                this.renderReport(filteredInventory);
+                // Enviar baseData (filtrada por SKU pero NO por mes global) a renderReport
+                this.renderReport(baseData);
             },
             
-            renderReport(filteredData) {
+            renderReport(baseData) {
                 const tbodyAll = document.getElementById('report-table-all');
                 const tbodyFullML = document.getElementById('report-table-fullml');
                 if (!tbodyAll || !tbodyFullML) return;
@@ -607,18 +652,24 @@
                 const reportAll = {};
                 const reportFullML = {};
 
-                filteredData.forEach(item => {
+                // Filtramos la data individualmente según el mes seleccionado en cada reporte
+                const dataR1 = this.report1MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report1MonthFilter)) : baseData;
+                const dataR2 = this.report2MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report2MonthFilter)) : baseData;
+
+                // Calcular datos para Tabla 1 (Office + Full ML) usando dataR1
+                dataR1.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
-                    
-                    // Acumular SOLO salidas para Office y Full ML
                     if (qty < 0 && (item.warehouse === 'Office' || item.warehouse === 'Bodega 2' || item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
                         if (!reportAll[item.sku]) {
                             reportAll[item.sku] = { name: item.name, outputs: 0 };
                         }
                         reportAll[item.sku].outputs += Math.abs(qty);
                     }
+                });
 
-                    // Acumular SOLO salidas para Full ML
+                // Calcular datos para Tabla 2 (Solo Full ML) usando dataR2
+                dataR2.forEach(item => {
+                    let qty = parseInt(item.quantity) || 0;
                     if (qty < 0 && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
                         if (!reportFullML[item.sku]) {
                             reportFullML[item.sku] = { name: item.name, outputs: 0 };
@@ -799,40 +850,31 @@
                 reader.onload = (event) => {
                     try {
                         const text = event.target.result;
-                        // Procesar CSV manualmente para el archivo histórico simple
                         const lines = text.split('\n').filter(line => line.trim() !== '');
                         
                         if (lines.length <= 1) {
                             throw new Error("El archivo está vacío o solo tiene cabeceras.");
                         }
 
-                        // Verificar cabeceras esperadas (opcional, pero buena práctica)
-                        const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
-                        const requiredHeaders = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad'];
-                        
-                        // Simplificación: Asumimos el orden del exportDetail: Fecha, SKU, Producto, Bodega, Cantidad, Estado
                         let newRecords = [];
                         let parseErrors = 0;
 
                         for (let i = 1; i < lines.length; i++) {
-                            // Parsear línea considerando comillas que agrupan campos
                             const rowRegex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
                             const rawMatches = lines[i].match(rowRegex);
                             
                             if (!rawMatches) continue;
 
-                            // Limpiar comillas de cada campo
                             const row = rawMatches.map(val => val.replace(/^"|"$/g, '').trim());
 
                             if (row.length >= 5) {
-                                const fechaStr = row[0]; // e.g., "15 may 2026"
+                                const fechaStr = row[0]; 
                                 const sku = row[1];
                                 const nombre = row[2];
                                 const bodega = row[3];
                                 const cantidadStr = row[4];
                                 const estado = row.length > 5 ? row[5] : '';
 
-                                // Intentar parsear la fecha para generar el sortDate
                                 let sortDate = new Date().toISOString().split('T')[0];
                                 const partesFecha = fechaStr.split(' ');
                                 if (partesFecha.length === 3) {
@@ -850,7 +892,7 @@
                                 }
 
                                 newRecords.push({
-                                    id: Date.now() + i, // Generar IDs únicos
+                                    id: Date.now() + i, 
                                     sortDate: sortDate,
                                     date: fechaStr,
                                     sku: sku,
@@ -865,7 +907,6 @@
                         }
 
                         if (newRecords.length > 0) {
-                            // Agregar los nuevos registros a los existentes
                             this.inventory = [...newRecords, ...this.inventory];
                             this.saveAndRender();
                             let msg = `Importación histórica exitosa: ${newRecords.length} registros agregados.`;
@@ -880,7 +921,7 @@
                         this.showNotification("Error procesando el archivo: " + err.message, 'error');
                     }
                 };
-                reader.readAsText(file, 'utf-8'); // Leer como texto, ideal para CSV exportado
+                reader.readAsText(file, 'utf-8'); 
                 e.target.value = null;
             },
 
