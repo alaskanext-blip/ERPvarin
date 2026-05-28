@@ -282,8 +282,8 @@
                     <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
                         <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                             <div>
-                                <h3 class="font-medium text-zinc-800 tracking-tight">Reporte General por SKU (Todas las Bodegas)</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Total de productos ingresados menos las salidas.</p>
+                                <h3 class="font-medium text-zinc-800 tracking-tight">Reporte General de Ventas (Office + Full ML)</h3>
+                                <p class="text-xs text-zinc-500 mt-1">Total de salidas registradas desde las bodegas Office y Full ML.</p>
                             </div>
                         </div>
                         <div class="p-6 overflow-x-auto">
@@ -292,9 +292,7 @@
                                     <tr>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Ingresados</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Salidas</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Total Neto (Ventas)</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
                                     </tr>
                                 </thead>
                                 <tbody id="report-table-all" class="divide-y divide-zinc-100">
@@ -612,60 +610,52 @@
                 filteredData.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
                     
-                    // Acumular para TODAS las bodegas
-                    if (!reportAll[item.sku]) {
-                        reportAll[item.sku] = { name: item.name, inputs: 0, outputs: 0, net: 0 };
-                    }
-                    if (qty > 0) reportAll[item.sku].inputs += qty;
-                    else reportAll[item.sku].outputs += Math.abs(qty);
-                    
-                    reportAll[item.sku].net += qty; // Ingresos - Abs(Salidas)
-
-                    // Acumular SOLO para Full ML
-                    if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) {
-                        if (!reportFullML[item.sku]) {
-                            reportFullML[item.sku] = { name: item.name, inputs: 0, outputs: 0, net: 0 };
+                    // Acumular SOLO salidas para Office y Full ML
+                    if (qty < 0 && (item.warehouse === 'Office' || item.warehouse === 'Bodega 2' || item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
+                        if (!reportAll[item.sku]) {
+                            reportAll[item.sku] = { name: item.name, outputs: 0 };
                         }
-                        if (qty > 0) reportFullML[item.sku].inputs += qty;
-                        else reportFullML[item.sku].outputs += Math.abs(qty);
-                        
-                        reportFullML[item.sku].net += qty; // Ingresos - Abs(Salidas)
+                        reportAll[item.sku].outputs += Math.abs(qty);
+                    }
+
+                    // Acumular SOLO salidas para Full ML
+                    if (qty < 0 && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
+                        if (!reportFullML[item.sku]) {
+                            reportFullML[item.sku] = { name: item.name, outputs: 0 };
+                        }
+                        reportFullML[item.sku].outputs += Math.abs(qty);
                     }
                 });
 
-                // Ordenar ambos reportes por el Total Neto (mayor a menor)
+                // Ordenar ambos reportes por el Total de Ventas (mayor a menor)
                 const sortedAll = Object.keys(reportAll).map(sku => ({
                     sku,
                     ...reportAll[sku]
-                })).sort((a, b) => b.net - a.net);
+                })).sort((a, b) => b.outputs - a.outputs);
 
                 const sortedFullML = Object.keys(reportFullML).map(sku => ({
                     sku,
                     ...reportFullML[sku]
                 })).sort((a, b) => b.outputs - a.outputs);
 
-                // Renderizar tabla global
+                // Renderizar tabla global (Office + Full ML)
                 if (sortedAll.length === 0) {
-                    tbodyAll.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin registros en el período/filtros seleccionados.</td></tr>`;
+                    tbodyAll.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Office o Full ML para el período/filtros seleccionados.</td></tr>`;
                 } else {
                     tbodyAll.innerHTML = sortedAll.map(item => `
                         <tr class="hover:bg-zinc-50 transition-colors">
                             <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4 text-right text-emerald-600 font-medium">+${item.inputs}</td>
-                            <td class="px-6 py-4 text-right text-red-500 font-medium">-${item.outputs}</td>
-                            <td class="px-6 py-4 text-right font-bold text-sky-600">${item.net}</td>
+                            <td class="px-6 py-4 text-right font-bold text-sky-600">${item.outputs}</td>
                         </tr>
                     `).join('');
                 }
 
                 // Renderizar tabla Full ML
-                const salesFullML = sortedFullML.filter(item => item.outputs > 0);
-                
-                if (salesFullML.length === 0) {
+                if (sortedFullML.length === 0) {
                     tbodyFullML.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Full ML para el período/filtros seleccionados.</td></tr>`;
                 } else {
-                    tbodyFullML.innerHTML = salesFullML.map(item => `
+                    tbodyFullML.innerHTML = sortedFullML.map(item => `
                         <tr class="hover:bg-emerald-50/50 transition-colors">
                             <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
