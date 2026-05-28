@@ -5,17 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Varin | Benchmark ML</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Librerías de React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- SheetJS, HTML2PDF y Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -196,11 +192,23 @@
                 setError('');
                 try {
                     let newData = [];
+                    const batchId = Date.now(); // Para control de deduplicación
                     const targets = ["Electrodomésticos", "Climatización", "Ventiladores", "Eléctricos"];
+                    
                     for (let i = 0; i < files.length; i++) {
                         const file = files[i];
-                        const dateMatch = file.name.match(/(\d{4})-(\d{2})-\d{2}/);
-                        const monthStr = dateMatch ? `${["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][parseInt(dateMatch[2])-1]} ${dateMatch[1]}` : "Sin fecha";
+                        
+                        // Lógica de fechas
+                        let monthStr = "Desconocido";
+                        let fileDate = "0000-00-00";
+                        const datesInName = file.name.match(/\d{4}-\d{2}-\d{2}/g);
+                        if (datesInName && datesInName.length > 0) {
+                            fileDate = [...datesInName].sort().pop(); // Fecha mayor en el nombre del archivo
+                            const [year, month] = datesInName[0].split('-');
+                            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                            monthStr = `${monthNames[parseInt(month) - 1]} ${year}`;
+                        }
+
                         const buffer = await file.arrayBuffer();
                         const workbook = XLSX.read(buffer, { type: 'array' });
                         workbook.SheetNames.forEach(sheetName => {
@@ -230,6 +238,8 @@
                                         newData.push({
                                             Categoria: category,
                                             Mes: monthStr,
+                                            FileDate: fileDate,
+                                            BatchId: batchId,
                                             Nombre: String(row[colMap.name]),
                                             Precio: cleanNumber(row[colMap.price]),
                                             Unidades: cleanNumber(row[colMap.units]),
@@ -242,8 +252,30 @@
                             }
                         });
                     }
-                    if (newData.length > 0) setData(prev => [...prev, ...newData]);
-                    else setError('No se detectaron datos compatibles. Verifica los nombres de las pestañas o columnas.');
+                    
+                    if (newData.length > 0) {
+                        setData(prev => {
+                            const combined = [...prev, ...newData];
+                            
+                            // Lógica de Deduplicación
+                            const bestKey = {};
+                            combined.forEach(d => {
+                                const groupKey = `${d.Mes}|${d.Categoria}`;
+                                const fileRank = `${d.FileDate}_${d.BatchId}`;
+                                if (!bestKey[groupKey] || fileRank > bestKey[groupKey]) {
+                                    bestKey[groupKey] = fileRank;
+                                }
+                            });
+                            
+                            return combined.filter(d => {
+                                const groupKey = `${d.Mes}|${d.Categoria}`;
+                                const fileRank = `${d.FileDate}_${d.BatchId}`;
+                                return fileRank === bestKey[groupKey];
+                            });
+                        });
+                    } else {
+                        setError('No se detectaron datos compatibles. Verifica los nombres de las pestañas o columnas.');
+                    }
                 } catch (e) { setError('Error al leer el archivo.'); } finally { setLoading(false); event.target.value = ''; }
             };
 
