@@ -150,6 +150,67 @@
             );
         };
 
+        // --- COMPONENTE DE GRÁFICO CIRCULAR (DOUGHNUT) ---
+        const DoughnutChart = ({ title, labels, data, isExporting }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (!chartRef.current || !data || data.length === 0) return;
+                if (chartInstance.current) chartInstance.current.destroy();
+
+                const ctx = chartRef.current.getContext('2d');
+                chartInstance.current = new window.Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: [
+                                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#cbd5e1'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, font: { size: isExporting ? 9 : 11 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) { label += ': '; }
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1) + '%';
+                                        label += '$' + new Intl.NumberFormat('es-CL').format(value) + ' (' + percentage + ')';
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [labels, data, isExporting]);
+
+            return (
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-56 !shadow-none' : 'h-80'}`}>
+                    <h3 className={`font-bold text-slate-700 mb-4 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
+                    <div className="flex-1 relative w-full h-full flex justify-center">
+                        <canvas ref={chartRef}></canvas>
+                    </div>
+                </div>
+            );
+        };
+
         // --- COMPONENTE COLAPSABLE PARA TABLAS ---
         const CollapsibleTable = ({ title, count, children, isExporting }) => {
             const [isOpen, setIsOpen] = useState(false);
@@ -526,10 +587,33 @@
                     total: totalIngresos.total - totalGastos.total
                 };
 
+                // Lógica para Top 5 Costos (Compras 33 + Honorarios)
+                const gastosPorProveedorMap = {};
+                detCompras33.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
+                });
+                detHonorarios.forEach(h => {
+                    const name = h.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + h.Brutos;
+                });
+                
+                const sortedGastos = Object.entries(gastosPorProveedorMap).sort((a, b) => b[1] - a[1]);
+                const top5Gastos = sortedGastos.slice(0, 5);
+                const otrosGastos = sortedGastos.slice(5).reduce((acc, curr) => acc + curr[1], 0);
+                
+                if (otrosGastos > 0) {
+                    top5Gastos.push(['Otros', otrosGastos]);
+                }
+                
+                const gastosChartLabels = top5Gastos.map(g => g[0]);
+                const gastosChartData = top5Gastos.map(g => g[1]);
+
                 return { 
                     facturas, boletas, notasCredito, totalIngresos, honorarios, 
                     compras33, comprasDIN, totalGastos, utilidad, 
-                    detVentas, detCompras33, detComprasDIN, detHonorarios 
+                    detVentas, detCompras33, detComprasDIN, detHonorarios,
+                    gastosChartLabels, gastosChartData
                 };
 
             }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth]);
@@ -866,6 +950,18 @@
                                     </CollapsibleTable>
 
                                 </div>
+
+                                {/* ---------------- GRÁFICO CIRCULAR DE GASTOS ---------------- */}
+                                {processedData.gastosChartData && processedData.gastosChartData.length > 0 && (
+                                    <div className="mt-6 w-full lg:w-3/4 mx-auto">
+                                        <DoughnutChart 
+                                            title="Distribución de Costos Operativos (Top 5 Proveedores)" 
+                                            labels={processedData.gastosChartLabels} 
+                                            data={processedData.gastosChartData} 
+                                            isExporting={isExporting} 
+                                        />
+                                    </div>
+                                )}
 
                                 {/* ---------------- TABLA EXCLUSIVA PARA DIN 914 ---------------- */}
                                 <div className="mt-6">
