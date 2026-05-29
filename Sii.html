@@ -15,10 +15,11 @@
     <!-- Babel para JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Chart.js y SheetJS (XLSX) -->
+    <!-- Chart.js, SheetJS, HTML2Canvas y jsPDF (Para 1 Sola Hoja) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8fafc; }
@@ -121,12 +122,12 @@
                         scales: {
                             x: {
                                 grid: { display: false },
-                                ticks: { font: { size: isExporting ? 9 : 11 } }
+                                ticks: { font: { size: isExporting ? 8 : 11 } }
                             },
                             y: {
                                 grid: { borderDash: [2, 4], color: '#e2e8f0' },
                                 ticks: { 
-                                    font: { size: isExporting ? 9 : 11 },
+                                    font: { size: isExporting ? 8 : 11 },
                                     callback: (v) => {
                                         const valStr = Math.abs(v) >= 1000000 
                                             ? (Math.abs(v)/1000000).toFixed(1) + 'M' 
@@ -142,8 +143,8 @@
             }, [labels, datasets, isExporting]);
 
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${isExporting ? 'h-48 p-3 !shadow-none' : 'h-80 p-5'}`}>
-                    <h3 className={`font-bold text-slate-700 mb-2 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-48 !shadow-none' : 'h-80'}`}>
+                    <h3 className={`font-bold text-slate-700 mb-2 ${isExporting ? 'text-[10px]' : 'text-sm'}`}>{title}</h3>
                     <div className="flex-1 relative w-full h-full">
                         <canvas ref={chartRef}></canvas>
                     </div>
@@ -181,7 +182,7 @@
                         plugins: {
                             legend: {
                                 position: 'right',
-                                labels: { boxWidth: 12, font: { size: isExporting ? 9 : 11 } }
+                                labels: { boxWidth: 12, font: { size: isExporting ? 8 : 11 } }
                             },
                             tooltip: {
                                 callbacks: {
@@ -203,8 +204,8 @@
             }, [labels, data, isExporting]);
 
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${isExporting ? 'h-40 p-3 !shadow-none' : 'h-64 p-5'}`}>
-                    <h3 className={`font-bold text-slate-700 mb-2 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-48 !shadow-none' : 'h-64'}`}>
+                    <h3 className={`font-bold text-slate-700 mb-2 ${isExporting ? 'text-[10px]' : 'text-sm'}`}>{title}</h3>
                     <div className="flex-1 relative w-full h-full flex justify-center">
                         <canvas ref={chartRef}></canvas>
                     </div>
@@ -218,22 +219,22 @@
             const displayOpen = isExporting || isOpen;
 
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-300 ${displayOpen ? (isExporting ? 'h-auto max-h-none' : 'h-auto max-h-[500px]') : 'h-auto'}`}>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-300 ${displayOpen ? (isExporting ? 'h-auto' : 'h-[400px]') : 'h-auto'}`}>
                     <button 
                         onClick={() => setIsOpen(!isOpen)} 
-                        className="bg-slate-50 hover:bg-slate-100 border-b border-transparent data-[open=true]:border-slate-200 p-4 flex justify-between items-center w-full transition-colors"
+                        className="bg-slate-50 hover:bg-slate-100 border-b border-transparent data-[open=true]:border-slate-200 p-3 flex justify-between items-center w-full transition-colors"
                         data-open={displayOpen}
                     >
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <h3 className={`font-bold text-slate-800 flex items-center gap-2 ${isExporting ? 'text-xs' : ''}`}>
                             {title}
-                            <span className="text-xs bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{count} Docs.</span>
+                            <span className="text-[10px] bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{count} Docs.</span>
                         </h3>
                         <div className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`}>
-                            <IconChevronDown />
+                            {!isExporting && <IconChevronDown />}
                         </div>
                     </button>
                     {displayOpen && (
-                        <div className={`overflow-auto custom-scrollbar flex-1 p-0 ${isExporting ? '!overflow-visible !max-h-none h-auto' : ''}`}>
+                        <div className={`overflow-auto custom-scrollbar flex-1 p-0 ${isExporting ? '!overflow-visible h-auto' : ''}`}>
                             {children}
                         </div>
                     )}
@@ -251,7 +252,6 @@
             const [isExporting, setIsExporting] = useState(false);
             const [selectedProveedor, setSelectedProveedor] = useState('Todos');
 
-            // Resetear filtro al cambiar de mes
             useEffect(() => {
                 setSelectedProveedor('Todos');
             }, [selectedMonth]);
@@ -285,7 +285,6 @@
                     const file = files[i];
                     const fileNameLow = file.name.toLowerCase();
 
-                    // --- 1. LECTURA EXCEL DE HONORARIOS ---
                     if (fileNameLow.includes('informe bh') || file.name.endsWith('.xlsx')) {
                         const buffer = await file.arrayBuffer();
                         const workbook = window.XLSX.read(buffer, { type: 'array' });
@@ -351,7 +350,6 @@
                         continue; 
                     }
 
-                    // --- 2. LECTURA CSV DE RCV DEL SII ---
                     const match = file.name.match(/_(\d{4})(\d{2})(?:\s*\(\d+\))?\.csv$/i);
                     let mesStr = "Desconocido";
                     if (match) {
@@ -452,34 +450,58 @@
                 }
             };
 
+            // LÓGICA DE EXPORTACIÓN (html2canvas -> jsPDF forzando UNA hoja Carta)
             const handleDownloadPDF = () => {
                 setIsExporting(true);
+                
                 setTimeout(() => {
                     const element = document.getElementById('report-content');
                     const filenameStr = selectedMonth !== 'Todos' ? `Informe_Contable_${selectedMonth.replace(' ', '_')}.pdf` : 'Informe_Contable_Total.pdf';
-                    const opt = {
-                        margin: [0.4, 0.4], // Márgenes superior/inferior y laterales
-                        filename: filenameStr,
-                        image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, // Forzamos a html2canvas a interpretar la pantalla con ancho estándar
-                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } // Evita cortes a la mitad de las tablas
-                    };
-                    // Asegurar que use html2pdf nativo si está disponible
-                    if (window.html2pdf) {
-                        window.html2pdf().set(opt).from(element).save().then(() => {
-                            setIsExporting(false);
-                        });
-                    } else if (typeof html2pdf !== 'undefined') {
-                        html2pdf().set(opt).from(element).save().then(() => {
-                            setIsExporting(false);
-                        });
-                    } else {
-                        console.error('html2pdf is not loaded');
+                    
+                    window.html2canvas(element, { 
+                        scale: 2, 
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                        const { jsPDF } = window.jspdf;
+                        
+                        // Formato: Portrait, Milímetros, Tamaño Carta (Letter)
+                        const pdf = new jsPDF('p', 'mm', 'letter');
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const pdfHeight = pdf.internal.pageSize.getHeight();
+                        
+                        const imgWidth = canvas.width;
+                        const imgHeight = canvas.height;
+                        
+                        // Márgenes de 10mm
+                        const margin = 10;
+                        const maxWidth = pdfWidth - (margin * 2);
+                        const maxHeight = pdfHeight - (margin * 2);
+                        
+                        // Calcular la escala para encajar la imagen exactamente en 1 hoja
+                        let finalWidth = maxWidth;
+                        let finalHeight = (imgHeight * maxWidth) / imgWidth;
+                        
+                        // Si la imagen sigue siendo muy alta, encogerla más
+                        if (finalHeight > maxHeight) {
+                            finalHeight = maxHeight;
+                            finalWidth = (imgWidth * maxHeight) / imgHeight;
+                        }
+                        
+                        // Centrar
+                        const x = (pdfWidth - finalWidth) / 2;
+                        const y = margin;
+                        
+                        pdf.addImage(imgData, 'JPEG', x, y, finalWidth, finalHeight);
+                        pdf.save(filenameStr);
                         setIsExporting(false);
-                        alert("Hubo un problema al cargar la librería de PDF.");
-                    }
-                }, 800); // Dar más tiempo para re-renderizado
+                    }).catch(err => {
+                        console.error("Error exportando PDF", err);
+                        setIsExporting(false);
+                        alert("Hubo un error al generar el PDF.");
+                    });
+                }, 1000); 
             };
 
             const availableMonths = useMemo(() => {
@@ -493,19 +515,16 @@
                 }
             }, [availableMonths]);
 
-            // --- PROCESAMIENTO DE DATOS PARA GRÁFICO (Evolución Mensual Integrada) ---
             const chartData = useMemo(() => {
                 const months = availableMonths.filter(m => m !== 'Todos');
                 const labels = [];
                 const ventas = [];
                 const comprasYHonorarios = [];
-                const comprasYHonorariosYDin = [];
                 const utilidades = [];
 
                 months.forEach(m => {
                     labels.push(m);
                     
-                    // Ventas Netas del Mes
                     const resVentasMes = dataVentasResumen.filter(d => d.Mes === m);
                     let vNeto = 0;
                     resVentasMes.forEach(r => {
@@ -519,28 +538,24 @@
                     });
                     ventas.push(vNeto);
 
-                    // Compras Netas Solo Tipo 33 + Honorarios
                     const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '33');
                     const cNeto33 = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
                     
                     const honMes = dataHonorarios.filter(d => d.Mes === m);
                     const hBruto = honMes.reduce((acc, curr) => acc + curr.Brutos, 0);
                     
-                    const totalGastosSinDin = cNeto33 + hBruto;
-                    comprasYHonorarios.push(totalGastosSinDin);
-
-                    // Gastos Totales: + DIN
                     const detComprasMesDIN = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '914');
                     const cNetoDIN = detComprasMesDIN.reduce((acc, curr) => acc + curr.Neto, 0);
 
-                    const totalGastosMesConDin = totalGastosSinDin + cNetoDIN;
-                    comprasYHonorariosYDin.push(totalGastosMesConDin);
+                    // Gastos incluyen DIN
+                    const totalGastosMesConDin = cNeto33 + hBruto + cNetoDIN;
+                    comprasYHonorarios.push(totalGastosMesConDin);
 
-                    // Utilidad (Sin considerar Compras Tipo 914)
-                    utilidades.push(vNeto - totalGastosSinDin);
+                    // Utilidad (Ingresos - Gastos Totales incluyendo DIN)
+                    utilidades.push(vNeto - totalGastosMesConDin);
                 });
 
-                return { labels, ventas, compras: comprasYHonorarios, comprasConDin: comprasYHonorariosYDin, utilidades };
+                return { labels, ventas, compras: comprasYHonorarios, utilidades };
             }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios]);
 
             const processedData = useMemo(() => {
@@ -597,8 +612,8 @@
                 });
 
                 const totalGastos = {
-                    neto: compras33.neto + honorarios.brutos,
-                    total: compras33.total + honorarios.pagado
+                    neto: compras33.neto + comprasDIN.neto + honorarios.brutos,
+                    total: compras33.total + comprasDIN.total + honorarios.pagado
                 };
 
                 const utilidad = {
@@ -606,7 +621,6 @@
                     total: totalIngresos.total - totalGastos.total
                 };
 
-                // Lógica para Top 5 Costos (Compras 33 + Honorarios)
                 const gastosPorProveedorMap = {};
                 detCompras33.forEach(c => {
                     const name = c.RazonSocial || 'Sin Razón Social';
@@ -637,7 +651,6 @@
 
             }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth]);
 
-            // Lógica para el filtro de proveedores (Tabla 4)
             const uniqueProveedores = useMemo(() => {
                 if (!processedData) return ['Todos'];
                 const provs = processedData.detCompras33.map(c => c.RazonSocial || 'Sin Razón Social');
@@ -722,7 +735,7 @@
                         )}
 
                         {hasData && processedData && (
-                            <div id="report-content" className={`${isExporting ? 'bg-white text-slate-900 mx-auto px-4 py-2 space-y-4' : 'space-y-8'}`} style={{ width: isExporting ? '760px' : '100%' }}>
+                            <div id="report-content" className={`mx-auto ${isExporting ? 'bg-white p-4 w-[1200px] space-y-4' : 'space-y-8'}`}>
                                 
                                 {/* Título de Exportación (solo visible en PDF) */}
                                 {isExporting && (
@@ -738,7 +751,7 @@
                                     </div>
                                 )}
 
-                                {/* ---------------- SECCIÓN RESUMEN Y GASTOS (UNA SOLA VENTANA) ---------------- */}
+                                {/* ---------------- SECCIÓN RESUMEN Y GASTOS ---------------- */}
                                 <div>
                                     {!isExporting && (
                                         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -747,171 +760,170 @@
                                     )}
                                     
                                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                        
                                         {/* INGRESOS */}
                                         <div className={`bg-slate-50 border-b border-slate-200 ${isExporting ? 'p-2' : 'p-4'}`}>
-                                            <h3 className="font-bold text-slate-800 uppercase text-sm tracking-wide">1. Detalle de Ingresos</h3>
+                                            <h3 className={`font-bold text-slate-800 uppercase tracking-wide ${isExporting ? 'text-xs' : 'text-sm'}`}>1. Detalle de Ingresos</h3>
                                         </div>
                                         <div className="p-0 overflow-x-auto">
                                             <table className="w-full text-left border-collapse text-sm min-w-[600px]">
-                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-xs">
+                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-[10px]">
                                                     <tr>
-                                                        <th className={`font-semibold w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Concepto</th>
-                                                        <th className={`font-semibold text-center w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Documentos</th>
-                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Neto</th>
-                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Total</th>
+                                                        <th className={`font-semibold w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Concepto</th>
+                                                        <th className={`font-semibold text-center w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Documentos</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Monto Neto</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Monto Total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className={`flex items-center gap-3 font-medium text-blue-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconInvoice /> Facturas</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.facturas.docs} emitidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.facturas.neto)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.facturas.total)}</td>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-blue-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconInvoice /> Facturas</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.facturas.docs} emitidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.facturas.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.facturas.total)}</td>
                                                     </tr>
-                                                    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className={`flex items-center gap-3 font-medium text-emerald-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconReceipt /> Boletas</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.boletas.docs} emitidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.boletas.neto)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.boletas.total)}</td>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-emerald-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconReceipt /> Boletas</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.boletas.docs} emitidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.boletas.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.boletas.total)}</td>
                                                     </tr>
-                                                    <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                                        <td className={`flex items-center gap-3 font-medium text-red-500 ${isExporting ? 'p-2' : 'p-4'}`}><IconCreditNote /> Notas de Crédito</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.notasCredito.docs} emitidos</td>
-                                                        <td className={`text-right text-red-500 ${isExporting ? 'p-2' : 'p-4'}`}>-{formatCurrency(processedData.notasCredito.neto)}</td>
-                                                        <td className={`text-right font-bold text-red-600 ${isExporting ? 'p-2' : 'p-4'}`}>-{formatCurrency(processedData.notasCredito.total)}</td>
+                                                    <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconCreditNote /> Notas de Crédito</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.notasCredito.docs} emitidos</td>
+                                                        <td className={`text-right text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.notasCredito.neto)}</td>
+                                                        <td className={`text-right font-bold text-red-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.notasCredito.total)}</td>
                                                     </tr>
                                                     <tr className="bg-slate-800 text-white">
-                                                        <td className={`font-bold text-blue-300 ${isExporting ? 'p-2' : 'p-4'}`}>TOTAL INGRESOS</td>
-                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs}</td>
-                                                        <td className={`text-right font-bold ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.totalIngresos.neto)}</td>
-                                                        <td className={`text-right font-black text-emerald-400 ${isExporting ? 'p-2 text-base' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalIngresos.total)}</td>
+                                                        <td className={`font-bold text-blue-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>TOTAL INGRESOS</td>
+                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs}</td>
+                                                        <td className={`text-right font-bold ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{formatCurrency(processedData.totalIngresos.neto)}</td>
+                                                        <td className={`text-right font-black text-emerald-400 ${isExporting ? 'p-1.5 text-sm' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalIngresos.total)}</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
                                         </div>
 
                                         {/* GASTOS */}
-                                        <div className={`bg-slate-50 border-y border-slate-200 ${isExporting ? 'p-2 mt-2' : 'p-4 mt-4'}`}>
-                                            <h3 className="font-bold text-slate-800 uppercase text-sm tracking-wide">2. Detalle de Gastos (Operativos)</h3>
+                                        <div className={`bg-slate-50 border-y border-slate-200 ${isExporting ? 'p-2' : 'p-4 mt-4'}`}>
+                                            <h3 className={`font-bold text-slate-800 uppercase tracking-wide ${isExporting ? 'text-xs' : 'text-sm'}`}>2. Detalle de Gastos (Operativos + DIN)</h3>
                                         </div>
                                         <div className="p-0 overflow-x-auto">
                                             <table className="w-full text-left border-collapse text-sm min-w-[600px]">
-                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-xs">
+                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-[10px]">
                                                     <tr>
-                                                        <th className={`font-semibold w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Concepto</th>
-                                                        <th className={`font-semibold text-center w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Documentos</th>
-                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Neto / Bruto</th>
-                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Total / Pagado</th>
+                                                        <th className={`font-semibold w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Concepto</th>
+                                                        <th className={`font-semibold text-center w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Documentos</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Monto Neto / Bruto</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-1.5' : 'p-4'}`}>Monto Total / Pagado</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className={`flex items-center gap-3 font-medium text-purple-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconShoppingCart /> Compras (Facturas)</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras (Facturas)</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
                                                     </tr>
-                                                    <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                                        <td className={`flex items-center gap-3 font-medium text-amber-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconBriefcase /> Honorarios (BH)</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.honorarios.docs} recibidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.honorarios.brutos)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-cyan-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShip /> Importaciones (DIN)</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.comprasDIN.docs} recibidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.comprasDIN.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.comprasDIN.total)}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-amber-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconBriefcase /> Honorarios (BH)</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.honorarios.docs} recibidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.brutos)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
                                                     </tr>
                                                     <tr className="bg-slate-800 text-white">
-                                                        <td className={`font-bold text-rose-300 ${isExporting ? 'p-2' : 'p-4'}`}>TOTAL GASTOS</td>
-                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.compras33.docs + processedData.honorarios.docs}</td>
-                                                        <td className={`text-right font-bold ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.totalGastos.neto)}</td>
-                                                        <td className={`text-right font-black text-rose-400 ${isExporting ? 'p-2 text-base' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalGastos.total)}</td>
+                                                        <td className={`font-bold text-rose-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>TOTAL GASTOS</td>
+                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{processedData.compras33.docs + processedData.comprasDIN.docs + processedData.honorarios.docs}</td>
+                                                        <td className={`text-right font-bold ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{formatCurrency(processedData.totalGastos.neto)}</td>
+                                                        <td className={`text-right font-black text-rose-400 ${isExporting ? 'p-1.5 text-sm' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalGastos.total)}</td>
                                                     </tr>
-                                                    {/* UTILIDAD DEL PERÍODO */}
                                                     <tr className="bg-slate-950 text-white border-t-4 border-slate-700">
-                                                        <td className={`font-black tracking-wide text-white uppercase text-base ${isExporting ? 'p-2' : 'p-4'}`}>
+                                                        <td className={`font-black tracking-wide text-white uppercase ${isExporting ? 'p-1.5 text-[10px]' : 'p-4 text-base'}`}>
                                                             <div className="flex flex-col">
-                                                                <span className={isExporting ? 'text-sm' : ''}>UTILIDAD DEL PERÍODO</span>
-                                                                <span className="text-[9px] text-slate-400 font-normal normal-case tracking-normal">(Sin Importaciones DIN 914)</span>
+                                                                <span>UTILIDAD DEL PERÍODO</span>
                                                             </div>
                                                         </td>
-                                                        <td className={`text-center font-bold text-slate-400 ${isExporting ? 'p-2' : 'p-4'}`}>-</td>
-                                                        <td className={`text-right font-bold ${processedData.utilidad.neto >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-2' : 'p-4'}`}>
+                                                        <td className={`text-center font-bold text-slate-400 ${isExporting ? 'p-1.5' : 'p-4'}`}>-</td>
+                                                        <td className={`text-right font-bold ${processedData.utilidad.neto >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>
                                                             {formatCurrency(processedData.utilidad.neto)}
                                                         </td>
-                                                        <td className={`text-right font-black ${processedData.utilidad.total >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-2 text-lg' : 'p-4 text-xl'}`}>
+                                                        <td className={`text-right font-black ${processedData.utilidad.total >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-1.5 text-sm' : 'p-4 text-xl'}`}>
                                                             {formatCurrency(processedData.utilidad.total)}
                                                         </td>
                                                     </tr>
                                                 </tbody>
                                             </table>
                                         </div>
-                                        
                                     </div>
                                 </div>
 
-                                {/* ---------------- SECCIÓN GRÁFICOS DE EVOLUCIÓN ---------------- */}
+                                {/* ---------------- SECCIÓN GRÁFICOS DE EVOLUCIÓN Y COSTOS ---------------- */}
                                 {chartData && chartData.labels.length > 0 && (
-                                    <div className={`w-full ${isExporting ? 'space-y-3' : 'space-y-6'}`}>
-                                        <h2 className={`font-bold text-slate-800 flex items-center gap-2 ${isExporting ? 'text-base mb-1' : 'text-lg mb-4'}`}>
-                                            Evolución Anual (Neto)
-                                        </h2>
+                                    <div className="w-full space-y-4">
+                                        {!isExporting && (
+                                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                Análisis y Evolución (Neto)
+                                            </h2>
+                                        )}
                                         
-                                        <MultiLineChart 
-                                            title="Ingresos, Gastos y Utilidad del Ejercicio" 
-                                            labels={chartData.labels} 
-                                            datasets={[
-                                                { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "transparent", fill: false },
-                                                { label: "Gastos Totales (Compras + Honorarios)", data: chartData.compras, borderColor: "#f43f5e", bgColor: "transparent", fill: false },
-                                                { label: "Utilidad (Sin DIN)", data: chartData.utilidades, borderColor: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)", fill: true }
-                                            ]}
-                                            isExporting={isExporting}
-                                        />
-
-                                        <div className={`grid ${isExporting ? 'grid-cols-2 gap-4' : 'grid-cols-1 lg:grid-cols-2 gap-6'}`}>
+                                        <div className={`grid ${isExporting ? 'grid-cols-3 gap-3' : 'grid-cols-1 lg:grid-cols-2 gap-6'}`}>
                                             <MultiLineChart 
-                                                title="Evolución de Gastos con Importaciones (DIN)" 
+                                                title="Ingresos, Gastos (Total) y Utilidad" 
                                                 labels={chartData.labels} 
                                                 datasets={[
-                                                    { label: "Gastos (Solo Compras Locales + Honorarios)", data: chartData.compras, borderColor: "#f43f5e", bgColor: "transparent", fill: false },
-                                                    { label: "Gastos (Incluyendo Importaciones DIN)", data: chartData.comprasConDin, borderColor: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.1)", fill: true }
+                                                    { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "transparent", fill: false },
+                                                    { label: "Gastos Totales", data: chartData.compras, borderColor: "#f43f5e", bgColor: "transparent", fill: false },
+                                                    { label: "Utilidad", data: chartData.utilidades, borderColor: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)", fill: true }
                                                 ]}
                                                 isExporting={isExporting}
                                             />
 
                                             <MultiLineChart 
-                                                title="Evolución de Ventas Netas Mensuales" 
+                                                title="Evolución de Ventas Netas" 
                                                 labels={chartData.labels} 
                                                 datasets={[
                                                     { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", fill: true }
                                                 ]}
                                                 isExporting={isExporting}
                                             />
+
+                                            <DoughnutChart 
+                                                title="Distribución de Costos (Top 5)" 
+                                                labels={processedData.gastosChartLabels} 
+                                                data={processedData.gastosChartData} 
+                                                isExporting={isExporting} 
+                                            />
                                         </div>
                                     </div>
                                 )}
 
                                 {/* ---------------- SECCIÓN TABLAS DETALLE ---------------- */}
-                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                <div className={`grid ${isExporting ? 'grid-cols-2 gap-4' : 'grid-cols-1 xl:grid-cols-2 gap-6'}`}>
                                     
                                     {/* TABLA: DETALLE DE VENTAS */}
                                     <CollapsibleTable title="3. Detalle de Ventas" count={processedData.detVentas.length} isExporting={isExporting}>
                                             {processedData.detVentas.length > 0 ? (
-                                                <table className="w-full text-left border-collapse text-xs">
+                                                <table className="w-full text-left border-collapse text-[10px] md:text-xs">
                                                     <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                         <tr className="text-slate-500 uppercase">
-                                                            <th className="p-3 border-b font-semibold whitespace-nowrap">RUT Cliente</th>
-                                                            <th className="p-3 border-b font-semibold">Razón Social</th>
-                                                            <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
-                                                            <th className="p-3 border-b font-semibold text-right">M. Neto</th>
-                                                            <th className="p-3 border-b font-semibold text-right">M. Total</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">RUT Cliente</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold">Razón Social</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {processedData.detVentas.map((v, idx) => (
                                                             <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                <td className="p-3 text-slate-600 whitespace-nowrap">{v.Rut}</td>
-                                                                <td className="p-3 font-medium text-slate-800 truncate max-w-[150px]" title={v.RazonSocial}>{v.RazonSocial || 'Sin Razón Social'}</td>
-                                                                <td className="p-3 text-slate-500 whitespace-nowrap">{v.Fecha}</td>
-                                                                <td className="p-3 text-right text-slate-600">{formatCurrency(v.Neto)}</td>
-                                                                <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(v.Total)}</td>
+                                                                <td className="p-2 md:p-3 text-slate-600 whitespace-nowrap">{v.Rut}</td>
+                                                                <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={v.RazonSocial}>{v.RazonSocial || 'Sin Razón Social'}</td>
+                                                                <td className="p-2 md:p-3 text-slate-500 whitespace-nowrap">{v.Fecha}</td>
+                                                                <td className="p-2 md:p-3 text-right font-bold text-slate-800">{formatCurrency(v.Total)}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -924,14 +936,14 @@
                                     </CollapsibleTable>
 
                                     {/* TABLA: REGISTRO DE COMPRAS (SÓLO 33) */}
-                                    <CollapsibleTable title="4. Registro de Compras (Locales)" count={filteredCompras33.length} isExporting={isExporting}>
+                                    <CollapsibleTable title="4. Compras Locales" count={filteredCompras33.length} isExporting={isExporting}>
                                             {processedData.detCompras33.length > 0 ? (
                                                 <div className="flex flex-col h-full">
                                                     {!isExporting && (
                                                         <div className="p-2 bg-white border-b border-slate-200 flex items-center gap-2">
                                                             <span className="text-xs font-bold text-slate-500 uppercase ml-1">Filtro Proveedor:</span>
                                                             <select 
-                                                                className="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-md p-1.5 flex-1 max-w-[250px] outline-none cursor-pointer"
+                                                                className="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-md p-1.5 flex-1 max-w-[200px] outline-none cursor-pointer"
                                                                 value={selectedProveedor}
                                                                 onChange={(e) => setSelectedProveedor(e.target.value)}
                                                             >
@@ -939,34 +951,27 @@
                                                             </select>
                                                         </div>
                                                     )}
-                                                    <table className="w-full text-left border-collapse text-xs">
+                                                    <table className="w-full text-left border-collapse text-[10px] md:text-xs">
                                                         <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                             <tr className="text-slate-500 uppercase">
-                                                                <th className="p-3 border-b font-semibold">Razón Social (Proveedor)</th>
-                                                                <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha Docto</th>
-                                                                <th className="p-3 border-b font-semibold text-center">Tipo Doc</th>
-                                                                <th className="p-3 border-b font-semibold text-right">M. Neto</th>
-                                                                <th className="p-3 border-b font-semibold text-right">M. Total</th>
+                                                                <th className="p-2 md:p-3 border-b font-semibold">Razón Social (Proveedor)</th>
+                                                                <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
+                                                                <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             {filteredCompras33.map((c, idx) => (
                                                                 <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                    <td className="p-3 font-medium text-slate-800 truncate max-w-[150px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
-                                                                    <td className="p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
-                                                                    <td className="p-3 text-center">
-                                                                        <span className="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Factura (33)</span>
-                                                                    </td>
-                                                                    <td className="p-3 text-right text-slate-600">{formatCurrency(c.Neto)}</td>
-                                                                    <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
+                                                                    <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
+                                                                    <td className="p-2 md:p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
+                                                                    <td className="p-2 md:p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
-                                                        {selectedProveedor !== 'Todos' && (
+                                                        {selectedProveedor !== 'Todos' && !isExporting && (
                                                             <tfoot className="bg-slate-100 font-bold sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
                                                                 <tr>
-                                                                    <td colSpan="3" className="p-3 text-right text-slate-700 uppercase tracking-wide">Total Seleccionado:</td>
-                                                                    <td className="p-3 text-right text-slate-800">{formatCurrency(filteredCompras33Totals.neto)}</td>
+                                                                    <td colSpan="2" className="p-3 text-right text-slate-700 uppercase tracking-wide">Total:</td>
                                                                     <td className="p-3 text-right text-slate-800 text-sm">{formatCurrency(filteredCompras33Totals.total)}</td>
                                                                 </tr>
                                                             </tfoot>
@@ -975,59 +980,39 @@
                                                 </div>
                                             ) : (
                                                 <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
-                                                    Sube el archivo RCV_COMPRA_REGISTRO para ver el detalle de facturas.
+                                                    Sube RCV_COMPRA para ver facturas.
                                                 </div>
                                             )}
                                     </CollapsibleTable>
 
-                                </div>
-
-                                {/* ---------------- GRÁFICO CIRCULAR DE GASTOS ---------------- */}
-                                {processedData.gastosChartData && processedData.gastosChartData.length > 0 && (
-                                    <div className="mt-6 w-full lg:w-3/4 mx-auto">
-                                        <DoughnutChart 
-                                            title="Distribución de Costos Operativos (Top 5 Proveedores)" 
-                                            labels={processedData.gastosChartLabels} 
-                                            data={processedData.gastosChartData} 
-                                            isExporting={isExporting} 
-                                        />
-                                    </div>
-                                )}
-
-                                {/* ---------------- TABLA EXCLUSIVA PARA DIN 914 ---------------- */}
-                                <div className="mt-6">
-                                    <CollapsibleTable title="5. Gastos de Importaciones (DIN 914)" count={processedData.detComprasDIN.length} isExporting={isExporting}>
+                                    {/* TABLA: IMPORTACIONES (DIN 914) */}
+                                    <CollapsibleTable title="5. Importaciones (DIN)" count={processedData.detComprasDIN.length} isExporting={isExporting}>
                                             {processedData.detComprasDIN.length > 0 ? (
-                                                <table className="w-full text-left border-collapse text-xs">
+                                                <table className="w-full text-left border-collapse text-[10px] md:text-xs">
                                                     <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                         <tr className="text-slate-500 uppercase">
-                                                            <th className="p-3 border-b font-semibold">Razón Social</th>
-                                                            <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha Docto</th>
-                                                            <th className="p-3 border-b font-semibold text-center">Tipo Doc</th>
-                                                            <th className="p-3 border-b font-semibold text-right">M. Neto</th>
-                                                            <th className="p-3 border-b font-semibold text-right">M. Total</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold">Razón Social</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
+                                                            <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {processedData.detComprasDIN.map((c, idx) => (
                                                             <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                <td className="p-3 font-medium text-slate-800 truncate max-w-[250px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
-                                                                <td className="p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
-                                                                <td className="p-3 text-center">
-                                                                    <span className="px-2 py-1 rounded text-[10px] font-bold bg-cyan-100 text-cyan-700">DIN (914)</span>
-                                                                </td>
-                                                                <td className="p-3 text-right text-slate-600">{formatCurrency(c.Neto)}</td>
-                                                                <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
+                                                                <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
+                                                                <td className="p-2 md:p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
+                                                                <td className="p-2 md:p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
                                                 </table>
                                             ) : (
                                                 <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
-                                                    No hay importaciones (DIN 914) en este periodo.
+                                                    No hay importaciones en este periodo.
                                                 </div>
                                             )}
                                     </CollapsibleTable>
+
                                 </div>
                             </div>
                         )}
@@ -1039,7 +1024,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-</body>
-</html>
 </body>
 </html>
