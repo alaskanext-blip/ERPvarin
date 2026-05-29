@@ -17,6 +17,7 @@
 
     <!-- Chart.js y SheetJS (XLSX) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -201,8 +202,9 @@
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
             }, [labels, data, isExporting]);
 
+            // Reducir la altura del gráfico aquí para que no sea tan grande
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-56 !shadow-none' : 'h-80'}`}>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-48 !shadow-none' : 'h-64'}`}>
                     <h3 className={`font-bold text-slate-700 mb-4 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
                     <div className="flex-1 relative w-full h-full flex justify-center">
                         <canvas ref={chartRef}></canvas>
@@ -217,7 +219,7 @@
             const displayOpen = isExporting || isOpen;
 
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-300 ${displayOpen ? (isExporting ? 'h-auto' : 'h-[500px]') : 'h-auto'}`}>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-300 ${displayOpen ? (isExporting ? 'h-auto max-h-none' : 'h-auto max-h-[500px]') : 'h-auto'}`}>
                     <button 
                         onClick={() => setIsOpen(!isOpen)} 
                         className="bg-slate-50 hover:bg-slate-100 border-b border-transparent data-[open=true]:border-slate-200 p-4 flex justify-between items-center w-full transition-colors"
@@ -232,7 +234,7 @@
                         </div>
                     </button>
                     {displayOpen && (
-                        <div className={`overflow-auto custom-scrollbar flex-1 p-0 ${isExporting ? '!overflow-visible h-auto' : ''}`}>
+                        <div className={`overflow-auto custom-scrollbar flex-1 p-0 ${isExporting ? '!overflow-visible !max-h-none h-auto' : ''}`}>
                             {children}
                         </div>
                     )}
@@ -460,13 +462,24 @@
                         margin: 0.3,
                         filename: filenameStr,
                         image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 1.5, useCORS: true },
+                        html2canvas: { scale: 1.5, useCORS: true, windowWidth: element.scrollWidth },
                         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                     };
-                    window.html2pdf().set(opt).from(element).save().then(() => {
+                    // Asegurar que use html2pdf nativo si está disponible
+                    if (window.html2pdf) {
+                        window.html2pdf().set(opt).from(element).save().then(() => {
+                            setIsExporting(false);
+                        });
+                    } else if (typeof html2pdf !== 'undefined') {
+                        html2pdf().set(opt).from(element).save().then(() => {
+                            setIsExporting(false);
+                        });
+                    } else {
+                        console.error('html2pdf is not loaded');
                         setIsExporting(false);
-                    });
-                }, 500); 
+                        alert("Hubo un problema al cargar la librería de PDF.");
+                    }
+                }, 800); // Dar más tiempo para re-renderizado
             };
 
             const availableMonths = useMemo(() => {
@@ -486,7 +499,7 @@
                 const labels = [];
                 const ventas = [];
                 const comprasYHonorarios = [];
-                const compras33Solo = [];
+                const comprasYHonorariosYDin = [];
                 const utilidades = [];
 
                 months.forEach(m => {
@@ -506,7 +519,7 @@
                     });
                     ventas.push(vNeto);
 
-                    // Compras Netas Solo Tipo 33 + Honorarios (Para Gastos y Utilidad)
+                    // Compras Netas Solo Tipo 33 + Honorarios
                     const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '33');
                     const cNeto33 = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
                     
@@ -515,13 +528,19 @@
                     
                     const totalGastosSinDin = cNeto33 + hBruto;
                     comprasYHonorarios.push(totalGastosSinDin);
-                    compras33Solo.push(cNeto33);
 
-                    // Utilidad (Sin considerar Compras Tipo 914 DIN)
+                    // Gastos Totales: + DIN
+                    const detComprasMesDIN = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '914');
+                    const cNetoDIN = detComprasMesDIN.reduce((acc, curr) => acc + curr.Neto, 0);
+
+                    const totalGastosMesConDin = totalGastosSinDin + cNetoDIN;
+                    comprasYHonorariosYDin.push(totalGastosMesConDin);
+
+                    // Utilidad (Sin considerar Compras Tipo 914)
                     utilidades.push(vNeto - totalGastosSinDin);
                 });
 
-                return { labels, ventas, compras: comprasYHonorarios, compras33: compras33Solo, utilidades };
+                return { labels, ventas, compras: comprasYHonorarios, comprasConDin: comprasYHonorariosYDin, utilidades };
             }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios]);
 
             const processedData = useMemo(() => {
@@ -703,7 +722,7 @@
                         )}
 
                         {hasData && processedData && (
-                            <div id="report-content" className={`space-y-8 ${isExporting ? 'p-6 bg-white' : ''}`}>
+                            <div id="report-content" className={`space-y-8 ${isExporting ? 'p-6 bg-white w-full max-w-[1200px] mx-auto' : ''}`}>
                                 
                                 {/* Título de Exportación (solo visible en PDF) */}
                                 {isExporting && (
@@ -1008,5 +1027,7 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+</body>
+</html>
 </body>
 </html>
