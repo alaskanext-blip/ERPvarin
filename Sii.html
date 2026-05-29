@@ -142,8 +142,8 @@
             }, [labels, datasets, isExporting]);
 
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-56 !shadow-none' : 'h-80'}`}>
-                    <h3 className={`font-bold text-slate-700 mb-4 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${isExporting ? 'h-48 p-3 !shadow-none' : 'h-80 p-5'}`}>
+                    <h3 className={`font-bold text-slate-700 mb-2 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
                     <div className="flex-1 relative w-full h-full">
                         <canvas ref={chartRef}></canvas>
                     </div>
@@ -202,10 +202,9 @@
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
             }, [labels, data, isExporting]);
 
-            // Reducir la altura del gráfico aquí para que no sea tan grande
             return (
-                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-48 !shadow-none' : 'h-64'}`}>
-                    <h3 className={`font-bold text-slate-700 mb-4 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col ${isExporting ? 'h-40 p-3 !shadow-none' : 'h-64 p-5'}`}>
+                    <h3 className={`font-bold text-slate-700 mb-2 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
                     <div className="flex-1 relative w-full h-full flex justify-center">
                         <canvas ref={chartRef}></canvas>
                     </div>
@@ -459,11 +458,12 @@
                     const element = document.getElementById('report-content');
                     const filenameStr = selectedMonth !== 'Todos' ? `Informe_Contable_${selectedMonth.replace(' ', '_')}.pdf` : 'Informe_Contable_Total.pdf';
                     const opt = {
-                        margin: 0.3,
+                        margin: [0.4, 0.4], // Márgenes superior/inferior y laterales
                         filename: filenameStr,
                         image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 1.5, useCORS: true, windowWidth: element.scrollWidth },
-                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                        html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, // Forzamos a html2canvas a interpretar la pantalla con ancho estándar
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } // Evita cortes a la mitad de las tablas
                     };
                     // Asegurar que use html2pdf nativo si está disponible
                     if (window.html2pdf) {
@@ -722,18 +722,18 @@
                         )}
 
                         {hasData && processedData && (
-                            <div id="report-content" className={`space-y-8 ${isExporting ? 'p-6 bg-white w-full max-w-[1200px] mx-auto' : ''}`}>
+                            <div id="report-content" className={`${isExporting ? 'bg-white text-slate-900 mx-auto px-4 py-2 space-y-4' : 'space-y-8'}`} style={{ width: isExporting ? '760px' : '100%' }}>
                                 
                                 {/* Título de Exportación (solo visible en PDF) */}
                                 {isExporting && (
-                                    <div className="border-b-2 border-slate-800 pb-4 mb-6 flex justify-between items-end">
+                                    <div className="border-b-2 border-slate-800 pb-2 mb-4 flex justify-between items-end">
                                         <div>
-                                            <h1 className="text-3xl font-black text-slate-800">Informe Contable SII</h1>
-                                            <p className="text-slate-500 font-medium mt-1">Resumen de Operaciones Comerciales</p>
+                                            <h1 className="text-2xl font-black text-slate-800">Informe Contable SII</h1>
+                                            <p className="text-slate-500 font-medium text-xs mt-1">Resumen de Operaciones Comerciales</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-sm font-bold text-slate-500 uppercase">Periodo</p>
-                                            <p className="text-xl font-black text-slate-800">{selectedMonth}</p>
+                                            <p className="text-xs font-bold text-slate-500 uppercase">Periodo</p>
+                                            <p className="text-lg font-black text-slate-800">{selectedMonth}</p>
                                         </div>
                                     </div>
                                 )}
@@ -749,94 +749,94 @@
                                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                         
                                         {/* INGRESOS */}
-                                        <div className="bg-slate-50 border-b border-slate-200 p-4">
+                                        <div className={`bg-slate-50 border-b border-slate-200 ${isExporting ? 'p-2' : 'p-4'}`}>
                                             <h3 className="font-bold text-slate-800 uppercase text-sm tracking-wide">1. Detalle de Ingresos</h3>
                                         </div>
                                         <div className="p-0 overflow-x-auto">
                                             <table className="w-full text-left border-collapse text-sm min-w-[600px]">
                                                 <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-xs">
                                                     <tr>
-                                                        <th className="p-4 font-semibold w-1/4">Concepto</th>
-                                                        <th className="p-4 font-semibold text-center w-1/4">Documentos</th>
-                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Neto</th>
-                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Total</th>
+                                                        <th className={`font-semibold w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Concepto</th>
+                                                        <th className={`font-semibold text-center w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Documentos</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Neto</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Total</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 flex items-center gap-3 font-medium text-blue-600"><IconInvoice /> Facturas</td>
-                                                        <td className="p-4 text-center text-slate-600">{processedData.facturas.docs} emitidos</td>
-                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.facturas.neto)}</td>
-                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.facturas.total)}</td>
+                                                        <td className={`flex items-center gap-3 font-medium text-blue-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconInvoice /> Facturas</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.facturas.docs} emitidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.facturas.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.facturas.total)}</td>
                                                     </tr>
                                                     <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 flex items-center gap-3 font-medium text-emerald-600"><IconReceipt /> Boletas</td>
-                                                        <td className="p-4 text-center text-slate-600">{processedData.boletas.docs} emitidos</td>
-                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.boletas.neto)}</td>
-                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.boletas.total)}</td>
+                                                        <td className={`flex items-center gap-3 font-medium text-emerald-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconReceipt /> Boletas</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.boletas.docs} emitidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.boletas.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.boletas.total)}</td>
                                                     </tr>
                                                     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 flex items-center gap-3 font-medium text-red-500"><IconCreditNote /> Notas de Crédito</td>
-                                                        <td className="p-4 text-center text-slate-600">{processedData.notasCredito.docs} emitidos</td>
-                                                        <td className="p-4 text-right text-red-500">-{formatCurrency(processedData.notasCredito.neto)}</td>
-                                                        <td className="p-4 text-right font-bold text-red-600">-{formatCurrency(processedData.notasCredito.total)}</td>
+                                                        <td className={`flex items-center gap-3 font-medium text-red-500 ${isExporting ? 'p-2' : 'p-4'}`}><IconCreditNote /> Notas de Crédito</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.notasCredito.docs} emitidos</td>
+                                                        <td className={`text-right text-red-500 ${isExporting ? 'p-2' : 'p-4'}`}>-{formatCurrency(processedData.notasCredito.neto)}</td>
+                                                        <td className={`text-right font-bold text-red-600 ${isExporting ? 'p-2' : 'p-4'}`}>-{formatCurrency(processedData.notasCredito.total)}</td>
                                                     </tr>
                                                     <tr className="bg-slate-800 text-white">
-                                                        <td className="p-4 font-bold text-blue-300">TOTAL INGRESOS</td>
-                                                        <td className="p-4 text-center font-bold text-slate-300">{processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs}</td>
-                                                        <td className="p-4 text-right font-bold">{formatCurrency(processedData.totalIngresos.neto)}</td>
-                                                        <td className="p-4 text-right font-black text-emerald-400 text-lg">{formatCurrency(processedData.totalIngresos.total)}</td>
+                                                        <td className={`font-bold text-blue-300 ${isExporting ? 'p-2' : 'p-4'}`}>TOTAL INGRESOS</td>
+                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs}</td>
+                                                        <td className={`text-right font-bold ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.totalIngresos.neto)}</td>
+                                                        <td className={`text-right font-black text-emerald-400 ${isExporting ? 'p-2 text-base' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalIngresos.total)}</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
                                         </div>
 
                                         {/* GASTOS */}
-                                        <div className="bg-slate-50 border-y border-slate-200 p-4 mt-4">
+                                        <div className={`bg-slate-50 border-y border-slate-200 ${isExporting ? 'p-2 mt-2' : 'p-4 mt-4'}`}>
                                             <h3 className="font-bold text-slate-800 uppercase text-sm tracking-wide">2. Detalle de Gastos (Operativos)</h3>
                                         </div>
                                         <div className="p-0 overflow-x-auto">
                                             <table className="w-full text-left border-collapse text-sm min-w-[600px]">
                                                 <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-xs">
                                                     <tr>
-                                                        <th className="p-4 font-semibold w-1/4">Concepto</th>
-                                                        <th className="p-4 font-semibold text-center w-1/4">Documentos</th>
-                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Neto / Bruto</th>
-                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Total / Pagado</th>
+                                                        <th className={`font-semibold w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Concepto</th>
+                                                        <th className={`font-semibold text-center w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Documentos</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Neto / Bruto</th>
+                                                        <th className={`font-semibold text-right w-1/4 ${isExporting ? 'p-2' : 'p-4'}`}>Monto Total / Pagado</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 flex items-center gap-3 font-medium text-purple-600"><IconShoppingCart /> Compras (Facturas)</td>
-                                                        <td className="p-4 text-center text-slate-600">{processedData.compras33.docs} recibidos</td>
-                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.compras33.neto)}</td>
-                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.compras33.total)}</td>
+                                                        <td className={`flex items-center gap-3 font-medium text-purple-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconShoppingCart /> Compras (Facturas)</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
                                                     </tr>
                                                     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 flex items-center gap-3 font-medium text-amber-600"><IconBriefcase /> Honorarios (BH)</td>
-                                                        <td className="p-4 text-center text-slate-600">{processedData.honorarios.docs} recibidos</td>
-                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.honorarios.brutos)}</td>
-                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.honorarios.pagado)}</td>
+                                                        <td className={`flex items-center gap-3 font-medium text-amber-600 ${isExporting ? 'p-2' : 'p-4'}`}><IconBriefcase /> Honorarios (BH)</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.honorarios.docs} recibidos</td>
+                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.honorarios.brutos)}</td>
+                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
                                                     </tr>
                                                     <tr className="bg-slate-800 text-white">
-                                                        <td className="p-4 font-bold text-rose-300">TOTAL GASTOS</td>
-                                                        <td className="p-4 text-center font-bold text-slate-300">{processedData.compras33.docs + processedData.honorarios.docs}</td>
-                                                        <td className="p-4 text-right font-bold">{formatCurrency(processedData.totalGastos.neto)}</td>
-                                                        <td className="p-4 text-right font-black text-rose-400 text-lg">{formatCurrency(processedData.totalGastos.total)}</td>
+                                                        <td className={`font-bold text-rose-300 ${isExporting ? 'p-2' : 'p-4'}`}>TOTAL GASTOS</td>
+                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-2' : 'p-4'}`}>{processedData.compras33.docs + processedData.honorarios.docs}</td>
+                                                        <td className={`text-right font-bold ${isExporting ? 'p-2' : 'p-4'}`}>{formatCurrency(processedData.totalGastos.neto)}</td>
+                                                        <td className={`text-right font-black text-rose-400 ${isExporting ? 'p-2 text-base' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalGastos.total)}</td>
                                                     </tr>
                                                     {/* UTILIDAD DEL PERÍODO */}
                                                     <tr className="bg-slate-950 text-white border-t-4 border-slate-700">
-                                                        <td className="p-4 font-black tracking-wide text-white uppercase text-base">
+                                                        <td className={`font-black tracking-wide text-white uppercase text-base ${isExporting ? 'p-2' : 'p-4'}`}>
                                                             <div className="flex flex-col">
-                                                                <span>UTILIDAD DEL PERÍODO</span>
-                                                                <span className="text-[10px] text-slate-400 font-normal normal-case tracking-normal">(Sin Importaciones DIN 914)</span>
+                                                                <span className={isExporting ? 'text-sm' : ''}>UTILIDAD DEL PERÍODO</span>
+                                                                <span className="text-[9px] text-slate-400 font-normal normal-case tracking-normal">(Sin Importaciones DIN 914)</span>
                                                             </div>
                                                         </td>
-                                                        <td className="p-4 text-center font-bold text-slate-400">-</td>
-                                                        <td className={`p-4 text-right font-bold ${processedData.utilidad.neto >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                        <td className={`text-center font-bold text-slate-400 ${isExporting ? 'p-2' : 'p-4'}`}>-</td>
+                                                        <td className={`text-right font-bold ${processedData.utilidad.neto >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-2' : 'p-4'}`}>
                                                             {formatCurrency(processedData.utilidad.neto)}
                                                         </td>
-                                                        <td className={`p-4 text-right font-black text-xl ${processedData.utilidad.total >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                        <td className={`text-right font-black ${processedData.utilidad.total >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-2 text-lg' : 'p-4 text-xl'}`}>
                                                             {formatCurrency(processedData.utilidad.total)}
                                                         </td>
                                                     </tr>
@@ -849,8 +849,8 @@
 
                                 {/* ---------------- SECCIÓN GRÁFICOS DE EVOLUCIÓN ---------------- */}
                                 {chartData && chartData.labels.length > 0 && (
-                                    <div className="w-full space-y-6">
-                                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <div className={`w-full ${isExporting ? 'space-y-3' : 'space-y-6'}`}>
+                                        <h2 className={`font-bold text-slate-800 flex items-center gap-2 ${isExporting ? 'text-base mb-1' : 'text-lg mb-4'}`}>
                                             Evolución Anual (Neto)
                                         </h2>
                                         
@@ -865,14 +865,26 @@
                                             isExporting={isExporting}
                                         />
 
-                                        <MultiLineChart 
-                                            title="Evolución de Ventas Netas Mensuales" 
-                                            labels={chartData.labels} 
-                                            datasets={[
-                                                { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", fill: true }
-                                            ]}
-                                            isExporting={isExporting}
-                                        />
+                                        <div className={`grid ${isExporting ? 'grid-cols-2 gap-4' : 'grid-cols-1 lg:grid-cols-2 gap-6'}`}>
+                                            <MultiLineChart 
+                                                title="Evolución de Gastos con Importaciones (DIN)" 
+                                                labels={chartData.labels} 
+                                                datasets={[
+                                                    { label: "Gastos (Solo Compras Locales + Honorarios)", data: chartData.compras, borderColor: "#f43f5e", bgColor: "transparent", fill: false },
+                                                    { label: "Gastos (Incluyendo Importaciones DIN)", data: chartData.comprasConDin, borderColor: "#8b5cf6", bgColor: "rgba(139, 92, 246, 0.1)", fill: true }
+                                                ]}
+                                                isExporting={isExporting}
+                                            />
+
+                                            <MultiLineChart 
+                                                title="Evolución de Ventas Netas Mensuales" 
+                                                labels={chartData.labels} 
+                                                datasets={[
+                                                    { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", fill: true }
+                                                ]}
+                                                isExporting={isExporting}
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
@@ -1027,7 +1039,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-</body>
-</html>
 </body>
 </html>
