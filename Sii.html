@@ -43,6 +43,10 @@
         const IconBuilding = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>;
         const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
         const IconBriefcase = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
+        const IconShoppingCart = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>;
+        const IconDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>;
+        const IconChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
+        const IconShip = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 10v4"/><path d="M12 2v3"/></svg>;
 
         // --- UTILIDADES ---
         const formatCurrency = (val) => new Intl.NumberFormat('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0}).format(val || 0);
@@ -57,13 +61,13 @@
             return parseInt(parts[1]) * 100 + (monthMap[parts[0]] || 0);
         };
 
-        // --- COMPONENTE DE GRÁFICO DE LÍNEAS ---
-        const LineChart = ({ title, labels, datasetLabel, data, borderColor, bgColor }) => {
+        // --- COMPONENTE DE GRÁFICO DE LÍNEAS MÚLTIPLES ---
+        const MultiLineChart = ({ title, labels, datasets, isExporting }) => {
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
             useEffect(() => {
-                if (!chartRef.current || !data || data.length === 0) return;
+                if (!chartRef.current || !datasets || datasets.length === 0) return;
                 if (chartInstance.current) chartInstance.current.destroy();
 
                 const ctx = chartRef.current.getContext('2d');
@@ -71,30 +75,42 @@
                     type: 'line',
                     data: {
                         labels: labels,
-                        datasets: [{
-                            label: datasetLabel,
-                            data: data,
-                            borderColor: borderColor,
-                            backgroundColor: bgColor,
-                            fill: true,
+                        datasets: datasets.map(ds => ({
+                            label: ds.label,
+                            data: ds.data,
+                            borderColor: ds.borderColor,
+                            backgroundColor: ds.bgColor || 'transparent',
+                            fill: ds.fill || false,
                             tension: 0.3,
                             borderWidth: 2,
-                            pointRadius: 4,
-                            pointBackgroundColor: borderColor
-                        }]
+                            pointRadius: isExporting ? 2 : 4,
+                            pointBackgroundColor: ds.borderColor
+                        }))
                     },
                     options: {
                         responsive: true, 
                         maintainAspectRatio: false,
+                        animation: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
                         plugins: { 
-                            legend: { display: false },
+                            legend: { 
+                                display: true,
+                                position: 'top',
+                                labels: { boxWidth: 12, font: { size: isExporting ? 9 : 12 } }
+                            },
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
                                         let label = context.dataset.label || '';
                                         if (label) label += ': ';
                                         if (context.parsed.y !== null) {
-                                            label += '$' + new Intl.NumberFormat('es-CL').format(context.parsed.y);
+                                            const valStr = Math.abs(context.parsed.y) >= 1000000 
+                                                ? (Math.abs(context.parsed.y)/1000000).toFixed(1) + 'M' 
+                                                : new Intl.NumberFormat('es-CL').format(Math.abs(context.parsed.y));
+                                            label += (context.parsed.y < 0 ? '-' : '') + '$' + valStr;
                                         }
                                         return label;
                                     }
@@ -104,28 +120,61 @@
                         scales: {
                             x: {
                                 grid: { display: false },
-                                ticks: { font: { size: 11 } }
+                                ticks: { font: { size: isExporting ? 9 : 11 } }
                             },
                             y: {
-                                beginAtZero: true,
                                 grid: { borderDash: [2, 4], color: '#e2e8f0' },
                                 ticks: { 
-                                    font: { size: 11 },
-                                    callback: (v) => '$' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : new Intl.NumberFormat('es-CL').format(v)) 
+                                    font: { size: isExporting ? 9 : 11 },
+                                    callback: (v) => {
+                                        const valStr = Math.abs(v) >= 1000000 
+                                            ? (Math.abs(v)/1000000).toFixed(1) + 'M' 
+                                            : new Intl.NumberFormat('es-CL').format(Math.abs(v));
+                                        return (v < 0 ? '-' : '') + '$' + valStr;
+                                    }
                                 }
                             }
                         }
                     }
                 });
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-            }, [labels, data, borderColor, bgColor, datasetLabel]);
+            }, [labels, datasets, isExporting]);
 
             return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col h-72">
-                    <h3 className="text-sm font-bold text-slate-700 mb-4">{title}</h3>
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col ${isExporting ? 'h-56 !shadow-none' : 'h-80'}`}>
+                    <h3 className={`font-bold text-slate-700 mb-4 ${isExporting ? 'text-xs' : 'text-sm'}`}>{title}</h3>
                     <div className="flex-1 relative w-full h-full">
                         <canvas ref={chartRef}></canvas>
                     </div>
+                </div>
+            );
+        };
+
+        // --- COMPONENTE COLAPSABLE PARA TABLAS ---
+        const CollapsibleTable = ({ title, count, children, isExporting }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const displayOpen = isExporting || isOpen;
+
+            return (
+                <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all duration-300 ${displayOpen ? (isExporting ? 'h-auto' : 'h-[500px]') : 'h-auto'}`}>
+                    <button 
+                        onClick={() => setIsOpen(!isOpen)} 
+                        className="bg-slate-50 hover:bg-slate-100 border-b border-transparent data-[open=true]:border-slate-200 p-4 flex justify-between items-center w-full transition-colors"
+                        data-open={displayOpen}
+                    >
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                            {title}
+                            <span className="text-xs bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{count} Docs.</span>
+                        </h3>
+                        <div className={`transition-transform duration-200 text-slate-500 ${isOpen ? 'rotate-180' : ''}`}>
+                            <IconChevronDown />
+                        </div>
+                    </button>
+                    {displayOpen && (
+                        <div className={`overflow-auto custom-scrollbar flex-1 p-0 ${isExporting ? '!overflow-visible h-auto' : ''}`}>
+                            {children}
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -137,8 +186,14 @@
             const [dataHonorarios, setDataHonorarios] = useState([]);
             const [loading, setLoading] = useState(false);
             const [selectedMonth, setSelectedMonth] = useState('Todos');
+            const [isExporting, setIsExporting] = useState(false);
+            const [selectedProveedor, setSelectedProveedor] = useState('Todos');
 
-            // Lector de CSV manual (para esquivar librerías en archivos grandes de SII)
+            // Resetear filtro al cambiar de mes
+            useEffect(() => {
+                setSelectedProveedor('Todos');
+            }, [selectedMonth]);
+
             const parseCSV = async (file) => {
                 const text = await file.text();
                 const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
@@ -176,7 +231,6 @@
                         const sheet = workbook.Sheets[sheetName];
                         const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-                        // Encontrar fila de cabeceras
                         let headerIdx = -1;
                         for (let r = 0; r < Math.min(20, rows.length); r++) {
                             if (!rows[r]) continue;
@@ -203,7 +257,6 @@
                                 const fechaVal = row[iFecha];
                                 let mesStr = "Desconocido";
                                 
-                                // Extraer mes de la fecha del Excel
                                 let dateObj;
                                 if (typeof fechaVal === 'number') {
                                     dateObj = new Date(Math.round((fechaVal - 25569) * 86400 * 1000));
@@ -237,14 +290,12 @@
                     }
 
                     // --- 2. LECTURA CSV DE RCV DEL SII ---
-                    // Expresión regular corregida para extraer el Mes_Año (ej _202603.csv o _202604 (1).csv)
                     const match = file.name.match(/_(\d{4})(\d{2})(?:\s*\(\d+\))?\.csv$/i);
                     let mesStr = "Desconocido";
                     if (match) {
                         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
                         mesStr = `${monthNames[parseInt(match[2]) - 1]} ${match[1]}`;
                     } else {
-                        // Plan B estricto para buscar cualquier fecha válida 202X MM
                         const fallbackMatch = file.name.match(/(202[0-9])(0[1-9]|1[0-2])/);
                         if (fallbackMatch) {
                             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -269,7 +320,8 @@
                         });
                     } else if (file.name.includes('COMPRA_REGISTRO')) {
                         parsed.data.forEach(row => {
-                            if (row['RUT Proveedor']) {
+                            const tipoDocStr = String(row['Tipo Doc']).trim();
+                            if (row['RUT Proveedor'] && (tipoDocStr === '33' || tipoDocStr === '914')) {
                                 newDetalleCompras.push({
                                     Mes: mesStr,
                                     Rut: row['RUT Proveedor'],
@@ -277,7 +329,7 @@
                                     Fecha: row['Fecha Docto'],
                                     Neto: getInt(row['Monto Neto']),
                                     Total: getInt(row['Monto Total']),
-                                    TipoDoc: row['Tipo Doc']
+                                    TipoDoc: tipoDocStr
                                 });
                             }
                         });
@@ -298,7 +350,6 @@
                     }
                 }
 
-                // Evitar duplicados por mes
                 if (newResumenVentas.length > 0) {
                     const mesesAfectados = new Set(newResumenVentas.map(d => d.Mes));
                     setDataVentasResumen(prev => [...prev.filter(d => !mesesAfectados.has(d.Mes)), ...newResumenVentas]);
@@ -339,7 +390,24 @@
                 }
             };
 
-            // Meses Disponibles
+            const handleDownloadPDF = () => {
+                setIsExporting(true);
+                setTimeout(() => {
+                    const element = document.getElementById('report-content');
+                    const filenameStr = selectedMonth !== 'Todos' ? `Informe_Contable_${selectedMonth.replace(' ', '_')}.pdf` : 'Informe_Contable_Total.pdf';
+                    const opt = {
+                        margin: 0.3,
+                        filename: filenameStr,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 1.5, useCORS: true },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                    };
+                    window.html2pdf().set(opt).from(element).save().then(() => {
+                        setIsExporting(false);
+                    });
+                }, 500); 
+            };
+
             const availableMonths = useMemo(() => {
                 const allMonths = [...dataVentasResumen.map(d=>d.Mes), ...dataVentasDetalle.map(d=>d.Mes), ...dataComprasDetalle.map(d=>d.Mes), ...dataHonorarios.map(d=>d.Mes)];
                 return ['Todos', ...Array.from(new Set(allMonths)).sort((a,b) => getMonthValue(a)-getMonthValue(b))];
@@ -351,17 +419,19 @@
                 }
             }, [availableMonths]);
 
-            // --- PROCESAMIENTO DE DATOS PARA GRÁFICOS (Evolución Mensual) ---
+            // --- PROCESAMIENTO DE DATOS PARA GRÁFICO (Evolución Mensual Integrada) ---
             const chartData = useMemo(() => {
                 const months = availableMonths.filter(m => m !== 'Todos');
                 const labels = [];
                 const ventas = [];
                 const comprasYHonorarios = [];
+                const compras33Solo = [];
+                const utilidades = [];
 
                 months.forEach(m => {
                     labels.push(m);
                     
-                    // Total Ventas Netas del Mes
+                    // Ventas Netas del Mes
                     const resVentasMes = dataVentasResumen.filter(d => d.Mes === m);
                     let vNeto = 0;
                     resVentasMes.forEach(r => {
@@ -375,20 +445,24 @@
                     });
                     ventas.push(vNeto);
 
-                    // Total Compras Netas del Mes + Honorarios
-                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m);
-                    const cNeto = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
-
+                    // Compras Netas Solo Tipo 33 + Honorarios (Para Gastos y Utilidad)
+                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '33');
+                    const cNeto33 = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
+                    
                     const honMes = dataHonorarios.filter(d => d.Mes === m);
                     const hBruto = honMes.reduce((acc, curr) => acc + curr.Brutos, 0);
+                    
+                    const totalGastosSinDin = cNeto33 + hBruto;
+                    comprasYHonorarios.push(totalGastosSinDin);
+                    compras33Solo.push(cNeto33);
 
-                    comprasYHonorarios.push(cNeto + hBruto);
+                    // Utilidad (Sin considerar Compras Tipo 914 DIN)
+                    utilidades.push(vNeto - totalGastosSinDin);
                 });
 
-                return { labels, ventas, compras: comprasYHonorarios };
+                return { labels, ventas, compras: comprasYHonorarios, compras33: compras33Solo, utilidades };
             }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios]);
 
-            // --- PROCESAMIENTO DE DATOS POR MES PARA TARJETAS/TABLAS ---
             const processedData = useMemo(() => {
                 const resVentas = dataVentasResumen.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
                 const detVentas = dataVentasDetalle.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
@@ -423,9 +497,63 @@
                     honorarios.pagado += h.Pagado;
                 });
 
-                return { facturas, boletas, notasCredito, totalIngresos, honorarios, detVentas, detCompras, detHonorarios };
+                let compras33 = { docs: 0, neto: 0, total: 0 };
+                let comprasDIN = { docs: 0, neto: 0, total: 0 };
+                const detCompras33 = [];
+                const detComprasDIN = [];
+
+                detCompras.forEach(c => {
+                    if (c.TipoDoc === '33') {
+                        compras33.docs += 1;
+                        compras33.neto += c.Neto;
+                        compras33.total += c.Total;
+                        detCompras33.push(c);
+                    } else if (c.TipoDoc === '914') {
+                        comprasDIN.docs += 1;
+                        comprasDIN.neto += c.Neto;
+                        comprasDIN.total += c.Total;
+                        detComprasDIN.push(c);
+                    }
+                });
+
+                const totalGastos = {
+                    neto: compras33.neto + honorarios.brutos,
+                    total: compras33.total + honorarios.pagado
+                };
+
+                const utilidad = {
+                    neto: totalIngresos.neto - totalGastos.neto,
+                    total: totalIngresos.total - totalGastos.total
+                };
+
+                return { 
+                    facturas, boletas, notasCredito, totalIngresos, honorarios, 
+                    compras33, comprasDIN, totalGastos, utilidad, 
+                    detVentas, detCompras33, detComprasDIN, detHonorarios 
+                };
 
             }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth]);
+
+            // Lógica para el filtro de proveedores (Tabla 4)
+            const uniqueProveedores = useMemo(() => {
+                if (!processedData) return ['Todos'];
+                const provs = processedData.detCompras33.map(c => c.RazonSocial || 'Sin Razón Social');
+                return ['Todos', ...Array.from(new Set(provs)).sort()];
+            }, [processedData]);
+
+            const filteredCompras33 = useMemo(() => {
+                if (!processedData) return [];
+                if (selectedProveedor === 'Todos') return processedData.detCompras33;
+                return processedData.detCompras33.filter(c => (c.RazonSocial || 'Sin Razón Social') === selectedProveedor);
+            }, [processedData, selectedProveedor]);
+
+            const filteredCompras33Totals = useMemo(() => {
+                return filteredCompras33.reduce((acc, curr) => {
+                    acc.neto += curr.Neto;
+                    acc.total += curr.Total;
+                    return acc;
+                }, { neto: 0, total: 0 });
+            }, [filteredCompras33]);
 
             const hasData = dataVentasResumen.length > 0 || dataVentasDetalle.length > 0 || dataComprasDetalle.length > 0 || dataHonorarios.length > 0;
 
@@ -433,41 +561,52 @@
                 <div className="min-h-screen p-4 md:p-8">
                     <div className="max-w-7xl mx-auto space-y-6">
                         
-                        {/* CABECERA */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
-                                    <IconBuilding />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Visor Contable SII</h1>
-                                    <p className="text-sm text-slate-500 font-medium">Contabilidad Simple &bull; RCV &bull; Honorarios</p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex gap-3 items-center w-full md:w-auto">
-                                {hasData && (
-                                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
-                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Mes:</span>
-                                        <select 
-                                            className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer"
-                                            value={selectedMonth} 
-                                            onChange={e => setSelectedMonth(e.target.value)}
-                                        >
-                                            {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
-                                        </select>
-                                        <button onClick={handleDeleteMonth} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md ml-2 transition-colors" title="Borrar mes actual">
-                                            <IconTrash />
-                                        </button>
+                        {/* CABECERA (No visible al exportar a PDF) */}
+                        {!isExporting && (
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
+                                        <IconBuilding />
                                     </div>
-                                )}
+                                    <div>
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Visor Contable SII</h1>
+                                        <p className="text-sm text-slate-500 font-medium">Contabilidad Simple &bull; RCV &bull; Honorarios &bull; DIN</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex gap-3 items-center w-full md:w-auto flex-wrap justify-center">
+                                    {hasData && (
+                                        <>
+                                            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
+                                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Mes:</span>
+                                                <select 
+                                                    className="bg-transparent text-sm font-bold text-slate-800 outline-none cursor-pointer"
+                                                    value={selectedMonth} 
+                                                    onChange={e => setSelectedMonth(e.target.value)}
+                                                >
+                                                    {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                                                </select>
+                                                <button onClick={handleDeleteMonth} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md ml-2 transition-colors" title="Borrar mes actual">
+                                                    <IconTrash />
+                                                </button>
+                                            </div>
+                                            <button 
+                                                onClick={handleDownloadPDF} 
+                                                className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
+                                            >
+                                                <IconDownload />
+                                                Descargar Informe PDF
+                                            </button>
+                                        </>
+                                    )}
 
-                                <label className="cursor-pointer bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-bold transition-all shadow-sm flex-1 md:flex-none justify-center">
-                                    {loading ? <span className="animate-pulse">Cargando...</span> : <><IconUpload /> Subir Archivos</>}
-                                    <input type="file" multiple accept=".csv, .xlsx, .xls" className="hidden" onChange={handleFileUpload} />
-                                </label>
+                                    <label className="cursor-pointer bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-bold transition-all shadow-sm flex-1 md:flex-none justify-center">
+                                        {loading ? <span className="animate-pulse">Cargando...</span> : <><IconUpload /> Subir Archivos</>}
+                                        <input type="file" multiple accept=".csv, .xlsx, .xls" className="hidden" onChange={handleFileUpload} />
+                                    </label>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {!hasData && (
                             <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 py-24 flex flex-col items-center text-center">
@@ -480,117 +619,157 @@
                         )}
 
                         {hasData && processedData && (
-                            <div className="space-y-8">
+                            <div id="report-content" className={`space-y-8 ${isExporting ? 'p-6 bg-white' : ''}`}>
                                 
-                                {/* ---------------- SECCIÓN RESUMEN Y GASTOS ---------------- */}
+                                {/* Título de Exportación (solo visible en PDF) */}
+                                {isExporting && (
+                                    <div className="border-b-2 border-slate-800 pb-4 mb-6 flex justify-between items-end">
+                                        <div>
+                                            <h1 className="text-3xl font-black text-slate-800">Informe Contable SII</h1>
+                                            <p className="text-slate-500 font-medium mt-1">Resumen de Operaciones Comerciales</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-sm font-bold text-slate-500 uppercase">Periodo</p>
+                                            <p className="text-xl font-black text-slate-800">{selectedMonth}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ---------------- SECCIÓN RESUMEN Y GASTOS (UNA SOLA VENTANA) ---------------- */}
                                 <div>
-                                    <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                        <IconTrendingUp /> Resumen de Ingresos y Gastos <span className="text-slate-400 text-sm font-normal">({selectedMonth})</span>
-                                    </h2>
+                                    {!isExporting && (
+                                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                            <IconTrendingUp /> Resumen del Periodo <span className="text-slate-400 text-sm font-normal">({selectedMonth})</span>
+                                        </h2>
+                                    )}
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                         
-                                        {/* TARJETA FACTURAS */}
-                                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-4 text-blue-100"><IconInvoice /></div>
-                                            <div className="text-sm font-bold text-blue-600 mb-1">FACTURAS</div>
-                                            <div className="text-xs text-slate-400 mb-4">{processedData.facturas.docs} documentos emitidos</div>
-                                            <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-slate-500">Monto Neto</span>
-                                                <span className="font-bold text-slate-700">{formatCurrency(processedData.facturas.neto)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-end border-t border-slate-100 pt-1">
-                                                <span className="text-xs font-bold text-slate-800">Monto Total</span>
-                                                <span className="font-black text-slate-800 text-lg">{formatCurrency(processedData.facturas.total)}</span>
-                                            </div>
+                                        {/* INGRESOS */}
+                                        <div className="bg-slate-50 border-b border-slate-200 p-4">
+                                            <h3 className="font-bold text-slate-800 uppercase text-sm tracking-wide">1. Detalle de Ingresos</h3>
+                                        </div>
+                                        <div className="p-0 overflow-x-auto">
+                                            <table className="w-full text-left border-collapse text-sm min-w-[600px]">
+                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-xs">
+                                                    <tr>
+                                                        <th className="p-4 font-semibold w-1/4">Concepto</th>
+                                                        <th className="p-4 font-semibold text-center w-1/4">Documentos</th>
+                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Neto</th>
+                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 flex items-center gap-3 font-medium text-blue-600"><IconInvoice /> Facturas</td>
+                                                        <td className="p-4 text-center text-slate-600">{processedData.facturas.docs} emitidos</td>
+                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.facturas.neto)}</td>
+                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.facturas.total)}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 flex items-center gap-3 font-medium text-emerald-600"><IconReceipt /> Boletas</td>
+                                                        <td className="p-4 text-center text-slate-600">{processedData.boletas.docs} emitidos</td>
+                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.boletas.neto)}</td>
+                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.boletas.total)}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 flex items-center gap-3 font-medium text-red-500"><IconCreditNote /> Notas de Crédito</td>
+                                                        <td className="p-4 text-center text-slate-600">{processedData.notasCredito.docs} emitidos</td>
+                                                        <td className="p-4 text-right text-red-500">-{formatCurrency(processedData.notasCredito.neto)}</td>
+                                                        <td className="p-4 text-right font-bold text-red-600">-{formatCurrency(processedData.notasCredito.total)}</td>
+                                                    </tr>
+                                                    <tr className="bg-slate-800 text-white">
+                                                        <td className="p-4 font-bold text-blue-300">TOTAL INGRESOS</td>
+                                                        <td className="p-4 text-center font-bold text-slate-300">{processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs}</td>
+                                                        <td className="p-4 text-right font-bold">{formatCurrency(processedData.totalIngresos.neto)}</td>
+                                                        <td className="p-4 text-right font-black text-emerald-400 text-lg">{formatCurrency(processedData.totalIngresos.total)}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
 
-                                        {/* TARJETA BOLETAS */}
-                                        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-4 text-emerald-100"><IconReceipt /></div>
-                                            <div className="text-sm font-bold text-emerald-600 mb-1">BOLETAS</div>
-                                            <div className="text-xs text-slate-400 mb-4">{processedData.boletas.docs} documentos emitidos</div>
-                                            <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-slate-500">Monto Neto</span>
-                                                <span className="font-bold text-slate-700">{formatCurrency(processedData.boletas.neto)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-end border-t border-slate-100 pt-1">
-                                                <span className="text-xs font-bold text-slate-800">Monto Total</span>
-                                                <span className="font-black text-slate-800 text-lg">{formatCurrency(processedData.boletas.total)}</span>
-                                            </div>
+                                        {/* GASTOS */}
+                                        <div className="bg-slate-50 border-y border-slate-200 p-4 mt-4">
+                                            <h3 className="font-bold text-slate-800 uppercase text-sm tracking-wide">2. Detalle de Gastos (Operativos)</h3>
                                         </div>
-
-                                        {/* TARJETA NOTAS DE CRÉDITO */}
-                                        <div className="bg-white rounded-xl p-5 border border-red-100 shadow-sm relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-4 text-red-50"><IconCreditNote /></div>
-                                            <div className="text-sm font-bold text-red-500 mb-1">NOTAS DE CRÉDITO</div>
-                                            <div className="text-xs text-red-300 mb-4">{processedData.notasCredito.docs} documentos (Restan)</div>
-                                            <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-red-400">Monto Neto</span>
-                                                <span className="font-bold text-red-600">-{formatCurrency(processedData.notasCredito.neto)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-end border-t border-red-50 pt-1">
-                                                <span className="text-xs font-bold text-red-800">Monto Total</span>
-                                                <span className="font-black text-red-600 text-lg">-{formatCurrency(processedData.notasCredito.total)}</span>
-                                            </div>
+                                        <div className="p-0 overflow-x-auto">
+                                            <table className="w-full text-left border-collapse text-sm min-w-[600px]">
+                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-xs">
+                                                    <tr>
+                                                        <th className="p-4 font-semibold w-1/4">Concepto</th>
+                                                        <th className="p-4 font-semibold text-center w-1/4">Documentos</th>
+                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Neto / Bruto</th>
+                                                        <th className="p-4 font-semibold text-right w-1/4">Monto Total / Pagado</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 flex items-center gap-3 font-medium text-purple-600"><IconShoppingCart /> Compras (Facturas)</td>
+                                                        <td className="p-4 text-center text-slate-600">{processedData.compras33.docs} recibidos</td>
+                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.compras33.neto)}</td>
+                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.compras33.total)}</td>
+                                                    </tr>
+                                                    <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 flex items-center gap-3 font-medium text-amber-600"><IconBriefcase /> Honorarios (BH)</td>
+                                                        <td className="p-4 text-center text-slate-600">{processedData.honorarios.docs} recibidos</td>
+                                                        <td className="p-4 text-right text-slate-600">{formatCurrency(processedData.honorarios.brutos)}</td>
+                                                        <td className="p-4 text-right font-bold text-slate-800">{formatCurrency(processedData.honorarios.pagado)}</td>
+                                                    </tr>
+                                                    <tr className="bg-slate-800 text-white">
+                                                        <td className="p-4 font-bold text-rose-300">TOTAL GASTOS</td>
+                                                        <td className="p-4 text-center font-bold text-slate-300">{processedData.compras33.docs + processedData.honorarios.docs}</td>
+                                                        <td className="p-4 text-right font-bold">{formatCurrency(processedData.totalGastos.neto)}</td>
+                                                        <td className="p-4 text-right font-black text-rose-400 text-lg">{formatCurrency(processedData.totalGastos.total)}</td>
+                                                    </tr>
+                                                    {/* UTILIDAD DEL PERÍODO */}
+                                                    <tr className="bg-slate-950 text-white border-t-4 border-slate-700">
+                                                        <td className="p-4 font-black tracking-wide text-white uppercase text-base">
+                                                            <div className="flex flex-col">
+                                                                <span>UTILIDAD DEL PERÍODO</span>
+                                                                <span className="text-[10px] text-slate-400 font-normal normal-case tracking-normal">(Sin Importaciones DIN 914)</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-center font-bold text-slate-400">-</td>
+                                                        <td className={`p-4 text-right font-bold ${processedData.utilidad.neto >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                            {formatCurrency(processedData.utilidad.neto)}
+                                                        </td>
+                                                        <td className={`p-4 text-right font-black text-xl ${processedData.utilidad.total >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                            {formatCurrency(processedData.utilidad.total)}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
-
-                                        {/* TARJETA TOTAL INGRESOS */}
-                                        <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-md relative overflow-hidden text-white">
-                                            <div className="text-sm font-black text-blue-300 mb-1">TOTAL INGRESOS</div>
-                                            <div className="text-xs text-slate-400 mb-4">Facturas + Boletas - N.C.</div>
-                                            <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-slate-300">Neto Total</span>
-                                                <span className="font-bold text-slate-100">{formatCurrency(processedData.totalIngresos.neto)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-end border-t border-slate-600 pt-1">
-                                                <span className="text-xs font-bold text-white">Ingreso Total</span>
-                                                <span className="font-black text-white text-xl text-emerald-400">{formatCurrency(processedData.totalIngresos.total)}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* TARJETA HONORARIOS (NUEVO) */}
-                                        <div className="bg-amber-50 rounded-xl p-5 border border-amber-200 shadow-sm relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-4 text-amber-100"><IconBriefcase /></div>
-                                            <div className="text-sm font-bold text-amber-700 mb-1">HONORARIOS (Gasto)</div>
-                                            <div className="text-xs text-amber-500 mb-4">{processedData.honorarios.docs} boletas recibidas</div>
-                                            <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs text-amber-600">Monto Bruto</span>
-                                                <span className="font-bold text-amber-800">{formatCurrency(processedData.honorarios.brutos)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-end border-t border-amber-200 pt-1">
-                                                <span className="text-xs font-bold text-amber-800">Líquido Pagado</span>
-                                                <span className="font-black text-amber-900 text-lg">{formatCurrency(processedData.honorarios.pagado)}</span>
-                                            </div>
-                                        </div>
-
+                                        
                                     </div>
                                 </div>
 
                                 {/* ---------------- SECCIÓN GRÁFICOS DE EVOLUCIÓN ---------------- */}
                                 {chartData && chartData.labels.length > 0 && (
-                                    <div>
+                                    <div className="w-full space-y-6">
                                         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                             Evolución Anual (Neto)
                                         </h2>
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                            <LineChart 
-                                                title="Ventas Netas Totales" 
-                                                labels={chartData.labels} 
-                                                datasetLabel="Ventas Netas" 
-                                                data={chartData.ventas} 
-                                                borderColor="#3b82f6" 
-                                                bgColor="rgba(59, 130, 246, 0.1)" 
-                                            />
-                                            <LineChart 
-                                                title="Compras Netas + Honorarios Brutos" 
-                                                labels={chartData.labels} 
-                                                datasetLabel="Gastos Totales" 
-                                                data={chartData.compras} 
-                                                borderColor="#f43f5e" 
-                                                bgColor="rgba(244, 63, 94, 0.1)" 
-                                            />
-                                        </div>
+                                        
+                                        <MultiLineChart 
+                                            title="Ingresos, Gastos y Utilidad del Ejercicio" 
+                                            labels={chartData.labels} 
+                                            datasets={[
+                                                { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "transparent", fill: false },
+                                                { label: "Gastos Totales (Compras + Honorarios)", data: chartData.compras, borderColor: "#f43f5e", bgColor: "transparent", fill: false },
+                                                { label: "Utilidad (Sin DIN)", data: chartData.utilidades, borderColor: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)", fill: true }
+                                            ]}
+                                            isExporting={isExporting}
+                                        />
+
+                                        <MultiLineChart 
+                                            title="Evolución de Ventas Netas Mensuales" 
+                                            labels={chartData.labels} 
+                                            datasets={[
+                                                { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", fill: true }
+                                            ]}
+                                            isExporting={isExporting}
+                                        />
                                     </div>
                                 )}
 
@@ -598,17 +777,10 @@
                                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                     
                                     {/* TABLA: DETALLE DE VENTAS */}
-                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-                                        <div className="bg-slate-50 border-b border-slate-200 p-4">
-                                            <h3 className="font-bold text-slate-800 flex items-center justify-between">
-                                                Detalle de Ventas
-                                                <span className="text-xs bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{processedData.detVentas.length} Docs.</span>
-                                            </h3>
-                                        </div>
-                                        <div className="overflow-auto custom-scrollbar flex-1 p-0">
+                                    <CollapsibleTable title="3. Detalle de Ventas" count={processedData.detVentas.length} isExporting={isExporting}>
                                             {processedData.detVentas.length > 0 ? (
                                                 <table className="w-full text-left border-collapse text-xs">
-                                                    <thead className="bg-white sticky top-0 shadow-sm">
+                                                    <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                         <tr className="text-slate-500 uppercase">
                                                             <th className="p-3 border-b font-semibold whitespace-nowrap">RUT Cliente</th>
                                                             <th className="p-3 border-b font-semibold">Razón Social</th>
@@ -630,37 +802,93 @@
                                                     </tbody>
                                                 </table>
                                             ) : (
-                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
                                                     Sube el archivo RCV_VENTA para ver el detalle.
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
+                                    </CollapsibleTable>
 
-                                    {/* TABLA: REGISTRO DE COMPRAS */}
-                                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-                                        <div className="bg-slate-50 border-b border-slate-200 p-4 flex justify-between items-center">
-                                            <h3 className="font-bold text-slate-800">
-                                                Registro de Compras
-                                            </h3>
-                                            <span className="text-xs bg-slate-200 text-slate-600 py-1 px-2 rounded-md">{processedData.detCompras.length} Docs.</span>
-                                        </div>
-                                        <div className="overflow-auto custom-scrollbar flex-1 p-0">
-                                            {processedData.detCompras.length > 0 ? (
+                                    {/* TABLA: REGISTRO DE COMPRAS (SÓLO 33) */}
+                                    <CollapsibleTable title="4. Registro de Compras (Locales)" count={filteredCompras33.length} isExporting={isExporting}>
+                                            {processedData.detCompras33.length > 0 ? (
+                                                <div className="flex flex-col h-full">
+                                                    {!isExporting && (
+                                                        <div className="p-2 bg-white border-b border-slate-200 flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-slate-500 uppercase ml-1">Filtro Proveedor:</span>
+                                                            <select 
+                                                                className="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-md p-1.5 flex-1 max-w-[250px] outline-none cursor-pointer"
+                                                                value={selectedProveedor}
+                                                                onChange={(e) => setSelectedProveedor(e.target.value)}
+                                                            >
+                                                                {uniqueProveedores.map(p => <option key={p} value={p}>{p}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    )}
+                                                    <table className="w-full text-left border-collapse text-xs">
+                                                        <thead className="bg-white sticky top-0 shadow-sm z-10">
+                                                            <tr className="text-slate-500 uppercase">
+                                                                <th className="p-3 border-b font-semibold">Razón Social (Proveedor)</th>
+                                                                <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha Docto</th>
+                                                                <th className="p-3 border-b font-semibold text-center">Tipo Doc</th>
+                                                                <th className="p-3 border-b font-semibold text-right">M. Neto</th>
+                                                                <th className="p-3 border-b font-semibold text-right">M. Total</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {filteredCompras33.map((c, idx) => (
+                                                                <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                                                                    <td className="p-3 font-medium text-slate-800 truncate max-w-[150px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
+                                                                    <td className="p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
+                                                                    <td className="p-3 text-center">
+                                                                        <span className="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Factura (33)</span>
+                                                                    </td>
+                                                                    <td className="p-3 text-right text-slate-600">{formatCurrency(c.Neto)}</td>
+                                                                    <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                        {selectedProveedor !== 'Todos' && (
+                                                            <tfoot className="bg-slate-100 font-bold sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
+                                                                <tr>
+                                                                    <td colSpan="3" className="p-3 text-right text-slate-700 uppercase tracking-wide">Total Seleccionado:</td>
+                                                                    <td className="p-3 text-right text-slate-800">{formatCurrency(filteredCompras33Totals.neto)}</td>
+                                                                    <td className="p-3 text-right text-slate-800 text-sm">{formatCurrency(filteredCompras33Totals.total)}</td>
+                                                                </tr>
+                                                            </tfoot>
+                                                        )}
+                                                    </table>
+                                                </div>
+                                            ) : (
+                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
+                                                    Sube el archivo RCV_COMPRA_REGISTRO para ver el detalle de facturas.
+                                                </div>
+                                            )}
+                                    </CollapsibleTable>
+
+                                </div>
+
+                                {/* ---------------- TABLA EXCLUSIVA PARA DIN 914 ---------------- */}
+                                <div className="mt-6">
+                                    <CollapsibleTable title="5. Gastos de Importaciones (DIN 914)" count={processedData.detComprasDIN.length} isExporting={isExporting}>
+                                            {processedData.detComprasDIN.length > 0 ? (
                                                 <table className="w-full text-left border-collapse text-xs">
-                                                    <thead className="bg-white sticky top-0 shadow-sm">
+                                                    <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                         <tr className="text-slate-500 uppercase">
-                                                            <th className="p-3 border-b font-semibold">Razón Social (Proveedor)</th>
+                                                            <th className="p-3 border-b font-semibold">Razón Social</th>
                                                             <th className="p-3 border-b font-semibold whitespace-nowrap">Fecha Docto</th>
+                                                            <th className="p-3 border-b font-semibold text-center">Tipo Doc</th>
                                                             <th className="p-3 border-b font-semibold text-right">M. Neto</th>
                                                             <th className="p-3 border-b font-semibold text-right">M. Total</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {processedData.detCompras.map((c, idx) => (
+                                                        {processedData.detComprasDIN.map((c, idx) => (
                                                             <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                <td className="p-3 font-medium text-slate-800 truncate max-w-[200px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
+                                                                <td className="p-3 font-medium text-slate-800 truncate max-w-[250px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
                                                                 <td className="p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
+                                                                <td className="p-3 text-center">
+                                                                    <span className="px-2 py-1 rounded text-[10px] font-bold bg-cyan-100 text-cyan-700">DIN (914)</span>
+                                                                </td>
                                                                 <td className="p-3 text-right text-slate-600">{formatCurrency(c.Neto)}</td>
                                                                 <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
                                                             </tr>
@@ -668,13 +896,11 @@
                                                     </tbody>
                                                 </table>
                                             ) : (
-                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-                                                    Sube el archivo RCV_COMPRA_REGISTRO para ver el detalle.
+                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
+                                                    No hay importaciones (DIN 914) en este periodo.
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
-
+                                    </CollapsibleTable>
                                 </div>
                             </div>
                         )}
