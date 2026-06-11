@@ -79,7 +79,7 @@
                 Sube tu archivo <span class="font-mono bg-slate-100 px-1 rounded">Excel (.xlsx) o CSV</span> para comenzar.
             </p>
             <p class="text-slate-400 max-w-lg mb-8 text-xs">
-                La aplicación buscará la "MARCA" (Col B) y el "Precio Bruto" (Col E). Puedes subir múltiples archivos de diferentes días para ver la evolución.
+                La aplicación filtrará exclusivamente los productos que contengan "Techo" en su descripción. Los datos quedarán guardados en tu navegador automáticamente.
             </p>
             <label for="csv-upload" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-xl cursor-pointer transition-colors shadow-md shadow-blue-200">
                 Seleccionar Archivo (Excel/CSV)
@@ -100,7 +100,7 @@
                 </div>
                 <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
                     <div class="flex justify-between items-start mb-2">
-                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Productos</p>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Productos (Techo)</p>
                         <i data-lucide="box" class="text-blue-500 w-5 h-5"></i>
                     </div>
                     <p id="kpi-products" class="text-3xl font-bold text-slate-900">0</p>
@@ -124,9 +124,15 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Gráfico de Evolución (Tracking) -->
                 <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[400px]">
-                    <h3 class="font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                        <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i> Tracking de Precios Promedio
-                    </h3>
+                    <div class="flex justify-between items-start mb-1">
+                        <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i> Tracking de Precios Promedio
+                        </h3>
+                        <!-- Selector de marca para comparar -->
+                        <select id="chart-brand-filter" class="text-xs border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500 max-w-[150px] truncate" onchange="renderCharts()">
+                            <option value="">+ Comparar Marca</option>
+                        </select>
+                    </div>
                     <p class="text-xs text-slate-500 mb-4">Evolución del precio bruto a través de los archivos cargados</p>
                     <div class="flex-1 relative w-full h-full">
                         <canvas id="timelineChart"></canvas>
@@ -150,10 +156,15 @@
                 
                 <!-- Resumen por Marca -->
                 <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[500px]">
-                    <div class="p-4 border-b border-slate-200 bg-slate-50">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
                         <h3 class="font-semibold text-slate-800 flex items-center gap-2">
                             <i data-lucide="list" class="w-4 h-4 text-slate-500"></i> Análisis de Marcas
                         </h3>
+                        <!-- Filtro de ordenación -->
+                        <select id="brand-sort" class="text-xs border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" onchange="renderBrandList()">
+                            <option value="count">Mayor Cantidad</option>
+                            <option value="price">Mayor Precio</option>
+                        </select>
                     </div>
                     <div class="overflow-y-auto flex-1 p-2" id="brand-list-container">
                         <!-- Items inyectados via JS -->
@@ -175,7 +186,7 @@
                     </div>
                     <div class="overflow-auto flex-1">
                         <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-white sticky top-0 shadow-sm">
+                            <thead class="bg-white sticky top-0 shadow-sm z-10">
                                 <tr class="text-slate-500 border-b border-slate-200">
                                     <th class="px-4 py-3 font-medium">Fecha Reg.</th>
                                     <th class="px-4 py-3 font-medium">Marca</th>
@@ -198,11 +209,19 @@
     <script>
         lucide.createIcons();
 
-        // Estado de la aplicación
-        let allRecords = []; 
-        let loadedFilesCount = 0;
+        // Estado de la aplicación: carga desde localStorage o inicia vacío
+        let allRecords = JSON.parse(localStorage.getItem('marketTrackerData')) || []; 
+        let loadedFilesCount = parseInt(localStorage.getItem('marketTrackerFiles')) || 0;
         let chartTimelineInstance = null;
         let chartBrandsInstance = null;
+
+        // Inicializar si hay datos guardados
+        document.addEventListener("DOMContentLoaded", () => {
+            if (allRecords.length > 0) {
+                document.getElementById('file-count').textContent = loadedFilesCount;
+                updateDashboard();
+            }
+        });
 
         // --- Utilidades ---
         const formatPrice = (price) => {
@@ -215,6 +234,15 @@
             document.getElementById('error-message').textContent = msg;
             document.getElementById('error-container').style.display = 'flex';
             setTimeout(() => { document.getElementById('error-container').style.display = 'none'; }, 5000);
+        };
+
+        const saveState = () => {
+            try {
+                localStorage.setItem('marketTrackerData', JSON.stringify(allRecords));
+                localStorage.setItem('marketTrackerFiles', loadedFilesCount);
+            } catch (e) {
+                console.warn("Límite de almacenamiento alcanzado o error al guardar.", e);
+            }
         };
 
         // Parser de CSV robusto (maneja comillas y comas internas)
@@ -277,8 +305,12 @@
                             const values = rows[i];
                             if (!values || values.length <= priceCol) continue;
 
-                            let brand = values[brandCol] ? String(values[brandCol]).toUpperCase() : 'DESCONOCIDA';
                             const name = values[nameCol] || 'Sin Nombre';
+                            
+                            // FILTRO ESTRICTO: Solo incluir productos que contengan la palabra "Techo"
+                            if (!String(name).toUpperCase().includes('TECHO')) continue;
+
+                            let brand = values[brandCol] ? String(values[brandCol]).toUpperCase() : 'DESCONOCIDA';
                             const seller = values[3] || ''; // Vendedor está en la columna 3
                             
                             // Separar VARIN de los genéricos
@@ -309,7 +341,7 @@
                         }
 
                         if(addedCount === 0) {
-                            showError(`No se extrajeron precios válidos de ${file.name}.`);
+                            showError(`No se encontraron productos de 'Techo' con precio válido en ${file.name}.`);
                         }
                     } catch (err) {
                         showError(`Error al leer el archivo Excel: ${err.message}`);
@@ -348,6 +380,7 @@
             
             document.getElementById('file-count').textContent = loadedFilesCount;
             this.value = ''; // Reset input
+            saveState(); // Guardar cambios localmente
             updateDashboard();
         });
 
@@ -367,8 +400,12 @@
                 const values = parseCSVRow(lines[i]);
                 if (values.length <= priceCol) continue;
 
-                let brand = values[brandCol] ? values[brandCol].toUpperCase() : 'DESCONOCIDA';
                 const name = values[nameCol] || 'Sin Nombre';
+
+                // FILTRO ESTRICTO: Solo incluir productos que contengan la palabra "Techo"
+                if (!String(name).toUpperCase().includes('TECHO')) continue;
+
+                let brand = values[brandCol] ? values[brandCol].toUpperCase() : 'DESCONOCIDA';
                 const seller = values[3] || ''; // Vendedor está en la columna 3
                 
                 // Separar VARIN de los genéricos
@@ -394,7 +431,7 @@
             }
 
             if(addedCount === 0) {
-                showError(`No se pudieron extraer precios válidos del archivo de fecha ${dateLabel}.`);
+                showError(`No se encontraron productos de 'Techo' en el archivo ${dateLabel}.`);
             }
         };
 
@@ -409,34 +446,50 @@
             document.getElementById('empty-state').style.display = 'none';
             document.getElementById('dashboard-content').style.display = 'block';
 
-            // Agrupaciones y Estadísticas
-            const uniqueBrands = new Set(allRecords.map(r => r.brand));
+            // Agrupaciones y Estadísticas globales
+            const uniqueBrands = [...new Set(allRecords.map(r => r.brand))].sort();
             const uniqueDates = [...new Set(allRecords.map(r => r.date))].sort();
             const totalPrice = allRecords.reduce((acc, curr) => acc + curr.price, 0);
             const avgPrice = totalPrice / allRecords.length;
 
             // Actualizar KPIs
-            document.getElementById('kpi-brands').textContent = uniqueBrands.size;
+            document.getElementById('kpi-brands').textContent = uniqueBrands.length;
             document.getElementById('kpi-products').textContent = allRecords.length;
             document.getElementById('kpi-avg').textContent = formatPrice(avgPrice);
             document.getElementById('kpi-dates').textContent = uniqueDates.length;
 
             // Actualizar Filtros de Fecha
             const dateFilter = document.getElementById('date-filter');
+            const currentDateVal = dateFilter.value;
             dateFilter.innerHTML = '<option value="all">Todas las fechas</option>';
             uniqueDates.forEach(d => {
                 dateFilter.innerHTML += `<option value="${d}">${d}</option>`;
             });
+            if (currentDateVal && currentDateVal !== 'all') dateFilter.value = currentDateVal;
 
-            renderCharts(uniqueDates);
+            // Llenar selector de comparación de Marcas (excluyendo VARIN si ya está base)
+            const chartBrandFilter = document.getElementById('chart-brand-filter');
+            const currentChartBrand = chartBrandFilter.value;
+            chartBrandFilter.innerHTML = '<option value="">+ Comparar Marca</option>';
+            uniqueBrands.forEach(b => {
+                if(b !== 'VARIN') {
+                    chartBrandFilter.innerHTML += `<option value="${b}">${b}</option>`;
+                }
+            });
+            if (currentChartBrand) chartBrandFilter.value = currentChartBrand;
+
+            renderCharts();
             renderBrandList();
             renderTable();
         };
 
-        const renderCharts = (uniqueDates) => {
+        const renderCharts = () => {
+            const uniqueDates = [...new Set(allRecords.map(r => r.date))].sort();
+
             // 1. Preparar datos para Tracking (Precio Promedio por Fecha)
             const timelineData = uniqueDates.map(date => {
                 const recordsOfDate = allRecords.filter(r => r.date === date);
+                if (recordsOfDate.length === 0) return null;
                 const avg = recordsOfDate.reduce((sum, r) => sum + r.price, 0) / recordsOfDate.length;
                 return Math.round(avg);
             });
@@ -444,10 +497,67 @@
             // Preparar datos específicos para VARIN
             const timelineDataVarin = uniqueDates.map(date => {
                 const varinRecords = allRecords.filter(r => r.date === date && r.brand === 'VARIN');
-                if (varinRecords.length === 0) return null; // Si un día no hay Varin, devuelve null
+                if (varinRecords.length === 0) return null; 
                 const avg = varinRecords.reduce((sum, r) => sum + r.price, 0) / varinRecords.length;
                 return Math.round(avg);
             });
+
+            // Datasets base
+            const datasets = [
+                {
+                    label: 'Promedio General',
+                    data: timelineData,
+                    borderColor: '#3b82f6', // Azul
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#3b82f6',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Promedio VARIN',
+                    data: timelineDataVarin,
+                    borderColor: '#10b981', // Verde esmeralda
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#10b981',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    fill: false, 
+                    tension: 0.3,
+                    spanGaps: true // Conecta la línea aunque falten datos un día
+                }
+            ];
+
+            // Revisar si el usuario seleccionó una tercera marca para comparar
+            const selectedBrandToCompare = document.getElementById('chart-brand-filter').value;
+            if (selectedBrandToCompare) {
+                const timelineDataSelected = uniqueDates.map(date => {
+                    const customRecords = allRecords.filter(r => r.date === date && r.brand === selectedBrandToCompare);
+                    if (customRecords.length === 0) return null; 
+                    const avg = customRecords.reduce((sum, r) => sum + r.price, 0) / customRecords.length;
+                    return Math.round(avg);
+                });
+
+                datasets.push({
+                    label: `Promedio ${selectedBrandToCompare}`,
+                    data: timelineDataSelected,
+                    borderColor: '#f59e0b', // Ámbar
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#f59e0b',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.3,
+                    spanGaps: true
+                });
+            }
 
             if (chartTimelineInstance) chartTimelineInstance.destroy();
             const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
@@ -455,35 +565,7 @@
                 type: 'line',
                 data: {
                     labels: uniqueDates,
-                    datasets: [
-                        {
-                            label: 'Promedio General',
-                            data: timelineData,
-                            borderColor: '#3b82f6', // Azul
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#3b82f6',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            fill: true,
-                            tension: 0.3
-                        },
-                        {
-                            label: 'Promedio VARIN',
-                            data: timelineDataVarin,
-                            borderColor: '#10b981', // Verde esmeralda
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 2,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#10b981',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            fill: false, // Sin relleno para que no se superponga mucho con el azul
-                            tension: 0.3,
-                            spanGaps: true // Conecta la línea aunque falten datos un día
-                        }
-                    ]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -544,6 +626,9 @@
         };
 
         const renderBrandList = () => {
+            // Obtener el tipo de ordenación del selector
+            const sortMethod = document.getElementById('brand-sort').value;
+
             // Agrupar por marca general
             const brandStats = {};
             allRecords.forEach(r => {
@@ -554,13 +639,21 @@
                 brandStats[r.brand].total += r.price;
             });
 
-            const sortedBrands = Object.keys(brandStats).map(brand => {
+            // Convertir a Array y calcular el promedio
+            let sortedBrands = Object.keys(brandStats).map(brand => {
                 return {
                     brand: brand,
                     count: brandStats[brand].count,
                     avg: brandStats[brand].total / brandStats[brand].count
                 };
-            }).sort((a, b) => b.count - a.count);
+            });
+
+            // Aplicar ordenación
+            if (sortMethod === 'count') {
+                sortedBrands = sortedBrands.sort((a, b) => b.count - a.count);
+            } else if (sortMethod === 'price') {
+                sortedBrands = sortedBrands.sort((a, b) => b.avg - a.avg);
+            }
 
             const container = document.getElementById('brand-list-container');
             container.innerHTML = '';
@@ -620,6 +713,8 @@
         const clearData = () => {
             allRecords = [];
             loadedFilesCount = 0;
+            localStorage.removeItem('marketTrackerData');
+            localStorage.removeItem('marketTrackerFiles');
             document.getElementById('file-count').textContent = '0';
             updateDashboard();
         };
@@ -627,12 +722,12 @@
         const loadMockHistory = () => {
             clearData();
             
-            // Simular cargas de varios días para el Tracking
+            // Simular cargas de varios días para el Tracking (solo guardará los que contengan 'Techo')
             const mockFiles = [
-                { date: "09JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$300.000\nurl,GENERICO,Ventilador USB,V2,$40.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$450.000\nurl,BLAUBERG,Extractor,V4,$1.200.000` },
-                { date: "10JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$310.000\nurl,GENERICO,Ventilador USB,V2,$38.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$440.000\nurl,BLAUBERG,Extractor,V4,$1.250.000` },
-                { date: "11JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$335.990\nurl,GENERICO,Ventilador USB,V2,$33.990\nurl,TOYOTOMI,Aire Acondicionado,V3,$429.990\nurl,BLAUBERG,Extractor,V4,$1.298.000\nurl,ALCAZAR,Aire 18000 BTU,V5,$799.990` },
-                { date: "12JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$335.990\nurl,GENERICO,Ventilador USB,V2,$30.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$420.000\nurl,BLAUBERG,Extractor,V4,$1.300.000\nurl,ALCAZAR,Aire 18000 BTU,V5,$750.000\nurl,KENDAL,Calefactor,V6,$45.000` }
+                { date: "09JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$300.000\nurl,GENERICO,Ventilador USB,V2,$40.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$450.000\nurl,BLAUBERG,Extractor Techo,V4,$1.200.000` },
+                { date: "10JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$310.000\nurl,GENERICO,Ventilador USB,V2,$38.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$440.000\nurl,BLAUBERG,Extractor Techo,V4,$1.250.000` },
+                { date: "11JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$335.990\nurl,GENERICO,Ventilador USB,V2,$33.990\nurl,GENERICO,Ventilador Techo Varin Wifi,VARIN,$106.900\nurl,BLAUBERG,Extractor Techo,V4,$1.298.000` },
+                { date: "12JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$335.990\nurl,GENERICO,Ventilador USB,V2,$30.000\nurl,GENERICO,Ventilador Techo Varin Wifi,VARIN,$110.000\nurl,BLAUBERG,Extractor Techo,V4,$1.300.000` }
             ];
 
             mockFiles.forEach(file => {
@@ -641,6 +736,7 @@
             });
 
             document.getElementById('file-count').textContent = loadedFilesCount;
+            saveState(); // Guardar el mockup también para mantener la persistencia
             updateDashboard();
         };
 
