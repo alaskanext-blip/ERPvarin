@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Precios y Tracking</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js para gráficos avanzados -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS para leer archivos Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Custom scrollbar para la tabla */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 font-sans text-slate-800 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="bg-blue-600 p-3 rounded-xl text-white shadow-md shadow-blue-200">
+                    <i data-lucide="line-chart" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Market Tracker Pro</h1>
+                    <p class="text-slate-500 text-sm">Análisis de Marcas, Precios Brutos y Evolución</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div class="text-right hidden md:block">
+                    <p class="text-xs font-semibold text-slate-500 uppercase">Archivos Cargados</p>
+                    <p id="file-count" class="text-lg font-bold text-slate-900">0</p>
+                </div>
+                <!-- Botón para subir archivos -->
+                <div class="relative">
+                    <input type="file" accept=".xlsx, .xls, .csv" id="csv-upload" class="hidden" multiple />
+                    <label for="csv-upload" class="bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-5 rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Añadir Datos (Excel)
+                    </label>
+                </div>
+                <button onclick="loadMockHistory()" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm" title="Cargar historial de prueba">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                </button>
+                <button onclick="clearData()" class="bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 font-medium py-2.5 px-4 rounded-lg transition-colors shadow-sm" title="Limpiar todo">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Mensaje de Error -->
+        <div id="error-container" class="hidden items-start gap-3 text-rose-700 bg-rose-50 p-4 rounded-xl border border-rose-200">
+            <i data-lucide="alert-circle" class="w-5 h-5 mt-0.5 shrink-0"></i>
+            <p id="error-message" class="text-sm"></p>
+        </div>
+
+        <!-- Estado Vacío -->
+        <div id="empty-state" class="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-16 flex flex-col items-center justify-center text-center transition-all">
+            <div class="bg-blue-50 text-blue-500 p-5 rounded-full mb-4">
+                <i data-lucide="bar-chart" class="w-12 h-12"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-3">No hay datos para analizar</h2>
+            <p class="text-slate-500 max-w-lg mb-2 text-sm">
+                Sube tu archivo <span class="font-mono bg-slate-100 px-1 rounded">Excel (.xlsx) o CSV</span> para comenzar.
+            </p>
+            <p class="text-slate-400 max-w-lg mb-8 text-xs">
+                La aplicación buscará la "MARCA" (Col B) y el "Precio Bruto" (Col E). Puedes subir múltiples archivos de diferentes días para ver la evolución.
+            </p>
+            <label for="csv-upload" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-xl cursor-pointer transition-colors shadow-md shadow-blue-200">
+                Seleccionar Archivo (Excel/CSV)
+            </label>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboard-content" class="hidden space-y-6 fade-in">
+            
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Marcas Únicas</p>
+                        <i data-lucide="award" class="text-amber-500 w-5 h-5"></i>
+                    </div>
+                    <p id="kpi-brands" class="text-3xl font-bold text-slate-900">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Productos</p>
+                        <i data-lucide="box" class="text-blue-500 w-5 h-5"></i>
+                    </div>
+                    <p id="kpi-products" class="text-3xl font-bold text-slate-900">0</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Precio Bruto Prom.</p>
+                        <i data-lucide="calculator" class="text-emerald-500 w-5 h-5"></i>
+                    </div>
+                    <p id="kpi-avg" class="text-2xl font-bold text-slate-900">$0</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fechas Registradas</p>
+                        <i data-lucide="calendar" class="text-violet-500 w-5 h-5"></i>
+                    </div>
+                    <p id="kpi-dates" class="text-3xl font-bold text-slate-900">0</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Gráfico de Evolución (Tracking) -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[400px]">
+                    <h3 class="font-semibold text-slate-800 mb-1 flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-4 h-4 text-blue-500"></i> Tracking de Precios Promedio
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4">Evolución del precio bruto a través de los archivos cargados</p>
+                    <div class="flex-1 relative w-full h-full">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Marcas (Top 10) -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[400px]">
+                    <h3 class="font-semibold text-slate-800 mb-1 flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="w-4 h-4 text-amber-500"></i> Distribución por Marca
+                    </h3>
+                    <p class="text-xs text-slate-500 mb-4">Top 10 marcas con más productos registrados</p>
+                    <div class="flex-1 relative w-full h-full">
+                        <canvas id="brandsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Inferior: Resumen de Marcas y Tabla General -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Resumen por Marca -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[500px]">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50">
+                        <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="list" class="w-4 h-4 text-slate-500"></i> Análisis de Marcas
+                        </h3>
+                    </div>
+                    <div class="overflow-y-auto flex-1 p-2" id="brand-list-container">
+                        <!-- Items inyectados via JS -->
+                    </div>
+                </div>
+
+                <!-- Tabla de Datos (Historial Completo) -->
+                <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[500px]">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="database" class="w-4 h-4 text-slate-500"></i> Registros de Productos
+                        </h3>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500">Filtrar por:</span>
+                            <select id="date-filter" class="border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" onchange="renderTable()">
+                                <option value="all">Todas las fechas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="overflow-auto flex-1">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-white sticky top-0 shadow-sm">
+                                <tr class="text-slate-500 border-b border-slate-200">
+                                    <th class="px-4 py-3 font-medium">Fecha Reg.</th>
+                                    <th class="px-4 py-3 font-medium">Marca</th>
+                                    <th class="px-4 py-3 font-medium w-full">Producto</th>
+                                    <th class="px-4 py-3 font-medium text-right">Precio Bruto</th>
+                                </tr>
+                            </thead>
+                            <tbody id="data-table-body" class="divide-y divide-slate-100">
+                                <!-- Filas inyectadas via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Estado de la aplicación
+        let allRecords = []; 
+        let loadedFilesCount = 0;
+        let chartTimelineInstance = null;
+        let chartBrandsInstance = null;
+
+        // --- Utilidades ---
+        const formatPrice = (price) => {
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency', currency: 'CLP', maximumFractionDigits: 0
+            }).format(price);
+        };
+
+        const showError = (msg) => {
+            document.getElementById('error-message').textContent = msg;
+            document.getElementById('error-container').style.display = 'flex';
+            setTimeout(() => { document.getElementById('error-container').style.display = 'none'; }, 5000);
+        };
+
+        // Parser de CSV robusto (maneja comillas y comas internas)
+        const parseCSVRow = (str) => {
+            let result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < str.length; i++) {
+                let c = str[i];
+                if (c === '"') {
+                    if (inQuotes && str[i + 1] === '"') { current += '"'; i++; } 
+                    else { inQuotes = !inQuotes; }
+                } else if (c === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += c;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        };
+
+        const extractDateFromName = (filename) => {
+            // Intenta extraer una fecha del nombre (ej: 11JUN2026, 2026-06-11)
+            const match = filename.match(/\d{1,2}[A-Za-z]+\d{2,4}/i);
+            if (match) return match[0].toUpperCase();
+            
+            // Si no encuentra, usamos la fecha actual formateada
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        };
+
+        // --- Procesador de Excel (.xlsx / .xls) ---
+        const processExcelFile = (file, dateLabel) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        // Convertir la hoja en un array de arrays (header: 1)
+                        const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                        
+                        if (rows.length < 2) {
+                            showError(`El archivo ${file.name} no tiene suficientes datos.`);
+                            return resolve();
+                        }
+
+                        // Según la estructura del usuario: 1: MARCA, 2: Descripción, 4: Precio Bruto
+                        const brandCol = 1;
+                        const nameCol = 2;
+                        const priceCol = 4;
+                        let addedCount = 0;
+
+                        for (let i = 1; i < rows.length; i++) {
+                            const values = rows[i];
+                            if (!values || values.length <= priceCol) continue;
+
+                            let brand = values[brandCol] ? String(values[brandCol]).toUpperCase() : 'DESCONOCIDA';
+                            const name = values[nameCol] || 'Sin Nombre';
+                            const seller = values[3] || ''; // Vendedor está en la columna 3
+                            
+                            // Separar VARIN de los genéricos
+                            if (brand.includes('GENERICO') || brand.includes('GENÉRICO')) {
+                                if (String(name).toUpperCase().includes('VARIN') || String(seller).toUpperCase().includes('VARIN')) {
+                                    brand = 'VARIN';
+                                }
+                            }
+                            
+                            // Manejo de precio tanto si Excel lo pasó como número o como texto ($ 12.000)
+                            let price = 0;
+                            if (typeof values[priceCol] === 'number') {
+                                price = values[priceCol];
+                            } else {
+                                const rawPriceStr = String(values[priceCol]).replace(/[^\d]/g, '');
+                                price = parseInt(rawPriceStr, 10);
+                            }
+
+                            if (!isNaN(price) && price > 0) {
+                                allRecords.push({
+                                    date: dateLabel,
+                                    brand: brand,
+                                    name: name,
+                                    price: price
+                                });
+                                addedCount++;
+                            }
+                        }
+
+                        if(addedCount === 0) {
+                            showError(`No se extrajeron precios válidos de ${file.name}.`);
+                        }
+                    } catch (err) {
+                        showError(`Error al leer el archivo Excel: ${err.message}`);
+                    }
+                    resolve();
+                };
+                reader.onerror = () => {
+                    showError(`Error al leer el archivo ${file.name}`);
+                    resolve();
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        };
+
+        // --- Lógica Principal ---
+        document.getElementById('csv-upload').addEventListener('change', async function(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            for (let file of files) {
+                const dateExtracted = extractDateFromName(file.name);
+                
+                if (file.name.toLowerCase().match(/\.xlsx?$/)) {
+                    // Procesar Excel
+                    await processExcelFile(file, dateExtracted);
+                    loadedFilesCount++;
+                } else if (file.name.toLowerCase().endsWith('.csv')) {
+                    // Procesar CSV
+                    const text = await file.text();
+                    processCSVData(text, dateExtracted);
+                    loadedFilesCount++;
+                } else {
+                    showError(`El archivo ${file.name} no tiene un formato válido (.xlsx, .csv).`);
+                }
+            }
+            
+            document.getElementById('file-count').textContent = loadedFilesCount;
+            this.value = ''; // Reset input
+            updateDashboard();
+        });
+
+        const processCSVData = (csvText, dateLabel) => {
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 2) return;
+
+            // Según la estructura del usuario: 
+            // 0: Link, 1: MARCA, 2: Descripción, 3: Vendedor, 4: Precio Bruto
+            const brandCol = 1;
+            const nameCol = 2;
+            const priceCol = 4;
+
+            let addedCount = 0;
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = parseCSVRow(lines[i]);
+                if (values.length <= priceCol) continue;
+
+                let brand = values[brandCol] ? values[brandCol].toUpperCase() : 'DESCONOCIDA';
+                const name = values[nameCol] || 'Sin Nombre';
+                const seller = values[3] || ''; // Vendedor está en la columna 3
+                
+                // Separar VARIN de los genéricos
+                if (brand.includes('GENERICO') || brand.includes('GENÉRICO')) {
+                    if (String(name).toUpperCase().includes('VARIN') || String(seller).toUpperCase().includes('VARIN')) {
+                        brand = 'VARIN';
+                    }
+                }
+                
+                // Limpiar precio (quitar $, espacios, puntos)
+                const rawPriceStr = values[priceCol].replace(/[^\d]/g, '');
+                const price = parseInt(rawPriceStr, 10);
+
+                if (!isNaN(price) && price > 0) {
+                    allRecords.push({
+                        date: dateLabel,
+                        brand: brand,
+                        name: name,
+                        price: price
+                    });
+                    addedCount++;
+                }
+            }
+
+            if(addedCount === 0) {
+                showError(`No se pudieron extraer precios válidos del archivo de fecha ${dateLabel}.`);
+            }
+        };
+
+        // --- Renderizado del Dashboard ---
+        const updateDashboard = () => {
+            if (allRecords.length === 0) {
+                document.getElementById('empty-state').style.display = 'flex';
+                document.getElementById('dashboard-content').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+
+            // Agrupaciones y Estadísticas
+            const uniqueBrands = new Set(allRecords.map(r => r.brand));
+            const uniqueDates = [...new Set(allRecords.map(r => r.date))].sort();
+            const totalPrice = allRecords.reduce((acc, curr) => acc + curr.price, 0);
+            const avgPrice = totalPrice / allRecords.length;
+
+            // Actualizar KPIs
+            document.getElementById('kpi-brands').textContent = uniqueBrands.size;
+            document.getElementById('kpi-products').textContent = allRecords.length;
+            document.getElementById('kpi-avg').textContent = formatPrice(avgPrice);
+            document.getElementById('kpi-dates').textContent = uniqueDates.length;
+
+            // Actualizar Filtros de Fecha
+            const dateFilter = document.getElementById('date-filter');
+            dateFilter.innerHTML = '<option value="all">Todas las fechas</option>';
+            uniqueDates.forEach(d => {
+                dateFilter.innerHTML += `<option value="${d}">${d}</option>`;
+            });
+
+            renderCharts(uniqueDates);
+            renderBrandList();
+            renderTable();
+        };
+
+        const renderCharts = (uniqueDates) => {
+            // 1. Preparar datos para Tracking (Precio Promedio por Fecha)
+            const timelineData = uniqueDates.map(date => {
+                const recordsOfDate = allRecords.filter(r => r.date === date);
+                const avg = recordsOfDate.reduce((sum, r) => sum + r.price, 0) / recordsOfDate.length;
+                return Math.round(avg);
+            });
+
+            // Preparar datos específicos para VARIN
+            const timelineDataVarin = uniqueDates.map(date => {
+                const varinRecords = allRecords.filter(r => r.date === date && r.brand === 'VARIN');
+                if (varinRecords.length === 0) return null; // Si un día no hay Varin, devuelve null
+                const avg = varinRecords.reduce((sum, r) => sum + r.price, 0) / varinRecords.length;
+                return Math.round(avg);
+            });
+
+            if (chartTimelineInstance) chartTimelineInstance.destroy();
+            const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+            chartTimelineInstance = new Chart(ctxTimeline, {
+                type: 'line',
+                data: {
+                    labels: uniqueDates,
+                    datasets: [
+                        {
+                            label: 'Promedio General',
+                            data: timelineData,
+                            borderColor: '#3b82f6', // Azul
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#3b82f6',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Promedio VARIN',
+                            data: timelineDataVarin,
+                            borderColor: '#10b981', // Verde esmeralda
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#10b981',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            fill: false, // Sin relleno para que no se superponga mucho con el azul
+                            tension: 0.3,
+                            spanGaps: true // Conecta la línea aunque falten datos un día
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        } 
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: false,
+                            ticks: { callback: function(value) { return '$' + value.toLocaleString('es-CL'); } }
+                        }
+                    }
+                }
+            });
+
+            // 2. Preparar datos para Distribución de Marcas (Top 10 por cantidad)
+            const brandCounts = {};
+            allRecords.forEach(r => {
+                brandCounts[r.brand] = (brandCounts[r.brand] || 0) + 1;
+            });
+            
+            const topBrands = Object.entries(brandCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            if (chartBrandsInstance) chartBrandsInstance.destroy();
+            const ctxBrands = document.getElementById('brandsChart').getContext('2d');
+            chartBrandsInstance = new Chart(ctxBrands, {
+                type: 'doughnut',
+                data: {
+                    labels: topBrands.map(b => b[0]),
+                    datasets: [{
+                        data: topBrands.map(b => b[1]),
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                            '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#64748b'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }
+                    }
+                }
+            });
+        };
+
+        const renderBrandList = () => {
+            // Agrupar por marca general
+            const brandStats = {};
+            allRecords.forEach(r => {
+                if (!brandStats[r.brand]) {
+                    brandStats[r.brand] = { count: 0, total: 0 };
+                }
+                brandStats[r.brand].count++;
+                brandStats[r.brand].total += r.price;
+            });
+
+            const sortedBrands = Object.keys(brandStats).map(brand => {
+                return {
+                    brand: brand,
+                    count: brandStats[brand].count,
+                    avg: brandStats[brand].total / brandStats[brand].count
+                };
+            }).sort((a, b) => b.count - a.count);
+
+            const container = document.getElementById('brand-list-container');
+            container.innerHTML = '';
+
+            sortedBrands.forEach((stat, index) => {
+                const html = `
+                    <div class="flex items-center justify-between p-3 hover:bg-slate-100 rounded-lg transition-colors border-b border-slate-50 last:border-0">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <div class="w-6 text-center text-xs font-bold text-slate-400">#${index + 1}</div>
+                            <div class="truncate">
+                                <p class="text-sm font-bold text-slate-800 truncate" title="${stat.brand}">${stat.brand}</p>
+                                <p class="text-xs text-slate-500">${stat.count} productos</p>
+                            </div>
+                        </div>
+                        <div class="text-right ml-2 shrink-0">
+                            <p class="text-xs text-slate-400">Promedio</p>
+                            <p class="text-sm font-semibold text-slate-700">${formatPrice(stat.avg)}</p>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        };
+
+        const renderTable = () => {
+            const filterDate = document.getElementById('date-filter').value;
+            const tbody = document.getElementById('data-table-body');
+            tbody.innerHTML = '';
+
+            let filteredRecords = allRecords;
+            if (filterDate !== 'all') {
+                filteredRecords = allRecords.filter(r => r.date === filterDate);
+            }
+
+            // Mostrar maximo 300 para no saturar el DOM, pero ordenados por los más recientes
+            const displayRecords = [...filteredRecords].reverse().slice(0, 300);
+
+            if(displayRecords.length === 0) {
+                 tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">No hay datos para mostrar</td></tr>`;
+                 return;
+            }
+
+            displayRecords.forEach(r => {
+                const tr = `
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="px-4 py-2 text-xs text-slate-500"><span class="bg-slate-100 px-2 py-1 rounded border border-slate-200">${r.date}</span></td>
+                        <td class="px-4 py-2 font-semibold text-slate-700 text-xs">${r.brand}</td>
+                        <td class="px-4 py-2 text-slate-600 truncate max-w-xs xl:max-w-md" title="${r.name}">${r.name}</td>
+                        <td class="px-4 py-2 font-bold text-slate-900 text-right">${formatPrice(r.price)}</td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', tr);
+            });
+        };
+
+        // --- Funciones auxiliares / Mock Data ---
+        const clearData = () => {
+            allRecords = [];
+            loadedFilesCount = 0;
+            document.getElementById('file-count').textContent = '0';
+            updateDashboard();
+        };
+
+        const loadMockHistory = () => {
+            clearData();
+            
+            // Simular cargas de varios días para el Tracking
+            const mockFiles = [
+                { date: "09JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$300.000\nurl,GENERICO,Ventilador USB,V2,$40.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$450.000\nurl,BLAUBERG,Extractor,V4,$1.200.000` },
+                { date: "10JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$310.000\nurl,GENERICO,Ventilador USB,V2,$38.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$440.000\nurl,BLAUBERG,Extractor,V4,$1.250.000` },
+                { date: "11JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$335.990\nurl,GENERICO,Ventilador USB,V2,$33.990\nurl,TOYOTOMI,Aire Acondicionado,V3,$429.990\nurl,BLAUBERG,Extractor,V4,$1.298.000\nurl,ALCAZAR,Aire 18000 BTU,V5,$799.990` },
+                { date: "12JUN2026", data: `Link,MARCA,Descripción,Vendedor,Precio Bruto\nurl,HUNTER,Ventilador Techo,V1,$335.990\nurl,GENERICO,Ventilador USB,V2,$30.000\nurl,TOYOTOMI,Aire Acondicionado,V3,$420.000\nurl,BLAUBERG,Extractor,V4,$1.300.000\nurl,ALCAZAR,Aire 18000 BTU,V5,$750.000\nurl,KENDAL,Calefactor,V6,$45.000` }
+            ];
+
+            mockFiles.forEach(file => {
+                processCSVData(file.data, file.date);
+                loadedFilesCount++;
+            });
+
+            document.getElementById('file-count').textContent = loadedFilesCount;
+            updateDashboard();
+        };
+
+    </script>
+</body>
+</html>
