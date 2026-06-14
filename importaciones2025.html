@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Importaciones</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (Excel Parser) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 min-h-screen p-6">
+
+    <!-- OVERLAY CARGANDO -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex items-center justify-center transition-opacity duration-300">
+        <div class="text-slate-500 font-semibold text-lg flex flex-col items-center gap-3">
+            <i data-lucide="loader-2" class="animate-spin text-blue-600" width="32" height="32"></i>
+            Procesando datos...
+        </div>
+    </div>
+
+    <!-- MENSAJE DE ERROR MODAL -->
+    <div id="error-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center opacity-0 transition-opacity">
+        <div class="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full transform scale-95 transition-transform">
+            <div class="flex items-center gap-3 text-red-600 mb-4">
+                <i data-lucide="alert-circle" width="24" height="24"></i>
+                <h3 class="font-bold text-lg text-slate-800">Error de Lectura</h3>
+            </div>
+            <p id="error-message" class="text-slate-600 text-sm mb-6">Hubo un problema al leer el archivo.</p>
+            <div class="flex justify-end">
+                <button onclick="closeErrorModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Dashboard de Importaciones</h1>
+            <p class="text-slate-500 mt-1">Análisis interactivo - Soporte CSV y Excel (.xlsx)</p>
+        </div>
+        
+        <div class="relative">
+            <input 
+                type="file" 
+                id="file-upload"
+                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                title="Sube tu archivo CSV o Excel"
+            />
+            <button class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow-sm transition-colors font-medium relative z-0">
+                <i data-lucide="upload-cloud" width="20" height="20"></i>
+                Cargar CSV / Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 mb-8 flex flex-col md:flex-row gap-6 items-center">
+        <div class="flex items-center gap-2 text-slate-700 font-semibold w-full md:w-auto">
+            <i data-lucide="filter" width="18" height="18"></i> Filtros:
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+            <div class="flex flex-col">
+                <label class="text-xs text-slate-500 mb-1 font-medium">Importador</label>
+                <select id="filter-importador" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none cursor-pointer">
+                    <option value="Todos">Todos los Importadores</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col">
+                <label class="text-xs text-slate-500 mb-1 font-medium">Marca</label>
+                <select id="filter-marca" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none cursor-pointer">
+                    <option value="Todas">Todas las Marcas</option>
+                </select>
+            </div>
+
+            <div class="flex flex-col">
+                <label class="text-xs text-slate-500 mb-1 font-medium">País de Origen</label>
+                <select id="filter-pais" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none cursor-pointer">
+                    <option value="Todos">Todos los Países</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIS -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-green-500">
+            <div class="bg-green-50 p-3 rounded-full text-green-600">
+                <i data-lucide="dollar-sign" width="24" height="24"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-500 font-medium">Total FOB (USD)</p>
+                <h3 id="kpi-fob" class="text-2xl font-bold text-slate-800">$0</h3>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-emerald-500">
+            <div class="bg-emerald-50 p-3 rounded-full text-emerald-600">
+                <i data-lucide="dollar-sign" width="24" height="24"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-500 font-medium">FOB Unitario Prom.</p>
+                <h3 id="kpi-avg" class="text-2xl font-bold text-slate-800">$0</h3>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-amber-500">
+            <div class="bg-amber-50 p-3 rounded-full text-amber-600">
+                <i data-lucide="package" width="24" height="24"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-500 font-medium">Volumen (Unidades)</p>
+                <h3 id="kpi-qty" class="text-2xl font-bold text-slate-800">0</h3>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-purple-500">
+            <div class="bg-purple-50 p-3 rounded-full text-purple-600">
+                <i data-lucide="activity" width="24" height="24"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-500 font-medium">Registros (Despachos)</p>
+                <h3 id="kpi-count" class="text-2xl font-bold text-slate-800">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRÁFICOS -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        
+        <!-- Gráfico Barras - Importadores -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
+                <i data-lucide="bar-chart-3" width="20" height="20" class="text-green-500"></i> Top 5 Importadores (por FOB)
+            </div>
+            <div class="h-72 w-full relative">
+                <canvas id="chartImportadores"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico Pie - Marcas -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
+                <i data-lucide="package" width="20" height="20" class="text-amber-500"></i> Top Marcas (por Cantidad)
+            </div>
+            <div class="h-72 w-full relative">
+                <canvas id="chartMarcas"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico Barras - Costo Promedio por Marca -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
+                <i data-lucide="dollar-sign" width="20" height="20" class="text-emerald-500"></i> Costo Promedio (U$ FOB Unid1) por Marca
+            </div>
+            <div class="h-72 w-full relative">
+                <canvas id="chartPromedio"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico Líneas - Tendencia Mensual -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
+                <i data-lucide="activity" width="20" height="20" class="text-purple-500"></i> Tendencia de Importaciones (FOB)
+            </div>
+            <div class="h-72 w-full relative">
+                <canvas id="chartTendencia"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE DATOS -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-slate-800 font-semibold">
+                <i data-lucide="file-text" width="20" height="20" class="text-slate-500"></i> Vista Previa de Datos Registrados
+            </div>
+            <span id="table-count" class="text-sm text-slate-500">Mostrando 0 registros</span>
+        </div>
+        <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
+            <table class="w-full text-sm text-left text-slate-500 relative">
+                <thead class="text-xs text-slate-700 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm">
+                    <tr>
+                        <th class="px-6 py-3">Mes</th>
+                        <th class="px-6 py-3">Importador</th>
+                        <th class="px-6 py-3">Marca</th>
+                        <th class="px-6 py-3">Origen</th>
+                        <th class="px-6 py-3 text-right">Cantidad</th>
+                        <th class="px-6 py-3 text-right">FOB Fila</th>
+                        <th class="px-6 py-3 text-right">Promedio Marca</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Filas insertadas con JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar iconos de Lucide
+        lucide.createIcons();
+
+        // Datos Globales
+        let globalData = [];
+        let filteredData = [];
+        let chartInstances = {};
+        let marcasAvgMapGlobal = {};
+
+        // Filtros
+        let currentFilters = { importador: 'Todos', marca: 'Todas', pais: 'Todos' };
+
+        // Colores para Gráficos
+        const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+
+        // Datos de Demostración Iniciales
+        const defaultCSV = `Partida Aduanera;Descripcion de la Partida Aduanera;Aduana;Reg. Aduana;Fecha;Importador;Marca;Qty 1;Und 2;U$ FOB Tot;U$ Flete Tot;U$ CFR Tot;Seguro Tot;U$ Cif Tot;U$ FOB Und 1;U$ CFR Und 2;U$ CIF Und 2;Pais de Origen;Pais de Embarque;Via;Transporte;Incoterms;Descripcion Comercial;Producto
+84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;SAN ANTONIO;22115391;19-01-25;COMERCIAL OMON LIMITADA;YIWU;4,00;PIEZAS;103,24;34,89;138,13;2,06;140,19;25,810;34,533;35,048;CHINA;CHINA;MARÍTIMO;EVERGREEN;FOB;VENTILADORES YIWU ELECTRICOS;VENTILADORES
+84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;SAN ANTONIO;26339726;10-04-25;VESTAS CHILE SPA;VESTAS;25,00;PIEZAS;973,74;23,78;997,52;4,23;1001,75;38,949;0,000;0,000;DINAMARCA;DINAMARCA;MARÍTIMO;MAERSK LINE;CYS;VENTILADORES VESTAS 55M3/H;VENTILADORES
+84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;SAN ANTONIO;26371545;15-04-25;RUCK VENTILATOREN GMBH;RUCK;50,00;PIEZAS;4017,14;178,29;4195,43;6,02;4201,45;80,342;0,000;0,000;ALEMANIA;ALEMANIA;MARÍTIMO;HAPAG LLOYD;EXW;VENTILADORES RUCK;VENTILADORES
+84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;VALPARAISO;26371588;20-05-25;COMERCIAL OMON LIMITADA;YIWU;120,00;PIEZAS;3100,50;200,00;3300,50;15,00;3315,50;25,83;0,000;0,000;CHINA;CHINA;MARÍTIMO;MSC;FOB;VENTILADORES YIWU INDUSTRIAL;VENTILADORES
+84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;IQUIQUE;26371900;05-06-25;IMPORTADORA DEL NORTE;LG;200,00;PIEZAS;8500,00;450,00;8950,00;50,00;9000,00;42,50;0,000;0,000;COREA DEL SUR;COREA DEL SUR;MARÍTIMO;COSCO;CIF;VENTILADORES LG;VENTILADORES`;
+
+        // Utilidades de Formato
+        const parseNumber = (val) => {
+            if (val === null || val === undefined) return 0;
+            if (typeof val === 'number') return val;
+            let cleanVal = String(val).replace(/\./g, '').replace(',', '.');
+            let num = parseFloat(cleanVal);
+            return isNaN(num) ? 0 : num;
+        };
+
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+        };
+        
+        const formatNumber = (value) => {
+            return new Intl.NumberFormat('es-CL').format(value);
+        };
+
+        const groupBy = (array, key, valueKey) => {
+            return array.reduce((acc, item) => {
+                const group = item[key] || 'Desconocido';
+                const val = item[valueKey] || 0;
+                acc[group] = (acc[group] || 0) + val;
+                return acc;
+            }, {});
+        };
+
+        // UI Modals & Loading
+        function toggleLoading(show) {
+            const overlay = document.getElementById('loading-overlay');
+            if (show) {
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        function showErrorModal(message) {
+            document.getElementById('error-message').textContent = message;
+            const modal = document.getElementById('error-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeErrorModal() {
+            const modal = document.getElementById('error-modal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        // Procesamiento de Datos Generales (usado para CSV manual o Excel sheet_to_json)
+        function normalizeRow(row) {
+            // Asegurar conversiones numéricas de los campos que vengan
+            row['Qty_Num'] = parseNumber(row['Qty 1']);
+            row['FOB_Unit_Num'] = parseNumber(row['U$ FOB Und 1']);
+            row['FOB_Num'] = parseNumber(row['U$ FOB Tot']);
+            
+            // Formatear Fecha
+            let dateStr = row['Fecha'] ? String(row['Fecha']) : '';
+            if (dateStr) {
+                // Manejar si Excel parseó la fecha como número o como texto YYYY/MM/DD
+                const parts = dateStr.includes('-') ? dateStr.split('-') : dateStr.split('/');
+                if (parts.length === 3) {
+                    // Tratar de asumir DD-MM-YY o YYYY-MM-DD
+                    let year, month;
+                    if (parts[2].length === 2 || parts[2].length === 4) { // Formato DD-MM-YYYY o DD-MM-YY
+                        year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                        month = parts[1];
+                    } else if (parts[0].length === 4) { // Formato YYYY-MM-DD
+                        year = parts[0];
+                        month = parts[1];
+                    }
+                    
+                    row['Mes_Anio'] = `${year}-${month}`; 
+                    
+                    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                    const mesIndex = parseInt(month, 10) - 1;
+                    row['Mes_Tabla'] = !isNaN(mesIndex) && mesIndex >= 0 && mesIndex < 12 ? meses[mesIndex] : month;
+                } else {
+                    row['Mes_Anio'] = 'Desconocido';
+                    row['Mes_Tabla'] = '-';
+                }
+            } else {
+                row['Mes_Anio'] = 'Desconocido';
+                row['Mes_Tabla'] = '-';
+            }
+            return row;
+        }
+
+        function processCSV(csvText) {
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 2) return [];
+
+            const headers = lines[0].split(';').map(h => h.trim());
+            const parsedData = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(';'); 
+                if (values.length >= 20) {
+                    let row = {};
+                    headers.forEach((header, index) => {
+                        if (index < values.length) {
+                            row[header] = values[index] ? values[index].trim() : '';
+                        }
+                    });
+                    parsedData.push(normalizeRow(row));
+                }
+            }
+            return parsedData;
+        }
+
+        // Manejador de Archivos
+        document.getElementById('file-upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            toggleLoading(true);
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = e.target.result;
+                    const name = file.name.toLowerCase();
+                    let newData = [];
+
+                    if (name.endsWith('.csv')) {
+                        // Leer texto directo usando el decoder para que soporte ISO-8859-1 (Tildes en LATAM)
+                        const decoder = new TextDecoder('iso-8859-1');
+                        const text = decoder.decode(data);
+                        // Intentar parseo nativo separado por punto y coma (;)
+                        newData = processCSV(text);
+                        
+                        // Fallback si el CSV usa comas (,) usando SheetJS
+                        if(newData.length === 0) {
+                             const workbook = XLSX.read(data, {type: 'array'});
+                             const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval: ""});
+                             newData = json.map(normalizeRow);
+                        }
+                    } else {
+                        // Leer como Excel (.xlsx, .xls)
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(firstSheet, {defval: "", raw: false});
+                        
+                        // Normalizar keys por si vienen con espacios extra y normalizar fila
+                        newData = json.map(row => {
+                            let cleanRow = {};
+                            Object.keys(row).forEach(key => cleanRow[key.trim()] = row[key]);
+                            return normalizeRow(cleanRow);
+                        });
+                    }
+
+                    if (newData.length === 0) throw new Error("El archivo no contiene filas válidas o el formato no es reconocido.");
+
+                    globalData = newData;
+                    
+                    // Resetear selectores de UI y datos
+                    document.getElementById('filter-importador').value = 'Todos';
+                    document.getElementById('filter-marca').value = 'Todas';
+                    document.getElementById('filter-pais').value = 'Todos';
+                    
+                    extractFilterOptions();
+                    applyFilters();
+
+                } catch (err) {
+                    console.error("Error al procesar:", err);
+                    showErrorModal(err.message || "No se pudo leer el archivo. Verifica que tenga las columnas requeridas (Importador, Qty 1, U$ FOB Tot, etc).");
+                } finally {
+                    toggleLoading(false);
+                    event.target.value = ''; // Reset input
+                }
+            };
+
+            reader.onerror = function() {
+                toggleLoading(false);
+                showErrorModal("Ocurrió un error al cargar el archivo local.");
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Configuración de Filtros
+        function extractFilterOptions() {
+            const imp = [...new Set(globalData.map(item => item['Importador']).filter(Boolean))].sort();
+            const mar = [...new Set(globalData.map(item => item['Marca']).filter(Boolean))].sort();
+            const pai = [...new Set(globalData.map(item => item['Pais de Origen']).filter(Boolean))].sort();
+            
+            populateSelect('filter-importador', imp, 'Todos los Importadores', 'Todos');
+            populateSelect('filter-marca', mar, 'Todas las Marcas', 'Todas');
+            populateSelect('filter-pais', pai, 'Todos los Países', 'Todos');
+        }
+
+        function populateSelect(elementId, options, defaultLabel, defaultValue) {
+            const select = document.getElementById(elementId);
+            select.innerHTML = `<option value="${defaultValue}">${defaultLabel}</option>`;
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                select.appendChild(option);
+            });
+        }
+
+        ['filter-importador', 'filter-marca', 'filter-pais'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function() {
+                currentFilters[id.replace('filter-', '')] = this.value;
+                applyFilters();
+            });
+        });
+
+        function applyFilters() {
+            let result = [...globalData];
+            
+            if (currentFilters.importador !== 'Todos') {
+                result = result.filter(item => item['Importador'] === currentFilters.importador);
+            }
+            if (currentFilters.marca !== 'Todas') {
+                result = result.filter(item => item['Marca'] === currentFilters.marca);
+            }
+            if (currentFilters.pais !== 'Todos') {
+                result = result.filter(item => item['Pais de Origen'] === currentFilters.pais);
+            }
+            
+            // Ordenar de mayor a menor cantidad
+            result.sort((a, b) => (b.Qty_Num || 0) - (a.Qty_Num || 0));
+            filteredData = result;
+            
+            updateDashboard();
+        }
+
+        // Actualizar Dashboard (KPIs, Charts, Table)
+        function updateDashboard() {
+            calculateKPIs();
+            renderCharts();
+            renderTable();
+        }
+
+        function calculateKPIs() {
+            let totalFOB = 0, totalQty = 0;
+
+            filteredData.forEach(item => {
+                totalFOB += item.FOB_Num || 0;
+                totalQty += item.Qty_Num || 0;
+            });
+
+            const count = filteredData.length;
+            const avgFob = totalQty > 0 ? totalFOB / totalQty : 0;
+
+            document.getElementById('kpi-fob').textContent = formatCurrency(totalFOB);
+            document.getElementById('kpi-avg').textContent = formatCurrency(avgFob);
+            document.getElementById('kpi-qty').textContent = formatNumber(totalQty);
+            document.getElementById('kpi-count').textContent = formatNumber(count);
+        }
+
+        function renderCharts() {
+            // Helpers
+            Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+            
+            const destroyChart = (id) => {
+                if (chartInstances[id]) chartInstances[id].destroy();
+            };
+
+            // 1. Top Importadores
+            const impFOB = groupBy(filteredData, 'Importador', 'FOB_Num');
+            const topImportadores = Object.keys(impFOB)
+                .map(key => ({ name: key.substring(0, 20) + (key.length>20?'...':''), val: impFOB[key] }))
+                .sort((a, b) => b.val - a.val)
+                .slice(0, 5);
+
+            destroyChart('chartImportadores');
+            chartInstances['chartImportadores'] = new Chart(document.getElementById('chartImportadores'), {
+                type: 'bar',
+                data: {
+                    labels: topImportadores.map(d => d.name),
+                    datasets: [{
+                        label: 'FOB (USD)',
+                        data: topImportadores.map(d => d.val),
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => formatCurrency(ctx.raw) } } },
+                    scales: {
+                        x: { ticks: { callback: (val) => `$${val/1000}k` }, grid: { borderDash: [3, 3] } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // 2. Top Marcas
+            const marcaQty = groupBy(filteredData, 'Marca', 'Qty_Num');
+            const topMarcas = Object.keys(marcaQty)
+                .map(key => ({ name: key, val: marcaQty[key] }))
+                .sort((a, b) => b.val - a.val)
+                .slice(0, 5);
+
+            destroyChart('chartMarcas');
+            chartInstances['chartMarcas'] = new Chart(document.getElementById('chartMarcas'), {
+                type: 'doughnut',
+                data: {
+                    labels: topMarcas.map(d => d.name),
+                    datasets: [{
+                        data: topMarcas.map(d => d.val),
+                        backgroundColor: COLORS,
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${formatNumber(ctx.raw)} uds` } }
+                    }
+                }
+            });
+
+            // 3. Costo Promedio
+            const marcasStats = {};
+            filteredData.forEach(item => {
+                const m = item['Marca'] || 'Desconocido';
+                if (!marcasStats[m]) marcasStats[m] = { fob: 0, qty: 0 };
+                marcasStats[m].fob += item.FOB_Num || 0;
+                marcasStats[m].qty += item.Qty_Num || 0;
+            });
+            
+            marcasAvgMapGlobal = {};
+            const avgMarcasData = Object.keys(marcasStats).map(key => {
+                const prom = marcasStats[key].qty > 0 ? marcasStats[key].fob / marcasStats[key].qty : 0;
+                marcasAvgMapGlobal[key] = prom;
+                return { name: key, val: prom };
+            }).sort((a, b) => b.val - a.val).slice(0, 10);
+
+            destroyChart('chartPromedio');
+            chartInstances['chartPromedio'] = new Chart(document.getElementById('chartPromedio'), {
+                type: 'bar',
+                data: {
+                    labels: avgMarcasData.map(d => d.name),
+                    datasets: [{
+                        label: 'Promedio FOB',
+                        data: avgMarcasData.map(d => d.val),
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => formatCurrency(ctx.raw) } } },
+                    scales: {
+                        y: { ticks: { callback: (val) => `$${val}` }, grid: { borderDash: [3, 3] } },
+                        x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45 } }
+                    }
+                }
+            });
+
+            // 4. Tendencia Mensual
+            const mensualFOB = groupBy(filteredData, 'Mes_Anio', 'FOB_Num');
+            const tendencia = Object.keys(mensualFOB).sort().map(key => ({ mes: key, val: mensualFOB[key] }));
+
+            destroyChart('chartTendencia');
+            chartInstances['chartTendencia'] = new Chart(document.getElementById('chartTendencia'), {
+                type: 'line',
+                data: {
+                    labels: tendencia.map(d => d.mes),
+                    datasets: [{
+                        label: 'FOB USD',
+                        data: tendencia.map(d => d.val),
+                        borderColor: '#10b981',
+                        backgroundColor: '#10b981',
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { tooltip: { callbacks: { label: (ctx) => formatCurrency(ctx.raw) } } },
+                    scales: {
+                        y: { ticks: { callback: (val) => `$${val/1000}k` }, grid: { borderDash: [3, 3] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            document.getElementById('table-count').textContent = `Mostrando ${filteredData.length} registros`;
+            tbody.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">No se encontraron registros que coincidan con los filtros.</td></tr>`;
+                return;
+            }
+
+            // Para no sobrecargar el DOM si hay demasiados, mostramos máximo 200 filas en vista previa
+            const dataToRender = filteredData.slice(0, 200);
+
+            let html = '';
+            dataToRender.forEach((row) => {
+                const mes = row['Mes_Tabla'] || row['Fecha'];
+                const imp = row['Importador'] || '-';
+                const marca = row['Marca'] || '-';
+                const origen = row['Pais de Origen'] || '-';
+                const qty = formatNumber(row['Qty_Num']);
+                const fobFila = formatCurrency(row['FOB_Unit_Num']);
+                const avgMarca = formatCurrency(marcasAvgMapGlobal[row['Marca']] || 0);
+
+                html += `
+                    <tr class="bg-white border-b hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${mes}</td>
+                        <td class="px-6 py-4 truncate max-w-[200px]" title="${imp}">${imp}</td>
+                        <td class="px-6 py-4">${marca}</td>
+                        <td class="px-6 py-4">${origen}</td>
+                        <td class="px-6 py-4 text-right font-medium">${qty}</td>
+                        <td class="px-6 py-4 text-right font-medium text-slate-600">${fobFila}</td>
+                        <td class="px-6 py-4 text-right font-medium text-emerald-600">${avgMarca}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // Inicialización
+        window.addEventListener('DOMContentLoaded', () => {
+            // Cargar datos por defecto
+            globalData = processCSV(defaultCSV);
+            extractFilterOptions();
+            applyFilters();
+            toggleLoading(false);
+        });
+
+    </script>
+</body>
+</html>
