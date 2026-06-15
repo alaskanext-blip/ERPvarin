@@ -314,6 +314,13 @@
     <label>Vía</label>
     <select id="fVia"><option value="">Todas</option><option>MARÍTIMO</option><option>AÉREO</option></select>
   </div>
+  <div class="filter-group">
+    <label>Precio FOB Unit. ($)</label>
+    <div style="display: flex; gap: 5px;">
+      <input type="number" id="fMinPrice" placeholder="Mín" style="width: 70px; background: var(--navy); border: 1px solid var(--steel); color: var(--white); padding: 5px; border-radius: 6px; font-size: 0.82rem; outline: none;">
+      <input type="number" id="fMaxPrice" placeholder="Máx" style="width: 70px; background: var(--navy); border: 1px solid var(--steel); color: var(--white); padding: 5px; border-radius: 6px; font-size: 0.82rem; outline: none;">
+    </div>
+  </div>
   <button class="btn-reset" onclick="resetFilters()">↺ Restablecer</button>
 </div>
 
@@ -337,6 +344,7 @@
     <div class="kpi-label">FOB promedio / unidad</div>
     <div class="kpi-value" id="kAvg">$0</div>
     <div class="kpi-sub" id="kAvgSub">USD por unidad</div>
+    <div id="kMinMax" style="font-size: 0.7rem; color: var(--muted); margin-top: 6px; border-top: 1px dashed var(--steel); padding-top: 6px; display: flex; justify-content: space-between;"></div>
   </div>
 </div>
 
@@ -422,6 +430,8 @@ let marcas = [...new Set(RAW.map(d=>d.Marca))].sort();
 const fImp = document.getElementById('fImportador');
 const fPais = document.getElementById('fPais');
 const fMarca = document.getElementById('fMarca');
+const fMinPrice = document.getElementById('fMinPrice');
+const fMaxPrice = document.getElementById('fMaxPrice');
 
 function populateFilters() {
   fImp.innerHTML = '<option value="">Todos</option>';
@@ -434,7 +444,9 @@ function populateFilters() {
 
 populateFilters();
 
-[fImp, fPais, document.getElementById('fVia'), fMarca].forEach(el => el.addEventListener('change', render));
+[fImp, fPais, document.getElementById('fVia'), fMarca, fMinPrice, fMaxPrice].forEach(el => el.addEventListener('change', render));
+fMinPrice.addEventListener('input', render);
+fMaxPrice.addEventListener('input', render);
 
 function updatePills() {
   document.getElementById('pill-registros').textContent = `${RAW.length} registros`;
@@ -500,16 +512,25 @@ document.getElementById('file-upload').addEventListener('change', function(e) {
 
 function getFiltered() {
   const imp = fImp.value, pais = fPais.value, via = document.getElementById('fVia').value, marca = fMarca.value;
-  return RAW.filter(d =>
-    (!imp || d.Importador === imp) &&
-    (!pais || d['Pais de Origen'] === pais) &&
-    (!via || d.Via === via) &&
-    (!marca || d.Marca === marca)
-  );
+  const minP = parseFloat(fMinPrice.value);
+  const maxP = parseFloat(fMaxPrice.value);
+
+  return RAW.filter(d => {
+    const unitPrice = d['Qty 1'] > 0 ? (d['U$ FOB Tot'] / d['Qty 1']) : 0;
+    const matchMin = isNaN(minP) || unitPrice >= minP;
+    const matchMax = isNaN(maxP) || unitPrice <= maxP;
+
+    return (!imp || d.Importador === imp) &&
+           (!pais || d['Pais de Origen'] === pais) &&
+           (!via || d.Via === via) &&
+           (!marca || d.Marca === marca) &&
+           matchMin && matchMax;
+  });
 }
 
 function resetFilters() {
   fImp.value=''; fPais.value=''; document.getElementById('fVia').value=''; fMarca.value='';
+  fMinPrice.value=''; fMaxPrice.value='';
   render();
 }
 
@@ -713,6 +734,17 @@ function render() {
   const totalQty = data.reduce((s,d)=>s+d['Qty 1'],0);
   const avgUnit = totalQty > 0 ? totalFob/totalQty : 0;
 
+  let minPrice = Infinity;
+  let maxPrice = 0;
+  data.forEach(d => {
+    if (d['Qty 1'] > 0) {
+      const price = d['U$ FOB Tot'] / d['Qty 1'];
+      if (price < minPrice) minPrice = price;
+      if (price > maxPrice) maxPrice = price;
+    }
+  });
+  if (minPrice === Infinity) minPrice = 0;
+
   document.getElementById('kFob').textContent = fmt(totalFob);
   document.getElementById('kFobSub').textContent = `${data.length} operaciones`;
   document.getElementById('kCif').textContent = fmt(totalCif);
@@ -721,6 +753,7 @@ function render() {
   document.getElementById('kQtySub').textContent = 'ventiladores';
   document.getElementById('kAvg').textContent = '$' + avgUnit.toFixed(1);
   document.getElementById('kAvgSub').textContent = 'USD por unidad';
+  document.getElementById('kMinMax').innerHTML = `<span>Mín: <b>$${minPrice.toFixed(2)}</b></span><span>Máx: <b>$${maxPrice.toFixed(2)}</b></span>`;
 
   drawLineChart(data, 'lineChartQty', 'qty', '46,201,142', fmtN);
 
