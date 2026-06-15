@@ -247,6 +247,22 @@
   /* LINE CHART */
   .line-wrap { position: relative; height: 200px; }
 
+  .tooltip {
+    position: absolute;
+    background: var(--slate);
+    color: var(--white);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    white-space: nowrap;
+    border: 1px solid var(--steel);
+  }
+
   footer {
     text-align: center;
     padding: 20px;
@@ -291,12 +307,12 @@
     <select id="fPais"><option value="">Todos</option></select>
   </div>
   <div class="filter-group">
-    <label>Vía</label>
-    <select id="fVia"><option value="">Todas</option><option>MARÍTIMO</option><option>AÉREO</option></select>
+    <label>Marca</label>
+    <select id="fMarca"><option value="">Todas</option></select>
   </div>
   <div class="filter-group">
-    <label>Aduana</label>
-    <select id="fAduana"><option value="">Todas</option></select>
+    <label>Vía</label>
+    <select id="fVia"><option value="">Todas</option><option>MARÍTIMO</option><option>AÉREO</option></select>
   </div>
   <button class="btn-reset" onclick="resetFilters()">↺ Restablecer</button>
 </div>
@@ -363,10 +379,7 @@
             <th>Marca</th>
             <th>País Origen</th>
             <th>Qty</th>
-            <th>FOB (USD)</th>
-            <th>CIF (USD)</th>
-            <th>Vía</th>
-            <th>Aduana</th>
+            <th>Precio FOB Unitario</th>
           </tr>
         </thead>
         <tbody id="tablaBody"></tbody>
@@ -376,6 +389,7 @@
 </div>
 
 <footer>Dashboard generado con datos de importaciones aduaneras · Chile 2025–2026</footer>
+<div id="chartTooltip" class="tooltip"></div>
 
 <script>
 // Se ha reconstruido el objeto RAW ya que en la consulta original venía truncado por errores de sintaxis
@@ -403,24 +417,24 @@ function fmtN(n) { return n.toLocaleString('es-CL'); }
 // Populate filters
 let importadores = [...new Set(RAW.map(d=>d.Importador))].sort();
 let paises = [...new Set(RAW.map(d=>d['Pais de Origen']))].sort();
-let aduanas = [...new Set(RAW.map(d=>d.Aduana))].sort();
+let marcas = [...new Set(RAW.map(d=>d.Marca))].sort();
 
 const fImp = document.getElementById('fImportador');
 const fPais = document.getElementById('fPais');
-const fAduana = document.getElementById('fAduana');
+const fMarca = document.getElementById('fMarca');
 
 function populateFilters() {
   fImp.innerHTML = '<option value="">Todos</option>';
   fPais.innerHTML = '<option value="">Todos</option>';
-  fAduana.innerHTML = '<option value="">Todas</option>';
+  fMarca.innerHTML = '<option value="">Todas</option>';
   importadores.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fImp.appendChild(o); });
   paises.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fPais.appendChild(o); });
-  aduanas.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fAduana.appendChild(o); });
+  marcas.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fMarca.appendChild(o); });
 }
 
 populateFilters();
 
-[fImp, fPais, document.getElementById('fVia'), fAduana].forEach(el => el.addEventListener('change', render));
+[fImp, fPais, document.getElementById('fVia'), fMarca].forEach(el => el.addEventListener('change', render));
 
 function updatePills() {
   document.getElementById('pill-registros').textContent = `${RAW.length} registros`;
@@ -471,7 +485,7 @@ document.getElementById('file-upload').addEventListener('change', function(e) {
 
         importadores = [...new Set(RAW.map(d=>d.Importador))].sort();
         paises = [...new Set(RAW.map(d=>d['Pais de Origen']))].sort();
-        aduanas = [...new Set(RAW.map(d=>d.Aduana))].sort();
+        marcas = [...new Set(RAW.map(d=>d.Marca))].sort();
 
         populateFilters();
         resetFilters();
@@ -485,17 +499,17 @@ document.getElementById('file-upload').addEventListener('change', function(e) {
 });
 
 function getFiltered() {
-  const imp = fImp.value, pais = fPais.value, via = document.getElementById('fVia').value, aduana = fAduana.value;
+  const imp = fImp.value, pais = fPais.value, via = document.getElementById('fVia').value, marca = fMarca.value;
   return RAW.filter(d =>
     (!imp || d.Importador === imp) &&
     (!pais || d['Pais de Origen'] === pais) &&
     (!via || d.Via === via) &&
-    (!aduana || d.Aduana === aduana)
+    (!marca || d.Marca === marca)
   );
 }
 
 function resetFilters() {
-  fImp.value=''; fPais.value=''; document.getElementById('fVia').value=''; fAduana.value='';
+  fImp.value=''; fPais.value=''; document.getElementById('fVia').value=''; fMarca.value='';
   render();
 }
 
@@ -632,23 +646,64 @@ function drawLineChart(data, canvasId, dataKey, colorStr, formatFn) {
     ctx.textAlign = 'center';
     ctx.fillText(formatFn(values[maxI]), pts[maxI].x, pts[maxI].y - 12);
   }
+
+  // Lógica para mostrar tooltip al pasar el cursor (Hover)
+  canvas._chartData = { pts, labels, values, formatFn };
+
+  if (!canvas._hasHoverListener) {
+    canvas.addEventListener('mousemove', function(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const tooltip = document.getElementById('chartTooltip');
+      let found = false;
+
+      if (this._chartData) {
+        const { pts, labels, values, formatFn } = this._chartData;
+        for (let i = 0; i < pts.length; i++) {
+          const dx = mouseX - pts[i].x;
+          const dy = mouseY - pts[i].y;
+          // Si el mouse está a menos de 12px del punto
+          if (Math.sqrt(dx*dx + dy*dy) < 12) {
+            tooltip.style.opacity = 1;
+            tooltip.style.left = (e.pageX + 15) + 'px';
+            tooltip.style.top = (e.pageY - 30) + 'px';
+            tooltip.innerHTML = `<div style="font-weight:700;margin-bottom:4px;color:var(--muted)">Mes: ${labels[i]}</div>
+                                 <div style="font-size:1rem;font-weight:800;color:var(--sky)">${formatFn(values[i])}</div>`;
+            found = true;
+            break;
+          }
+        }
+      }
+      
+      this.style.cursor = found ? 'pointer' : 'default';
+      if (!found) tooltip.style.opacity = 0;
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+      document.getElementById('chartTooltip').style.opacity = 0;
+      this.style.cursor = 'default';
+    });
+
+    canvas._hasHoverListener = true;
+  }
 }
 
 function renderTable(data) {
-  const sorted = [...data].sort((a,b)=>b['U$ FOB Tot']-a['U$ FOB Tot']);
-  document.getElementById('tablaBody').innerHTML = sorted.map(d => `
+  const sorted = [...data].sort((a,b)=>b['Qty 1']-a['Qty 1']);
+  document.getElementById('tablaBody').innerHTML = sorted.map(d => {
+    const precioUnitario = d['Qty 1'] > 0 ? (d['U$ FOB Tot'] / d['Qty 1']) : 0;
+    return `
     <tr>
       <td>${d.Fecha.slice(0,7)}</td>
       <td>${d.Importador}</td>
       <td>${d.Marca}</td>
       <td>${d['Pais de Origen']}</td>
       <td style="text-align:right">${fmtN(d['Qty 1'])}</td>
-      <td style="text-align:right;color:var(--sky)">${fmt(d['U$ FOB Tot'])}</td>
-      <td style="text-align:right;color:var(--muted)">${fmt(d['U$ Cif Tot'])}</td>
-      <td><span class="tag ${d.Via==='MARÍTIMO'?'tag-sea':'tag-air'}">${d.Via}</span></td>
-      <td>${d.Aduana}</td>
+      <td style="text-align:right;color:var(--sky)">$${precioUnitario.toFixed(2)}</td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 function render() {
