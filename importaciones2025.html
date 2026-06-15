@@ -1,702 +1,648 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Importaciones</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SheetJS (Excel Parser) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Importaciones Ventiladores — Chile 2025</title>
+<style>
+  :root {
+    --navy: #0d1b2a;
+    --slate: #1b2d45;
+    --steel: #2a4060;
+    --sky: #3a86c8;
+    --cyan: #00d4ff;
+    --gold: #f0a500;
+    --sand: #e8d9b5;
+    --white: #f0f4f8;
+    --muted: #7a98b8;
+    --red: #e05555;
+    --green: #2ec98e;
+  }
 
-    <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; 
-        }
-    </style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--navy);
+    color: var(--white);
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, var(--slate) 0%, var(--navy) 100%);
+    border-bottom: 2px solid var(--sky);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-left h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: 0.02em;
+  }
+
+  .header-left p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pill {
+    background: var(--steel);
+    border: 1px solid var(--sky);
+    color: var(--cyan);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  /* FILTERS */
+  .filters {
+    background: var(--slate);
+    padding: 14px 32px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--steel);
+  }
+
+  .filters label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  select {
+    background: var(--navy);
+    border: 1px solid var(--steel);
+    color: var(--white);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    min-width: 140px;
+  }
+
+  select:focus { outline: none; border-color: var(--sky); }
+
+  .btn-reset {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all .2s;
+    align-self: flex-end;
+  }
+  .btn-reset:hover { border-color: var(--sky); color: var(--sky); }
+
+  /* KPI CARDS */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 24px 32px 0;
+  }
+
+  .kpi {
+    background: var(--slate);
+    border: 1px solid var(--steel);
+    border-radius: 12px;
+    padding: 18px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--sky);
+  }
+
+  .kpi.gold::before { background: var(--gold); }
+  .kpi.cyan::before { background: var(--cyan); }
+  .kpi.green::before { background: var(--green); }
+
+  .kpi-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .kpi-value { font-size: 1.8rem; font-weight: 800; color: var(--white); margin: 6px 0 2px; line-height: 1; }
+  .kpi-sub { font-size: 0.75rem; color: var(--muted); }
+
+  /* CHARTS GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px 32px;
+  }
+
+  .card {
+    background: var(--slate);
+    border: 1px solid var(--steel);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+
+  .card.full { grid-column: 1 / -1; }
+
+  .card h3 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  canvas { width: 100% !important; }
+
+  /* BAR CHART manual */
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+
+  .bar-label {
+    font-size: 0.72rem;
+    color: var(--white);
+    width: 150px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bar-track {
+    flex: 1;
+    background: var(--navy);
+    border-radius: 4px;
+    height: 18px;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .5s ease;
+  }
+
+  .bar-val {
+    font-size: 0.7rem;
+    color: var(--muted);
+    width: 80px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th {
+    background: var(--navy);
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    padding: 8px 10px;
+    text-align: left;
+    position: sticky; top: 0; z-index: 2;
+  }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--steel); color: var(--white); }
+  tr:hover td { background: var(--steel); }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+  }
+  .tag-sea { background: rgba(58,134,200,.25); color: var(--sky); }
+  .tag-air { background: rgba(240,165,0,.25); color: var(--gold); }
+
+  /* DONUT */
+  .donut-wrap { display: flex; gap: 24px; align-items: center; }
+  .donut-legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* LINE CHART */
+  .line-wrap { position: relative; height: 200px; }
+
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    border-top: 1px solid var(--steel);
+    margin-top: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    .card.full { grid-column: 1; }
+  }
+</style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800 min-h-screen p-6">
+<body>
 
-    <!-- OVERLAY CARGANDO -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex items-center justify-center transition-opacity duration-300">
-        <div class="text-slate-500 font-semibold text-lg flex flex-col items-center gap-3">
-            <i data-lucide="loader-2" class="animate-spin text-blue-600" width="32" height="32"></i>
-            Procesando datos...
-        </div>
+<header>
+  <div class="header-left">
+    <h1>🌀 Importaciones de Ventiladores — Chile</h1>
+    <p>Análisis interactivo de operaciones aduaneras · Ene 2025 – Abr 2026</p>
+  </div>
+  <div class="header-right">
+    <span class="pill">97 registros</span>
+    <span class="pill">8 países</span>
+    <span class="pill">8 importadores</span>
+  </div>
+</header>
+
+<div class="filters">
+  <div class="filter-group">
+    <label>Importador</label>
+    <select id="fImportador"><option value="">Todos</option></select>
+  </div>
+  <div class="filter-group">
+    <label>País de Origen</label>
+    <select id="fPais"><option value="">Todos</option></select>
+  </div>
+  <div class="filter-group">
+    <label>Vía</label>
+    <select id="fVia"><option value="">Todas</option><option>MARÍTIMO</option><option>AÉREO</option></select>
+  </div>
+  <div class="filter-group">
+    <label>Aduana</label>
+    <select id="fAduana"><option value="">Todas</option></select>
+  </div>
+  <button class="btn-reset" onclick="resetFilters()">↺ Restablecer</button>
+</div>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">FOB Total (USD)</div>
+    <div class="kpi-value" id="kFob">$965K</div>
+    <div class="kpi-sub" id="kFobSub">97 operaciones</div>
+  </div>
+  <div class="kpi gold">
+    <div class="kpi-label">CIF Total (USD)</div>
+    <div class="kpi-value" id="kCif">$1.02M</div>
+    <div class="kpi-sub" id="kCifSub">incl. flete y seguro</div>
+  </div>
+  <div class="kpi cyan">
+    <div class="kpi-label">Unidades importadas</div>
+    <div class="kpi-value" id="kQty">20,653</div>
+    <div class="kpi-sub" id="kQtySub">ventiladores</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">FOB promedio / unidad</div>
+    <div class="kpi-value" id="kAvg">$46.7</div>
+    <div class="kpi-sub" id="kAvgSub">USD por unidad</div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- Monthly line chart -->
+  <div class="card full">
+    <h3>Evolución Mensual — FOB Total (USD)</h3>
+    <div style="overflow-x:auto;">
+      <canvas id="lineChart" height="170"></canvas>
     </div>
+  </div>
 
-    <!-- MENSAJE DE ERROR MODAL -->
-    <div id="error-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center opacity-0 transition-opacity">
-        <div class="bg-white p-6 rounded-xl shadow-lg max-w-sm w-full transform scale-95 transition-transform">
-            <div class="flex items-center gap-3 text-red-600 mb-4">
-                <i data-lucide="alert-circle" width="24" height="24"></i>
-                <h3 class="font-bold text-lg text-slate-800">Error de Lectura</h3>
-            </div>
-            <p id="error-message" class="text-slate-600 text-sm mb-6">Hubo un problema al leer el archivo.</p>
-            <div class="flex justify-end">
-                <button onclick="closeErrorModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors">Cerrar</button>
-            </div>
-        </div>
+  <!-- Importadores bar -->
+  <div class="card">
+    <h3>FOB por Importador</h3>
+    <div id="barImportador"></div>
+  </div>
+
+  <!-- País de origen bar -->
+  <div class="card">
+    <h3>FOB por País de Origen</h3>
+    <div id="barPais"></div>
+  </div>
+
+  <!-- Marcas bar -->
+  <div class="card">
+    <h3>Top Marcas — FOB USD</h3>
+    <div id="barMarca"></div>
+  </div>
+
+  <!-- Vía donut -->
+  <div class="card">
+    <h3>Distribución por Vía de Transporte</h3>
+    <div class="donut-wrap">
+      <canvas id="donutVia" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas>
+      <div class="donut-legend" id="donutLegend"></div>
     </div>
+  </div>
 
-    <!-- HEADER -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-            <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Dashboard de Importaciones</h1>
-            <p class="text-slate-500 mt-1">Análisis interactivo - Soporte CSV y Excel (.xlsx)</p>
-        </div>
-        
-        <div class="relative">
-            <input 
-                type="file" 
-                id="file-upload"
-                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
-                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                title="Sube tu archivo CSV o Excel"
-            />
-            <button class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow-sm transition-colors font-medium relative z-0">
-                <i data-lucide="upload-cloud" width="20" height="20"></i>
-                Cargar CSV / Excel
-            </button>
-        </div>
+  <!-- Tabla detalle -->
+  <div class="card full">
+    <h3>Detalle de Operaciones</h3>
+    <div class="table-wrap">
+      <table id="tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Importador</th>
+            <th>Marca</th>
+            <th>País Origen</th>
+            <th>Qty</th>
+            <th>FOB (USD)</th>
+            <th>CIF (USD)</th>
+            <th>Vía</th>
+            <th>Aduana</th>
+          </tr>
+        </thead>
+        <tbody id="tablaBody"></tbody>
+      </table>
     </div>
+  </div>
 
-    <!-- FILTROS -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 mb-8 flex flex-col md:flex-row gap-6 items-center">
-        <div class="flex items-center gap-2 text-slate-700 font-semibold w-full md:w-auto">
-            <i data-lucide="filter" width="18" height="18"></i> Filtros:
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-            <div class="flex flex-col">
-                <label class="text-xs text-slate-500 mb-1 font-medium">Importador</label>
-                <select id="filter-importador" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none cursor-pointer">
-                    <option value="Todos">Todos los Importadores</option>
-                </select>
-            </div>
+</div>
 
-            <div class="flex flex-col">
-                <label class="text-xs text-slate-500 mb-1 font-medium">Marca</label>
-                <select id="filter-marca" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none cursor-pointer">
-                    <option value="Todas">Todas las Marcas</option>
-                </select>
-            </div>
+<footer>Dashboard generado con datos de importaciones aduaneras · Chile 2025–2026</footer>
 
-            <div class="flex flex-col">
-                <label class="text-xs text-slate-500 mb-1 font-medium">País de Origen</label>
-                <select id="filter-pais" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 outline-none cursor-pointer">
-                    <option value="Todos">Todos los Países</option>
-                </select>
-            </div>
-        </div>
+<script>
+const RAW = [{"Fecha":"2025-01-29","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":16,"U$ FOB Tot":3429.24,"U$ Cif Tot":3743.3,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-01-29","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":6,"U$ FOB Tot":1247.49,"U$ Cif Tot":1361.73,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-01-28","Importador":"ANWO S.A.","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":526,"U$ FOB Tot":30503.3,"U$ Cif Tot":34168.3,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-02-19","Importador":"X","Marca":"E.T","Pais de Origen":"ESPAÑA","Qty 1":10,"U$ FOB Tot":739.88,"U$ Cif Tot":769.63,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-02-19","Importador":"X","Marca":"E.T","Pais de Origen":"ESPAÑA","Qty 1":47,"U$ FOB Tot":2886.1,"U$ Cif Tot":3002.19,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-02-28","Importador":"X","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":15197.6,"U$ Cif Tot":16084.53,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-02-28","Importador":"X","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":15929.3,"U$ Cif Tot":16858.93,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-02-28","Importador":"X","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":15709.3,"U$ Cif Tot":16626.08,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-02-17","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":614.1,"U$ Cif Tot":1562.0,"Via":"AÉREO","Aduana":"METROPOLITANA","Producto":"VENTILADOR TECHO"},{"Fecha":"2025-03-31","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":60,"U$ FOB Tot":5042.51,"U$ Cif Tot":5490.52,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-03-31","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":55,"U$ FOB Tot":5720.61,"U$ Cif Tot":6228.87,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-03-31","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":25,"U$ FOB Tot":2414.67,"U$ Cif Tot":2629.21,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-04-09","Importador":"X","Marca":"EGLO","Pais de Origen":"CHINA","Qty 1":29,"U$ FOB Tot":1887.32,"U$ Cif Tot":2019.74,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-05-22","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":234,"U$ FOB Tot":16150.7,"U$ Cif Tot":16871.82,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-05-11","Importador":"X","Marca":"SHENZHEN","Pais de Origen":"CHINA","Qty 1":51,"U$ FOB Tot":9935.99,"U$ Cif Tot":10170.44,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR SOLAR DE TECHO"},{"Fecha":"2025-05-13","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":45,"U$ FOB Tot":5129.86,"U$ Cif Tot":5654.44,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO ELECTRICO"},{"Fecha":"2025-05-13","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":20,"U$ FOB Tot":3358.14,"U$ Cif Tot":3701.54,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO ELECTRICO"},{"Fecha":"2025-05-30","Importador":"ANWO S.A.","Marca":"PAS ZHONGSHAN","Pais de Origen":"CHINA","Qty 1":40,"U$ FOB Tot":8128.81,"U$ Cif Tot":8577.02,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-05-02","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":50,"U$ FOB Tot":2299.5,"U$ Cif Tot":2423.12,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-05-02","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":50,"U$ FOB Tot":2299.5,"U$ Cif Tot":2423.12,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-06-13","Importador":"X","Marca":"NINGBO METALANE","Pais de Origen":"CHINA","Qty 1":4,"U$ FOB Tot":340.71,"U$ Cif Tot":365.49,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-06-16","Importador":"AIROLITE S A","Marca":"KDK","Pais de Origen":"VIETNAM","Qty 1":950,"U$ FOB Tot":20992.5,"U$ Cif Tot":22869.97,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-06-03","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":258,"U$ FOB Tot":16717.1,"U$ Cif Tot":17612.95,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR TECHO"},{"Fecha":"2025-06-03","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"1STSHINE INDUSTRIAL","Pais de Origen":"CHINA","Qty 1":1,"U$ FOB Tot":41.54,"U$ Cif Tot":43.76,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-06-13","Importador":"X","Marca":"NINGBO METALANE","Pais de Origen":"CHINA","Qty 1":4,"U$ FOB Tot":340.71,"U$ Cif Tot":365.49,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-07-11","Importador":"SODIMAC S A","Marca":"CASA BONITA","Pais de Origen":"CHINA","Qty 1":300,"U$ FOB Tot":9255.92,"U$ Cif Tot":9816.46,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-07-04","Importador":"B Y M IMPORTACIONES LTDA.","Marca":"S.I.P.L.","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":1717.83,"U$ Cif Tot":1763.15,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-07-04","Importador":"B Y M IMPORTACIONES LTDA.","Marca":"S.I.P.L.","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":1968.98,"U$ Cif Tot":2020.93,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-07-04","Importador":"X","Marca":"JIANGSU","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":500.0,"U$ Cif Tot":539.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-07-08","Importador":"X","Marca":"RUCK","Pais de Origen":"ALEMANIA","Qty 1":25,"U$ FOB Tot":2195.84,"U$ Cif Tot":2286.92,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-07-08","Importador":"X","Marca":"RUCK","Pais de Origen":"ALEMANIA","Qty 1":10,"U$ FOB Tot":840.62,"U$ Cif Tot":875.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":280,"U$ FOB Tot":19510.4,"U$ Cif Tot":20981.52,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":8808.88,"U$ Cif Tot":9473.09,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":340,"U$ FOB Tot":10539.1,"U$ Cif Tot":11089.27,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"CASA BONITA","Pais de Origen":"CHINA","Qty 1":500,"U$ FOB Tot":11240.11,"U$ Cif Tot":11826.82,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"CASA BONITA","Pais de Origen":"CHINA","Qty 1":1000,"U$ FOB Tot":22479.22,"U$ Cif Tot":23652.64,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":990,"U$ FOB Tot":30689.3,"U$ Cif Tot":32291.28,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":500,"U$ FOB Tot":15499.15,"U$ Cif Tot":16308.22,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":530,"U$ FOB Tot":36580.6,"U$ Cif Tot":38490.06,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":230,"U$ FOB Tot":17622.6,"U$ Cif Tot":18542.47,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-20","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":40,"U$ FOB Tot":4280.6,"U$ Cif Tot":4556.99,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-08-20","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":10,"U$ FOB Tot":1152.28,"U$ Cif Tot":1226.67,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-08-20","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":60,"U$ FOB Tot":5285.67,"U$ Cif Tot":5626.95,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":216,"U$ FOB Tot":8899.2,"U$ Cif Tot":9570.2,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":70,"U$ FOB Tot":3941.39,"U$ Cif Tot":4238.54,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-09-05","Importador":"MAR DEL SUR SPA","Marca":"HEIMAT","Pais de Origen":"CHINA","Qty 1":350,"U$ FOB Tot":21000.21,"U$ Cif Tot":23781.3,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUAN LIMITED","Pais de Origen":"CHINA","Qty 1":220,"U$ FOB Tot":18727.18,"U$ Cif Tot":20060.18,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUAN LIMITED","Pais de Origen":"CHINA","Qty 1":50,"U$ FOB Tot":4485.28,"U$ Cif Tot":4804.52,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUAN LIMITED","Pais de Origen":"CHINA","Qty 1":30,"U$ FOB Tot":3225.48,"U$ Cif Tot":3455.05,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO CON LUZ"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":40,"U$ FOB Tot":3223.66,"U$ Cif Tot":3453.1,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":958.49,"U$ Cif Tot":1026.71,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":8,"U$ FOB Tot":780.09,"U$ Cif Tot":835.61,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":6,"U$ FOB Tot":538.23,"U$ Cif Tot":576.53,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":4,"U$ FOB Tot":360.11,"U$ Cif Tot":385.73,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-09","Importador":"X","Marca":"TETRA-C","Pais de Origen":"COREA DEL SUR","Qty 1":9,"U$ FOB Tot":668.79,"U$ Cif Tot":766.39,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-09-24","Importador":"ANWO S.A.","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":1062,"U$ FOB Tot":57599.57,"U$ Cif Tot":60398.02,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-01","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":9197.91,"U$ Cif Tot":9885.35,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-09","Importador":"X","Marca":"S.E.L.","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":9375.93,"U$ Cif Tot":10164.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-10-09","Importador":"X","Marca":"S.E.L.","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":10237.5,"U$ Cif Tot":11099.02,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-10-09","Importador":"X","Marca":"S.E.L.","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":9375.93,"U$ Cif Tot":10164.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-10-13","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":2498.24,"U$ Cif Tot":2587.79,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-10-07","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":1410,"U$ FOB Tot":90597.9,"U$ Cif Tot":94415.05,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-22","Importador":"X","Marca":"SHENZHEN","Pais de Origen":"CHINA","Qty 1":40,"U$ FOB Tot":1491.7,"U$ Cif Tot":1599.98,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-10-13","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":2498.24,"U$ Cif Tot":2587.79,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":20,"U$ FOB Tot":2375.01,"U$ Cif Tot":2489.39,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":20,"U$ FOB Tot":1452.26,"U$ Cif Tot":1522.2,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":80,"U$ FOB Tot":8549.06,"U$ Cif Tot":8960.81,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":70,"U$ FOB Tot":3423.82,"U$ Cif Tot":3588.71,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":9684.68,"U$ Cif Tot":10196.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":7900.13,"U$ Cif Tot":8317.62,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":150,"U$ FOB Tot":5810.8,"U$ Cif Tot":6117.88,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":150,"U$ FOB Tot":5715.81,"U$ Cif Tot":6017.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":850,"U$ FOB Tot":30935.1,"U$ Cif Tot":32569.94,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":7900.13,"U$ Cif Tot":8317.62,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"EN-F ITEM 1","Pais de Origen":"CHINA","Qty 1":61,"U$ FOB Tot":11050.1,"U$ Cif Tot":11305.98,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR SOLAR"},{"Fecha":"2025-11-28","Importador":"X","Marca":"HEN-F ITEM 2","Pais de Origen":"CHINA","Qty 1":61,"U$ FOB Tot":8914.89,"U$ Cif Tot":9121.31,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR SOLAR"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":453,"U$ FOB Tot":14042.14,"U$ Cif Tot":14773.17,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":198,"U$ FOB Tot":6731.67,"U$ Cif Tot":7082.12,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":6560.65,"U$ Cif Tot":6902.14,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":6108.61,"U$ Cif Tot":6426.57,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-20","Importador":"X","Marca":"Y.C.F.","Pais de Origen":"CHINA","Qty 1":80,"U$ FOB Tot":5280.52,"U$ Cif Tot":5751.26,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-12-29","Importador":"ANWO S.A.","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":300,"U$ FOB Tot":16099.16,"U$ Cif Tot":18180.09,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-12-12","Importador":"X","Marca":"YIWU","Pais de Origen":"CHINA","Qty 1":15,"U$ FOB Tot":456.14,"U$ Cif Tot":517.93,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-12-10","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":399,"U$ FOB Tot":12718.12,"U$ Cif Tot":13463.28,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-12-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":5499.54,"U$ Cif Tot":5864.9,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2026-01-20","Importador":"X","Marca":"H.W.E.C.","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":4510.45,"U$ Cif Tot":4882.52,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-01-20","Importador":"X","Marca":"H.W.E.C.","Pais de Origen":"CHINA","Qty 1":44,"U$ FOB Tot":1143.11,"U$ Cif Tot":1237.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-01-29","Importador":"X","Marca":"SHENGZHOU","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":5482.34,"U$ Cif Tot":6277.39,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2026-02-06","Importador":"X","Marca":"KBS","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":4144.41,"U$ Cif Tot":4520.5,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES"},{"Fecha":"2026-02-25","Importador":"SANITARIOS DE CHILE S.A.","Marca":"NINGBO","Pais de Origen":"CHINA","Qty 1":1008,"U$ FOB Tot":24407.2,"U$ Cif Tot":24431.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES C/ SENSOR"},{"Fecha":"2026-04-21","Importador":"X","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":745,"U$ FOB Tot":40695.4,"U$ Cif Tot":43070.21,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":13037.9,"U$ Cif Tot":13436.66,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":13037.9,"U$ Cif Tot":13436.66,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":12393.12,"U$ Cif Tot":12772.19,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":12393.12,"U$ Cif Tot":12772.19,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":208,"U$ FOB Tot":7755.67,"U$ Cif Tot":7992.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-15","Importador":"X","Marca":"RUCK","Pais de Origen":"ALEMANIA","Qty 1":20,"U$ FOB Tot":2000.57,"U$ Cif Tot":2092.35,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"}];
+
+const COLORS = ['#3a86c8','#00d4ff','#f0a500','#2ec98e','#e05555','#a855f7','#f97316','#64748b'];
+
+function fmt(n) {
+  if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K';
+  return '$'+n.toFixed(0);
+}
+function fmtN(n) { return n.toLocaleString('es-CL'); }
+
+// Populate filters
+const importadores = [...new Set(RAW.map(d=>d.Importador))].sort();
+const paises = [...new Set(RAW.map(d=>d['Pais de Origen']))].sort();
+const aduanas = [...new Set(RAW.map(d=>d.Aduana))].sort();
+
+const fImp = document.getElementById('fImportador');
+const fPais = document.getElementById('fPais');
+const fAduana = document.getElementById('fAduana');
+
+importadores.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fImp.appendChild(o); });
+paises.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fPais.appendChild(o); });
+aduanas.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fAduana.appendChild(o); });
+
+[fImp, fPais, document.getElementById('fVia'), fAduana].forEach(el => el.addEventListener('change', render));
+
+function getFiltered() {
+  const imp = fImp.value, pais = fPais.value, via = document.getElementById('fVia').value, aduana = fAduana.value;
+  return RAW.filter(d =>
+    (!imp || d.Importador === imp) &&
+    (!pais || d['Pais de Origen'] === pais) &&
+    (!via || d.Via === via) &&
+    (!aduana || d.Aduana === aduana)
+  );
+}
+
+function resetFilters() {
+  fImp.value=''; fPais.value=''; document.getElementById('fVia').value=''; fAduana.value='';
+  render();
+}
+
+function groupBy(data, key, val) {
+  const m = {};
+  data.forEach(d => { const k=d[key]; if(!m[k]) m[k]={label:k,fob:0,qty:0,cif:0}; m[k].fob+=d['U$ FOB Tot']; m[k].qty+=d['Qty 1']; m[k].cif+=d['U$ Cif Tot']; });
+  return Object.values(m).sort((a,b)=>b.fob-a.fob);
+}
+
+function renderBars(containerId, data, maxItems=8) {
+  const el = document.getElementById(containerId);
+  const items = data.slice(0, maxItems);
+  const maxVal = Math.max(...items.map(d=>d.fob));
+  el.innerHTML = items.map((d,i) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${d.label}">${d.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(d.fob/maxVal*100).toFixed(1)}%;background:${COLORS[i%COLORS.length]}"></div>
+      </div>
+      <div class="bar-val">${fmt(d.fob)}</div>
     </div>
+  `).join('');
+}
 
-    <!-- KPIS -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-green-500">
-            <div class="bg-green-50 p-3 rounded-full text-green-600">
-                <i data-lucide="dollar-sign" width="24" height="24"></i>
-            </div>
-            <div>
-                <p class="text-sm text-slate-500 font-medium">Total FOB (USD)</p>
-                <h3 id="kpi-fob" class="text-2xl font-bold text-slate-800">$0</h3>
-            </div>
-        </div>
-        
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-emerald-500">
-            <div class="bg-emerald-50 p-3 rounded-full text-emerald-600">
-                <i data-lucide="dollar-sign" width="24" height="24"></i>
-            </div>
-            <div>
-                <p class="text-sm text-slate-500 font-medium">FOB Unitario Prom.</p>
-                <h3 id="kpi-avg" class="text-2xl font-bold text-slate-800">$0</h3>
-            </div>
-        </div>
+// Line chart (canvas)
+let lineChartCtx = null;
 
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-amber-500">
-            <div class="bg-amber-50 p-3 rounded-full text-amber-600">
-                <i data-lucide="package" width="24" height="24"></i>
-            </div>
-            <div>
-                <p class="text-sm text-slate-500 font-medium">Volumen (Unidades)</p>
-                <h3 id="kpi-qty" class="text-2xl font-bold text-slate-800">0</h3>
-            </div>
-        </div>
+function renderLine(data) {
+  const monthly = {};
+  data.forEach(d => {
+    const m = d.Fecha.slice(0,7);
+    if(!monthly[m]) monthly[m]={fob:0,qty:0};
+    monthly[m].fob += d['U$ FOB Tot'];
+    monthly[m].qty += d['Qty 1'];
+  });
 
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-purple-500">
-            <div class="bg-purple-50 p-3 rounded-full text-purple-600">
-                <i data-lucide="activity" width="24" height="24"></i>
-            </div>
-            <div>
-                <p class="text-sm text-slate-500 font-medium">Registros (Despachos)</p>
-                <h3 id="kpi-count" class="text-2xl font-bold text-slate-800">0</h3>
-            </div>
-        </div>
+  const labels = Object.keys(monthly).sort();
+  const values = labels.map(l => monthly[l].fob);
+
+  const canvas = document.getElementById('lineChart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth;
+  const H = 170;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 20, right: 20, bottom: 40, left: 65 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+  const maxV = Math.max(...values) * 1.1;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid lines
+  for(let i=0; i<=4; i++) {
+    const y = pad.top + ch - (i/4)*ch;
+    ctx.strokeStyle = 'rgba(42,64,96,0.8)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#7a98b8';
+    ctx.font = '10px Segoe UI';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(maxV*i/4), pad.left-6, y+4);
+  }
+
+  // X labels
+  labels.forEach((l, i) => {
+    const x = pad.left + (i / (labels.length-1)) * cw;
+    ctx.fillStyle = '#7a98b8';
+    ctx.font = '9px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(l.slice(2), x, H - pad.bottom + 14);
+  });
+
+  // Area fill
+  const pts = labels.map((l,i) => ({
+    x: pad.left + (i/(labels.length-1))*cw,
+    y: pad.top + ch - (values[i]/maxV)*ch
+  }));
+
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top+ch);
+  grad.addColorStop(0, 'rgba(58,134,200,0.4)');
+  grad.addColorStop(1, 'rgba(58,134,200,0)');
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pad.top+ch);
+  pts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(pts[pts.length-1].x, pad.top+ch);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#3a86c8';
+  ctx.lineWidth = 2.5;
+  pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+
+  // Dots + tooltip on hover
+  pts.forEach((p,i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#3a86c8';
+    ctx.fill();
+    ctx.strokeStyle = '#0d1b2a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  // Highlight max
+  const maxI = values.indexOf(Math.max(...values));
+  ctx.beginPath();
+  ctx.arc(pts[maxI].x, pts[maxI].y, 6, 0, Math.PI*2);
+  ctx.fillStyle = '#f0a500';
+  ctx.fill();
+  ctx.fillStyle = '#f0f4f8';
+  ctx.font = 'bold 10px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(fmt(values[maxI]), pts[maxI].x, pts[maxI].y - 12);
+}
+
+function renderDonut(data) {
+  const byVia = {};
+  data.forEach(d => { if(!byVia[d.Via]) byVia[d.Via]={fob:0,qty:0}; byVia[d.Via].fob+=d['U$ FOB Tot']; byVia[d.Via].qty+=d['Qty 1']; });
+  const items = Object.entries(byVia).map(([k,v])=>({label:k,...v})).sort((a,b)=>b.fob-a.fob);
+  const total = items.reduce((s,d)=>s+d.fob, 0);
+
+  const canvas = document.getElementById('donutVia');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 160*dpr; canvas.height = 160*dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0,0,160,160);
+
+  let startAngle = -Math.PI/2;
+  const colors = ['#3a86c8','#f0a500','#2ec98e','#e05555'];
+  items.forEach((item, i) => {
+    const slice = (item.fob/total) * Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(80,80);
+    ctx.arc(80,80,70,startAngle,startAngle+slice);
+    ctx.closePath();
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+    startAngle += slice;
+  });
+  // Hole
+  ctx.beginPath();
+  ctx.arc(80,80,44,0,Math.PI*2);
+  ctx.fillStyle = '#1b2d45';
+  ctx.fill();
+  ctx.fillStyle = '#f0f4f8';
+  ctx.font = 'bold 13px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(fmt(total), 80, 77);
+  ctx.font = '10px Segoe UI';
+  ctx.fillStyle = '#7a98b8';
+  ctx.fillText('FOB Total', 80, 91);
+
+  const legend = document.getElementById('donutLegend');
+  legend.innerHTML = items.map((item,i) => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${colors[i]}"></div>
+      <div>
+        <div style="font-weight:600">${item.label}</div>
+        <div style="color:var(--muted);font-size:0.72rem">${fmt(item.fob)} · ${fmtN(item.qty)} uds</div>
+      </div>
     </div>
+  `).join('');
+}
 
-    <!-- GRÁFICOS -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        
-        <!-- Gráfico Barras - Importadores -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
-                <i data-lucide="bar-chart-3" width="20" height="20" class="text-green-500"></i> Top 5 Importadores (por FOB)
-            </div>
-            <div class="h-72 w-full relative">
-                <canvas id="chartImportadores"></canvas>
-            </div>
-        </div>
+function renderTable(data) {
+  const sorted = [...data].sort((a,b)=>b['U$ FOB Tot']-a['U$ FOB Tot']);
+  document.getElementById('tablaBody').innerHTML = sorted.map(d => `
+    <tr>
+      <td>${d.Fecha}</td>
+      <td>${d.Importador}</td>
+      <td>${d.Marca}</td>
+      <td>${d['Pais de Origen']}</td>
+      <td style="text-align:right">${fmtN(d['Qty 1'])}</td>
+      <td style="text-align:right;color:var(--sky)">${fmt(d['U$ FOB Tot'])}</td>
+      <td style="text-align:right;color:var(--muted)">${fmt(d['U$ Cif Tot'])}</td>
+      <td><span class="tag ${d.Via==='MARÍTIMO'?'tag-sea':'tag-air'}">${d.Via}</span></td>
+      <td>${d.Aduana}</td>
+    </tr>
+  `).join('');
+}
 
-        <!-- Gráfico Pie - Marcas -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
-                <i data-lucide="package" width="20" height="20" class="text-amber-500"></i> Top Marcas (por Cantidad)
-            </div>
-            <div class="h-72 w-full relative">
-                <canvas id="chartMarcas"></canvas>
-            </div>
-        </div>
+function render() {
+  const data = getFiltered();
+  const totalFob = data.reduce((s,d)=>s+d['U$ FOB Tot'],0);
+  const totalCif = data.reduce((s,d)=>s+d['U$ Cif Tot'],0);
+  const totalQty = data.reduce((s,d)=>s+d['Qty 1'],0);
+  const avgUnit = totalQty > 0 ? totalFob/totalQty : 0;
 
-        <!-- Gráfico Barras - Costo Promedio por Marca -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
-                <i data-lucide="dollar-sign" width="20" height="20" class="text-emerald-500"></i> Costo Promedio (U$ FOB Unid1) por Marca
-            </div>
-            <div class="h-72 w-full relative">
-                <canvas id="chartPromedio"></canvas>
-            </div>
-        </div>
+  document.getElementById('kFob').textContent = fmt(totalFob);
+  document.getElementById('kFobSub').textContent = `${data.length} operaciones`;
+  document.getElementById('kCif').textContent = fmt(totalCif);
+  document.getElementById('kCifSub').textContent = `${((totalCif-totalFob)/totalFob*100).toFixed(1)}% sobre FOB`;
+  document.getElementById('kQty').textContent = fmtN(totalQty);
+  document.getElementById('kQtySub').textContent = 'ventiladores importados';
+  document.getElementById('kAvg').textContent = '$'+avgUnit.toFixed(1);
+  document.getElementById('kAvgSub').textContent = 'USD por unidad';
 
-        <!-- Gráfico Líneas - Tendencia Mensual -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <div class="flex items-center gap-2 mb-6 text-slate-800 font-semibold">
-                <i data-lucide="activity" width="20" height="20" class="text-purple-500"></i> Tendencia de Importaciones (FOB)
-            </div>
-            <div class="h-72 w-full relative">
-                <canvas id="chartTendencia"></canvas>
-            </div>
-        </div>
-    </div>
+  renderLine(data);
+  renderBars('barImportador', groupBy(data, 'Importador'));
+  renderBars('barPais', groupBy(data, 'Pais de Origen'));
+  renderBars('barMarca', groupBy(data, 'Marca'), 10);
+  renderDonut(data);
+  renderTable(data);
+}
 
-    <!-- TABLA DE DATOS -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-slate-800 font-semibold">
-                <i data-lucide="file-text" width="20" height="20" class="text-slate-500"></i> Vista Previa de Datos Registrados
-            </div>
-            <span id="table-count" class="text-sm text-slate-500">Mostrando 0 registros</span>
-        </div>
-        <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
-            <table class="w-full text-sm text-left text-slate-500 relative">
-                <thead class="text-xs text-slate-700 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                        <th class="px-6 py-3">Mes</th>
-                        <th class="px-6 py-3">Importador</th>
-                        <th class="px-6 py-3">Marca</th>
-                        <th class="px-6 py-3">Origen</th>
-                        <th class="px-6 py-3 text-right">Cantidad</th>
-                        <th class="px-6 py-3 text-right">FOB Fila</th>
-                        <th class="px-6 py-3 text-right">Promedio Marca</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body">
-                    <!-- Filas insertadas con JS -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
-        // Inicializar iconos de Lucide
-        lucide.createIcons();
-
-        // Datos Globales
-        let globalData = [];
-        let filteredData = [];
-        let chartInstances = {};
-        let marcasAvgMapGlobal = {};
-
-        // Filtros
-        let currentFilters = { importador: 'Todos', marca: 'Todas', pais: 'Todos' };
-
-        // Colores para Gráficos
-        const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
-
-        // Datos de Demostración Iniciales
-        const defaultCSV = `Partida Aduanera;Descripcion de la Partida Aduanera;Aduana;Reg. Aduana;Fecha;Importador;Marca;Qty 1;Und 2;U$ FOB Tot;U$ Flete Tot;U$ CFR Tot;Seguro Tot;U$ Cif Tot;U$ FOB Und 1;U$ CFR Und 2;U$ CIF Und 2;Pais de Origen;Pais de Embarque;Via;Transporte;Incoterms;Descripcion Comercial;Producto
-84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;SAN ANTONIO;22115391;19-01-25;COMERCIAL OMON LIMITADA;YIWU;4,00;PIEZAS;103,24;34,89;138,13;2,06;140,19;25,810;34,533;35,048;CHINA;CHINA;MARÍTIMO;EVERGREEN;FOB;VENTILADORES YIWU ELECTRICOS;VENTILADORES
-84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;SAN ANTONIO;26339726;10-04-25;VESTAS CHILE SPA;VESTAS;25,00;PIEZAS;973,74;23,78;997,52;4,23;1001,75;38,949;0,000;0,000;DINAMARCA;DINAMARCA;MARÍTIMO;MAERSK LINE;CYS;VENTILADORES VESTAS 55M3/H;VENTILADORES
-84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;SAN ANTONIO;26371545;15-04-25;RUCK VENTILATOREN GMBH;RUCK;50,00;PIEZAS;4017,14;178,29;4195,43;6,02;4201,45;80,342;0,000;0,000;ALEMANIA;ALEMANIA;MARÍTIMO;HAPAG LLOYD;EXW;VENTILADORES RUCK;VENTILADORES
-84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;VALPARAISO;26371588;20-05-25;COMERCIAL OMON LIMITADA;YIWU;120,00;PIEZAS;3100,50;200,00;3300,50;15,00;3315,50;25,83;0,000;0,000;CHINA;CHINA;MARÍTIMO;MSC;FOB;VENTILADORES YIWU INDUSTRIAL;VENTILADORES
-84145100;VENTILADORES DE MESA, PIE, PARED, CIELO RASO;IQUIQUE;26371900;05-06-25;IMPORTADORA DEL NORTE;LG;200,00;PIEZAS;8500,00;450,00;8950,00;50,00;9000,00;42,50;0,000;0,000;COREA DEL SUR;COREA DEL SUR;MARÍTIMO;COSCO;CIF;VENTILADORES LG;VENTILADORES`;
-
-        // Utilidades de Formato
-        const parseNumber = (val) => {
-            if (val === null || val === undefined) return 0;
-            if (typeof val === 'number') return val;
-            let cleanVal = String(val).replace(/\./g, '').replace(',', '.');
-            let num = parseFloat(cleanVal);
-            return isNaN(num) ? 0 : num;
-        };
-
-        const formatCurrency = (value) => {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
-        };
-        
-        const formatNumber = (value) => {
-            return new Intl.NumberFormat('es-CL').format(value);
-        };
-
-        const groupBy = (array, key, valueKey) => {
-            return array.reduce((acc, item) => {
-                const group = item[key] || 'Desconocido';
-                const val = item[valueKey] || 0;
-                acc[group] = (acc[group] || 0) + val;
-                return acc;
-            }, {});
-        };
-
-        // UI Modals & Loading
-        function toggleLoading(show) {
-            const overlay = document.getElementById('loading-overlay');
-            if (show) {
-                overlay.classList.remove('hidden');
-                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
-            } else {
-                overlay.classList.add('opacity-0');
-                setTimeout(() => overlay.classList.add('hidden'), 300);
-            }
-        }
-
-        function showErrorModal(message) {
-            document.getElementById('error-message').textContent = message;
-            const modal = document.getElementById('error-modal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modal.querySelector('div').classList.remove('scale-95');
-            }, 10);
-        }
-
-        function closeErrorModal() {
-            const modal = document.getElementById('error-modal');
-            modal.classList.add('opacity-0');
-            modal.querySelector('div').classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }, 300);
-        }
-
-        // Procesamiento de Datos Generales (usado para CSV manual o Excel sheet_to_json)
-        function normalizeRow(row) {
-            // Asegurar conversiones numéricas de los campos que vengan
-            row['Qty_Num'] = parseNumber(row['Qty 1']);
-            row['FOB_Unit_Num'] = parseNumber(row['U$ FOB Und 1']);
-            row['FOB_Num'] = parseNumber(row['U$ FOB Tot']);
-            
-            // Formatear Fecha
-            let dateStr = row['Fecha'] ? String(row['Fecha']) : '';
-            if (dateStr) {
-                // Manejar si Excel parseó la fecha como número o como texto YYYY/MM/DD
-                const parts = dateStr.includes('-') ? dateStr.split('-') : dateStr.split('/');
-                if (parts.length === 3) {
-                    // Tratar de asumir DD-MM-YY o YYYY-MM-DD
-                    let year, month;
-                    if (parts[2].length === 2 || parts[2].length === 4) { // Formato DD-MM-YYYY o DD-MM-YY
-                        year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
-                        month = parts[1];
-                    } else if (parts[0].length === 4) { // Formato YYYY-MM-DD
-                        year = parts[0];
-                        month = parts[1];
-                    }
-                    
-                    row['Mes_Anio'] = `${year}-${month}`; 
-                    
-                    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-                    const mesIndex = parseInt(month, 10) - 1;
-                    row['Mes_Tabla'] = !isNaN(mesIndex) && mesIndex >= 0 && mesIndex < 12 ? meses[mesIndex] : month;
-                } else {
-                    row['Mes_Anio'] = 'Desconocido';
-                    row['Mes_Tabla'] = '-';
-                }
-            } else {
-                row['Mes_Anio'] = 'Desconocido';
-                row['Mes_Tabla'] = '-';
-            }
-            return row;
-        }
-
-        function processCSV(csvText) {
-            const lines = csvText.split('\n').filter(line => line.trim() !== '');
-            if (lines.length < 2) return [];
-
-            const headers = lines[0].split(';').map(h => h.trim());
-            const parsedData = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(';'); 
-                if (values.length >= 20) {
-                    let row = {};
-                    headers.forEach((header, index) => {
-                        if (index < values.length) {
-                            row[header] = values[index] ? values[index].trim() : '';
-                        }
-                    });
-                    parsedData.push(normalizeRow(row));
-                }
-            }
-            return parsedData;
-        }
-
-        // Manejador de Archivos
-        document.getElementById('file-upload').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            toggleLoading(true);
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                try {
-                    const data = e.target.result;
-                    const name = file.name.toLowerCase();
-                    let newData = [];
-
-                    if (name.endsWith('.csv')) {
-                        // Leer texto directo usando el decoder para que soporte ISO-8859-1 (Tildes en LATAM)
-                        const decoder = new TextDecoder('iso-8859-1');
-                        const text = decoder.decode(data);
-                        // Intentar parseo nativo separado por punto y coma (;)
-                        newData = processCSV(text);
-                        
-                        // Fallback si el CSV usa comas (,) usando SheetJS
-                        if(newData.length === 0) {
-                             const workbook = XLSX.read(data, {type: 'array'});
-                             const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval: ""});
-                             newData = json.map(normalizeRow);
-                        }
-                    } else {
-                        // Leer como Excel (.xlsx, .xls)
-                        const workbook = XLSX.read(data, {type: 'array'});
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const json = XLSX.utils.sheet_to_json(firstSheet, {defval: "", raw: false});
-                        
-                        // Normalizar keys por si vienen con espacios extra y normalizar fila
-                        newData = json.map(row => {
-                            let cleanRow = {};
-                            Object.keys(row).forEach(key => cleanRow[key.trim()] = row[key]);
-                            return normalizeRow(cleanRow);
-                        });
-                    }
-
-                    if (newData.length === 0) throw new Error("El archivo no contiene filas válidas o el formato no es reconocido.");
-
-                    globalData = newData;
-                    
-                    // Resetear selectores de UI y datos
-                    document.getElementById('filter-importador').value = 'Todos';
-                    document.getElementById('filter-marca').value = 'Todas';
-                    document.getElementById('filter-pais').value = 'Todos';
-                    
-                    extractFilterOptions();
-                    applyFilters();
-
-                } catch (err) {
-                    console.error("Error al procesar:", err);
-                    showErrorModal(err.message || "No se pudo leer el archivo. Verifica que tenga las columnas requeridas (Importador, Qty 1, U$ FOB Tot, etc).");
-                } finally {
-                    toggleLoading(false);
-                    event.target.value = ''; // Reset input
-                }
-            };
-
-            reader.onerror = function() {
-                toggleLoading(false);
-                showErrorModal("Ocurrió un error al cargar el archivo local.");
-            };
-
-            reader.readAsArrayBuffer(file);
-        });
-
-        // Configuración de Filtros
-        function extractFilterOptions() {
-            const imp = [...new Set(globalData.map(item => item['Importador']).filter(Boolean))].sort();
-            const mar = [...new Set(globalData.map(item => item['Marca']).filter(Boolean))].sort();
-            const pai = [...new Set(globalData.map(item => item['Pais de Origen']).filter(Boolean))].sort();
-            
-            populateSelect('filter-importador', imp, 'Todos los Importadores', 'Todos');
-            populateSelect('filter-marca', mar, 'Todas las Marcas', 'Todas');
-            populateSelect('filter-pais', pai, 'Todos los Países', 'Todos');
-        }
-
-        function populateSelect(elementId, options, defaultLabel, defaultValue) {
-            const select = document.getElementById(elementId);
-            select.innerHTML = `<option value="${defaultValue}">${defaultLabel}</option>`;
-            options.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt;
-                option.textContent = opt;
-                select.appendChild(option);
-            });
-        }
-
-        ['filter-importador', 'filter-marca', 'filter-pais'].forEach(id => {
-            document.getElementById(id).addEventListener('change', function() {
-                currentFilters[id.replace('filter-', '')] = this.value;
-                applyFilters();
-            });
-        });
-
-        function applyFilters() {
-            let result = [...globalData];
-            
-            if (currentFilters.importador !== 'Todos') {
-                result = result.filter(item => item['Importador'] === currentFilters.importador);
-            }
-            if (currentFilters.marca !== 'Todas') {
-                result = result.filter(item => item['Marca'] === currentFilters.marca);
-            }
-            if (currentFilters.pais !== 'Todos') {
-                result = result.filter(item => item['Pais de Origen'] === currentFilters.pais);
-            }
-            
-            // Ordenar de mayor a menor cantidad
-            result.sort((a, b) => (b.Qty_Num || 0) - (a.Qty_Num || 0));
-            filteredData = result;
-            
-            updateDashboard();
-        }
-
-        // Actualizar Dashboard (KPIs, Charts, Table)
-        function updateDashboard() {
-            calculateKPIs();
-            renderCharts();
-            renderTable();
-        }
-
-        function calculateKPIs() {
-            let totalFOB = 0, totalQty = 0;
-
-            filteredData.forEach(item => {
-                totalFOB += item.FOB_Num || 0;
-                totalQty += item.Qty_Num || 0;
-            });
-
-            const count = filteredData.length;
-            const avgFob = totalQty > 0 ? totalFOB / totalQty : 0;
-
-            document.getElementById('kpi-fob').textContent = formatCurrency(totalFOB);
-            document.getElementById('kpi-avg').textContent = formatCurrency(avgFob);
-            document.getElementById('kpi-qty').textContent = formatNumber(totalQty);
-            document.getElementById('kpi-count').textContent = formatNumber(count);
-        }
-
-        function renderCharts() {
-            // Helpers
-            Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-            
-            const destroyChart = (id) => {
-                if (chartInstances[id]) chartInstances[id].destroy();
-            };
-
-            // 1. Top Importadores
-            const impFOB = groupBy(filteredData, 'Importador', 'FOB_Num');
-            const topImportadores = Object.keys(impFOB)
-                .map(key => ({ name: key.substring(0, 20) + (key.length>20?'...':''), val: impFOB[key] }))
-                .sort((a, b) => b.val - a.val)
-                .slice(0, 5);
-
-            destroyChart('chartImportadores');
-            chartInstances['chartImportadores'] = new Chart(document.getElementById('chartImportadores'), {
-                type: 'bar',
-                data: {
-                    labels: topImportadores.map(d => d.name),
-                    datasets: [{
-                        label: 'FOB (USD)',
-                        data: topImportadores.map(d => d.val),
-                        backgroundColor: '#10b981',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => formatCurrency(ctx.raw) } } },
-                    scales: {
-                        x: { ticks: { callback: (val) => `$${val/1000}k` }, grid: { borderDash: [3, 3] } },
-                        y: { grid: { display: false } }
-                    }
-                }
-            });
-
-            // 2. Top Marcas
-            const marcaQty = groupBy(filteredData, 'Marca', 'Qty_Num');
-            const topMarcas = Object.keys(marcaQty)
-                .map(key => ({ name: key, val: marcaQty[key] }))
-                .sort((a, b) => b.val - a.val)
-                .slice(0, 5);
-
-            destroyChart('chartMarcas');
-            chartInstances['chartMarcas'] = new Chart(document.getElementById('chartMarcas'), {
-                type: 'doughnut',
-                data: {
-                    labels: topMarcas.map(d => d.name),
-                    datasets: [{
-                        data: topMarcas.map(d => d.val),
-                        backgroundColor: COLORS,
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: {
-                        legend: { position: 'right' },
-                        tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${formatNumber(ctx.raw)} uds` } }
-                    }
-                }
-            });
-
-            // 3. Costo Promedio
-            const marcasStats = {};
-            filteredData.forEach(item => {
-                const m = item['Marca'] || 'Desconocido';
-                if (!marcasStats[m]) marcasStats[m] = { fob: 0, qty: 0 };
-                marcasStats[m].fob += item.FOB_Num || 0;
-                marcasStats[m].qty += item.Qty_Num || 0;
-            });
-            
-            marcasAvgMapGlobal = {};
-            const avgMarcasData = Object.keys(marcasStats).map(key => {
-                const prom = marcasStats[key].qty > 0 ? marcasStats[key].fob / marcasStats[key].qty : 0;
-                marcasAvgMapGlobal[key] = prom;
-                return { name: key, val: prom };
-            }).sort((a, b) => b.val - a.val).slice(0, 10);
-
-            destroyChart('chartPromedio');
-            chartInstances['chartPromedio'] = new Chart(document.getElementById('chartPromedio'), {
-                type: 'bar',
-                data: {
-                    labels: avgMarcasData.map(d => d.name),
-                    datasets: [{
-                        label: 'Promedio FOB',
-                        data: avgMarcasData.map(d => d.val),
-                        backgroundColor: '#10b981',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => formatCurrency(ctx.raw) } } },
-                    scales: {
-                        y: { ticks: { callback: (val) => `$${val}` }, grid: { borderDash: [3, 3] } },
-                        x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45 } }
-                    }
-                }
-            });
-
-            // 4. Tendencia Mensual
-            const mensualFOB = groupBy(filteredData, 'Mes_Anio', 'FOB_Num');
-            const tendencia = Object.keys(mensualFOB).sort().map(key => ({ mes: key, val: mensualFOB[key] }));
-
-            destroyChart('chartTendencia');
-            chartInstances['chartTendencia'] = new Chart(document.getElementById('chartTendencia'), {
-                type: 'line',
-                data: {
-                    labels: tendencia.map(d => d.mes),
-                    datasets: [{
-                        label: 'FOB USD',
-                        data: tendencia.map(d => d.val),
-                        borderColor: '#10b981',
-                        backgroundColor: '#10b981',
-                        tension: 0.3,
-                        borderWidth: 3,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#fff',
-                        pointBorderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { tooltip: { callbacks: { label: (ctx) => formatCurrency(ctx.raw) } } },
-                    scales: {
-                        y: { ticks: { callback: (val) => `$${val/1000}k` }, grid: { borderDash: [3, 3] } },
-                        x: { grid: { display: false } }
-                    }
-                }
-            });
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('table-body');
-            document.getElementById('table-count').textContent = `Mostrando ${filteredData.length} registros`;
-            tbody.innerHTML = '';
-
-            if (filteredData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">No se encontraron registros que coincidan con los filtros.</td></tr>`;
-                return;
-            }
-
-            // Para no sobrecargar el DOM si hay demasiados, mostramos máximo 200 filas en vista previa
-            const dataToRender = filteredData.slice(0, 200);
-
-            let html = '';
-            dataToRender.forEach((row) => {
-                const mes = row['Mes_Tabla'] || row['Fecha'];
-                const imp = row['Importador'] || '-';
-                const marca = row['Marca'] || '-';
-                const origen = row['Pais de Origen'] || '-';
-                const qty = formatNumber(row['Qty_Num']);
-                const fobFila = formatCurrency(row['FOB_Unit_Num']);
-                const avgMarca = formatCurrency(marcasAvgMapGlobal[row['Marca']] || 0);
-
-                html += `
-                    <tr class="bg-white border-b hover:bg-slate-50 transition-colors">
-                        <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${mes}</td>
-                        <td class="px-6 py-4 truncate max-w-[200px]" title="${imp}">${imp}</td>
-                        <td class="px-6 py-4">${marca}</td>
-                        <td class="px-6 py-4">${origen}</td>
-                        <td class="px-6 py-4 text-right font-medium">${qty}</td>
-                        <td class="px-6 py-4 text-right font-medium text-slate-600">${fobFila}</td>
-                        <td class="px-6 py-4 text-right font-medium text-emerald-600">${avgMarca}</td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-        }
-
-        // Inicialización
-        window.addEventListener('DOMContentLoaded', () => {
-            // Cargar datos por defecto
-            globalData = processCSV(defaultCSV);
-            extractFilterOptions();
-            applyFilters();
-            toggleLoading(false);
-        });
-
-    </script>
+render();
+window.addEventListener('resize', render);
+</script>
 </body>
 </html>
