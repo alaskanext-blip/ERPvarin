@@ -4,19 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Importaciones Ventiladores — Chile 2025</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --navy: #0d1b2a;
-    --slate: #1b2d45;
-    --steel: #2a4060;
-    --sky: #3a86c8;
-    --cyan: #00d4ff;
-    --gold: #f0a500;
-    --sand: #e8d9b5;
-    --white: #f0f4f8;
-    --muted: #7a98b8;
-    --red: #e05555;
-    --green: #2ec98e;
+    --navy: #f8fafc;
+    --slate: #ffffff;
+    --steel: #e2e8f0;
+    --sky: #3b82f6;
+    --cyan: #06b6d4;
+    --gold: #f59e0b;
+    --sand: #fef3c7;
+    --white: #1e293b;
+    --muted: #64748b;
+    --red: #ef4444;
+    --green: #10b981;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -225,7 +226,7 @@
     position: sticky; top: 0; z-index: 2;
   }
   td { padding: 7px 10px; border-bottom: 1px solid var(--steel); color: var(--white); }
-  tr:hover td { background: var(--steel); }
+  tbody tr:hover td { background: var(--steel); }
 
   .tag {
     display: inline-block;
@@ -270,9 +271,13 @@
     <p>Análisis interactivo de operaciones aduaneras · Ene 2025 – Abr 2026</p>
   </div>
   <div class="header-right">
-    <span class="pill">97 registros</span>
-    <span class="pill">8 países</span>
-    <span class="pill">8 importadores</span>
+    <label for="file-upload" class="pill" style="cursor: pointer; background: var(--sky); color: var(--navy); display: inline-flex; align-items: center; gap: 5px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg> Subir Excel/CSV
+    </label>
+    <input id="file-upload" type="file" accept=".csv, .xlsx, .xls" style="display: none;" />
+    <span class="pill" id="pill-registros">0 registros</span>
+    <span class="pill" id="pill-paises">0 países</span>
+    <span class="pill" id="pill-imps">0 importadores</span>
   </div>
 </header>
 
@@ -299,39 +304,38 @@
 <div class="kpis">
   <div class="kpi">
     <div class="kpi-label">FOB Total (USD)</div>
-    <div class="kpi-value" id="kFob">$965K</div>
-    <div class="kpi-sub" id="kFobSub">97 operaciones</div>
+    <div class="kpi-value" id="kFob">$0</div>
+    <div class="kpi-sub" id="kFobSub">0 operaciones</div>
   </div>
   <div class="kpi gold">
     <div class="kpi-label">CIF Total (USD)</div>
-    <div class="kpi-value" id="kCif">$1.02M</div>
-    <div class="kpi-sub" id="kCifSub">incl. flete y seguro</div>
+    <div class="kpi-value" id="kCif">$0</div>
+    <div class="kpi-sub" id="kCifSub">0% sobre FOB</div>
   </div>
   <div class="kpi cyan">
     <div class="kpi-label">Unidades importadas</div>
-    <div class="kpi-value" id="kQty">20,653</div>
+    <div class="kpi-value" id="kQty">0</div>
     <div class="kpi-sub" id="kQtySub">ventiladores</div>
   </div>
   <div class="kpi green">
     <div class="kpi-label">FOB promedio / unidad</div>
-    <div class="kpi-value" id="kAvg">$46.7</div>
+    <div class="kpi-value" id="kAvg">$0</div>
     <div class="kpi-sub" id="kAvgSub">USD por unidad</div>
   </div>
 </div>
 
 <div class="grid">
-
-  <!-- Monthly line chart -->
+  <!-- Monthly line chart Qty -->
   <div class="card full">
-    <h3>Evolución Mensual — FOB Total (USD)</h3>
+    <h3>Evolución Mensual — Unidades Importadas</h3>
     <div style="overflow-x:auto;">
-      <canvas id="lineChart" height="170"></canvas>
+      <canvas id="lineChartQty" height="170"></canvas>
     </div>
   </div>
 
   <!-- Importadores bar -->
   <div class="card">
-    <h3>FOB por Importador</h3>
+    <h3>Unidades por Importador</h3>
     <div id="barImportador"></div>
   </div>
 
@@ -342,18 +346,9 @@
   </div>
 
   <!-- Marcas bar -->
-  <div class="card">
-    <h3>Top Marcas — FOB USD</h3>
-    <div id="barMarca"></div>
-  </div>
-
-  <!-- Vía donut -->
-  <div class="card">
-    <h3>Distribución por Vía de Transporte</h3>
-    <div class="donut-wrap">
-      <canvas id="donutVia" width="160" height="160" style="width:160px;height:160px;flex-shrink:0;"></canvas>
-      <div class="donut-legend" id="donutLegend"></div>
-    </div>
+  <div class="card full">
+    <h3>Todas las Marcas — Ordenadas por Unidades</h3>
+    <div id="barMarca" style="max-height: 300px; overflow-y: auto; padding-right: 10px;"></div>
   </div>
 
   <!-- Tabla detalle -->
@@ -363,7 +358,7 @@
       <table id="tabla">
         <thead>
           <tr>
-            <th>Fecha</th>
+            <th>Mes</th>
             <th>Importador</th>
             <th>Marca</th>
             <th>País Origen</th>
@@ -378,37 +373,116 @@
       </table>
     </div>
   </div>
-
 </div>
 
 <footer>Dashboard generado con datos de importaciones aduaneras · Chile 2025–2026</footer>
 
 <script>
-const RAW = [{"Fecha":"2025-01-29","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":16,"U$ FOB Tot":3429.24,"U$ Cif Tot":3743.3,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-01-29","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":6,"U$ FOB Tot":1247.49,"U$ Cif Tot":1361.73,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-01-28","Importador":"ANWO S.A.","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":526,"U$ FOB Tot":30503.3,"U$ Cif Tot":34168.3,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-02-19","Importador":"X","Marca":"E.T","Pais de Origen":"ESPAÑA","Qty 1":10,"U$ FOB Tot":739.88,"U$ Cif Tot":769.63,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-02-19","Importador":"X","Marca":"E.T","Pais de Origen":"ESPAÑA","Qty 1":47,"U$ FOB Tot":2886.1,"U$ Cif Tot":3002.19,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-02-28","Importador":"X","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":15197.6,"U$ Cif Tot":16084.53,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-02-28","Importador":"X","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":15929.3,"U$ Cif Tot":16858.93,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-02-28","Importador":"X","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":15709.3,"U$ Cif Tot":16626.08,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-02-17","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":614.1,"U$ Cif Tot":1562.0,"Via":"AÉREO","Aduana":"METROPOLITANA","Producto":"VENTILADOR TECHO"},{"Fecha":"2025-03-31","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":60,"U$ FOB Tot":5042.51,"U$ Cif Tot":5490.52,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-03-31","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":55,"U$ FOB Tot":5720.61,"U$ Cif Tot":6228.87,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-03-31","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":25,"U$ FOB Tot":2414.67,"U$ Cif Tot":2629.21,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-04-09","Importador":"X","Marca":"EGLO","Pais de Origen":"CHINA","Qty 1":29,"U$ FOB Tot":1887.32,"U$ Cif Tot":2019.74,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-05-22","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":234,"U$ FOB Tot":16150.7,"U$ Cif Tot":16871.82,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-05-11","Importador":"X","Marca":"SHENZHEN","Pais de Origen":"CHINA","Qty 1":51,"U$ FOB Tot":9935.99,"U$ Cif Tot":10170.44,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR SOLAR DE TECHO"},{"Fecha":"2025-05-13","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":45,"U$ FOB Tot":5129.86,"U$ Cif Tot":5654.44,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO ELECTRICO"},{"Fecha":"2025-05-13","Importador":"X","Marca":"MATTHEWS","Pais de Origen":"ESTADOS UNIDOS","Qty 1":20,"U$ FOB Tot":3358.14,"U$ Cif Tot":3701.54,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO ELECTRICO"},{"Fecha":"2025-05-30","Importador":"ANWO S.A.","Marca":"PAS ZHONGSHAN","Pais de Origen":"CHINA","Qty 1":40,"U$ FOB Tot":8128.81,"U$ Cif Tot":8577.02,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-05-02","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":50,"U$ FOB Tot":2299.5,"U$ Cif Tot":2423.12,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-05-02","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":50,"U$ FOB Tot":2299.5,"U$ Cif Tot":2423.12,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-06-13","Importador":"X","Marca":"NINGBO METALANE","Pais de Origen":"CHINA","Qty 1":4,"U$ FOB Tot":340.71,"U$ Cif Tot":365.49,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-06-16","Importador":"AIROLITE S A","Marca":"KDK","Pais de Origen":"VIETNAM","Qty 1":950,"U$ FOB Tot":20992.5,"U$ Cif Tot":22869.97,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-06-03","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"1STSHINE","Pais de Origen":"CHINA","Qty 1":258,"U$ FOB Tot":16717.1,"U$ Cif Tot":17612.95,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR TECHO"},{"Fecha":"2025-06-03","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"1STSHINE INDUSTRIAL","Pais de Origen":"CHINA","Qty 1":1,"U$ FOB Tot":41.54,"U$ Cif Tot":43.76,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-06-13","Importador":"X","Marca":"NINGBO METALANE","Pais de Origen":"CHINA","Qty 1":4,"U$ FOB Tot":340.71,"U$ Cif Tot":365.49,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-07-11","Importador":"SODIMAC S A","Marca":"CASA BONITA","Pais de Origen":"CHINA","Qty 1":300,"U$ FOB Tot":9255.92,"U$ Cif Tot":9816.46,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-07-04","Importador":"B Y M IMPORTACIONES LTDA.","Marca":"S.I.P.L.","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":1717.83,"U$ Cif Tot":1763.15,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-07-04","Importador":"B Y M IMPORTACIONES LTDA.","Marca":"S.I.P.L.","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":1968.98,"U$ Cif Tot":2020.93,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-07-04","Importador":"X","Marca":"JIANGSU","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":500.0,"U$ Cif Tot":539.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-07-08","Importador":"X","Marca":"RUCK","Pais de Origen":"ALEMANIA","Qty 1":25,"U$ FOB Tot":2195.84,"U$ Cif Tot":2286.92,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-07-08","Importador":"X","Marca":"RUCK","Pais de Origen":"ALEMANIA","Qty 1":10,"U$ FOB Tot":840.62,"U$ Cif Tot":875.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":280,"U$ FOB Tot":19510.4,"U$ Cif Tot":20981.52,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":8808.88,"U$ Cif Tot":9473.09,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":340,"U$ FOB Tot":10539.1,"U$ Cif Tot":11089.27,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"CASA BONITA","Pais de Origen":"CHINA","Qty 1":500,"U$ FOB Tot":11240.11,"U$ Cif Tot":11826.82,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"CASA BONITA","Pais de Origen":"CHINA","Qty 1":1000,"U$ FOB Tot":22479.22,"U$ Cif Tot":23652.64,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":990,"U$ FOB Tot":30689.3,"U$ Cif Tot":32291.28,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":500,"U$ FOB Tot":15499.15,"U$ Cif Tot":16308.22,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":530,"U$ FOB Tot":36580.6,"U$ Cif Tot":38490.06,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":230,"U$ FOB Tot":17622.6,"U$ Cif Tot":18542.47,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-08-20","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":40,"U$ FOB Tot":4280.6,"U$ Cif Tot":4556.99,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-08-20","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":10,"U$ FOB Tot":1152.28,"U$ Cif Tot":1226.67,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-08-20","Importador":"X","Marca":"DOSPEL","Pais de Origen":"POLONIA","Qty 1":60,"U$ FOB Tot":5285.67,"U$ Cif Tot":5626.95,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":216,"U$ FOB Tot":8899.2,"U$ Cif Tot":9570.2,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-08-22","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":70,"U$ FOB Tot":3941.39,"U$ Cif Tot":4238.54,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-09-05","Importador":"MAR DEL SUR SPA","Marca":"HEIMAT","Pais de Origen":"CHINA","Qty 1":350,"U$ FOB Tot":21000.21,"U$ Cif Tot":23781.3,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADORES"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUAN LIMITED","Pais de Origen":"CHINA","Qty 1":220,"U$ FOB Tot":18727.18,"U$ Cif Tot":20060.18,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUAN LIMITED","Pais de Origen":"CHINA","Qty 1":50,"U$ FOB Tot":4485.28,"U$ Cif Tot":4804.52,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUAN LIMITED","Pais de Origen":"CHINA","Qty 1":30,"U$ FOB Tot":3225.48,"U$ Cif Tot":3455.05,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO CON LUZ"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":40,"U$ FOB Tot":3223.66,"U$ Cif Tot":3453.1,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":10,"U$ FOB Tot":958.49,"U$ Cif Tot":1026.71,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":8,"U$ FOB Tot":780.09,"U$ Cif Tot":835.61,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":6,"U$ FOB Tot":538.23,"U$ Cif Tot":576.53,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-12","Importador":"X","Marca":"YU YUANLIMITED","Pais de Origen":"CHINA","Qty 1":4,"U$ FOB Tot":360.11,"U$ Cif Tot":385.73,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-09","Importador":"X","Marca":"TETRA-C","Pais de Origen":"COREA DEL SUR","Qty 1":9,"U$ FOB Tot":668.79,"U$ Cif Tot":766.39,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-09-24","Importador":"ANWO S.A.","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":1062,"U$ FOB Tot":57599.57,"U$ Cif Tot":60398.02,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-09-01","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":9197.91,"U$ Cif Tot":9885.35,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-09","Importador":"X","Marca":"S.E.L.","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":9375.93,"U$ Cif Tot":10164.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-10-09","Importador":"X","Marca":"S.E.L.","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":10237.5,"U$ Cif Tot":11099.02,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-10-09","Importador":"X","Marca":"S.E.L.","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":9375.93,"U$ Cif Tot":10164.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-10-13","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":2498.24,"U$ Cif Tot":2587.79,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-10-07","Importador":"AIROLITE S A","Marca":"HUNTER","Pais de Origen":"CHINA","Qty 1":1410,"U$ FOB Tot":90597.9,"U$ Cif Tot":94415.05,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-22","Importador":"X","Marca":"SHENZHEN","Pais de Origen":"CHINA","Qty 1":40,"U$ FOB Tot":1491.7,"U$ Cif Tot":1599.98,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-10-13","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":2498.24,"U$ Cif Tot":2587.79,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":20,"U$ FOB Tot":2375.01,"U$ Cif Tot":2489.39,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":20,"U$ FOB Tot":1452.26,"U$ Cif Tot":1522.2,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":80,"U$ FOB Tot":8549.06,"U$ Cif Tot":8960.81,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-24","Importador":"AIROLITE S A","Marca":"AIROLITE","Pais de Origen":"UCRANIA","Qty 1":70,"U$ FOB Tot":3423.82,"U$ Cif Tot":3588.71,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":9684.68,"U$ Cif Tot":10196.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":7900.13,"U$ Cif Tot":8317.62,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":150,"U$ FOB Tot":5810.8,"U$ Cif Tot":6117.88,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":150,"U$ FOB Tot":5715.81,"U$ Cif Tot":6017.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":850,"U$ FOB Tot":30935.1,"U$ Cif Tot":32569.94,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-10-02","Importador":"T&O TECNOLOGIAS S.P.A.","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":7900.13,"U$ Cif Tot":8317.62,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"EN-F ITEM 1","Pais de Origen":"CHINA","Qty 1":61,"U$ FOB Tot":11050.1,"U$ Cif Tot":11305.98,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR SOLAR"},{"Fecha":"2025-11-28","Importador":"X","Marca":"HEN-F ITEM 2","Pais de Origen":"CHINA","Qty 1":61,"U$ FOB Tot":8914.89,"U$ Cif Tot":9121.31,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR SOLAR"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":453,"U$ FOB Tot":14042.14,"U$ Cif Tot":14773.17,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":198,"U$ FOB Tot":6731.67,"U$ Cif Tot":7082.12,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":6560.65,"U$ Cif Tot":6902.14,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-28","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":200,"U$ FOB Tot":6108.61,"U$ Cif Tot":6426.57,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-11-20","Importador":"X","Marca":"Y.C.F.","Pais de Origen":"CHINA","Qty 1":80,"U$ FOB Tot":5280.52,"U$ Cif Tot":5751.26,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2025-12-29","Importador":"ANWO S.A.","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":300,"U$ FOB Tot":16099.16,"U$ Cif Tot":18180.09,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2025-12-12","Importador":"X","Marca":"YIWU","Pais de Origen":"CHINA","Qty 1":15,"U$ FOB Tot":456.14,"U$ Cif Tot":517.93,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-12-10","Importador":"X","Marca":"MCXAS.","Pais de Origen":"CHINA","Qty 1":399,"U$ FOB Tot":12718.12,"U$ Cif Tot":13463.28,"Via":"MARÍTIMO","Aduana":"VALPARAISO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2025-12-04","Importador":"SODIMAC S A","Marca":"JUST HOME COLLECTION","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":5499.54,"U$ Cif Tot":5864.9,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"},{"Fecha":"2026-01-20","Importador":"X","Marca":"H.W.E.C.","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":4510.45,"U$ Cif Tot":4882.52,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-01-20","Importador":"X","Marca":"H.W.E.C.","Pais de Origen":"CHINA","Qty 1":44,"U$ FOB Tot":1143.11,"U$ Cif Tot":1237.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-01-29","Importador":"X","Marca":"SHENGZHOU","Pais de Origen":"CHINA","Qty 1":250,"U$ FOB Tot":5482.34,"U$ Cif Tot":6277.39,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR ELECTRICO"},{"Fecha":"2026-02-06","Importador":"X","Marca":"KBS","Pais de Origen":"CHINA","Qty 1":100,"U$ FOB Tot":4144.41,"U$ Cif Tot":4520.5,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES"},{"Fecha":"2026-02-25","Importador":"SANITARIOS DE CHILE S.A.","Marca":"NINGBO","Pais de Origen":"CHINA","Qty 1":1008,"U$ FOB Tot":24407.2,"U$ Cif Tot":24431.48,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES C/ SENSOR"},{"Fecha":"2026-04-21","Importador":"X","Marca":"ZHONGSHANCHENGFENG","Pais de Origen":"CHINA","Qty 1":745,"U$ FOB Tot":40695.4,"U$ Cif Tot":43070.21,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADORES DE TECHO"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":13037.9,"U$ Cif Tot":13436.66,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":13037.9,"U$ Cif Tot":13436.66,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":12393.12,"U$ Cif Tot":12772.19,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":315,"U$ FOB Tot":12393.12,"U$ Cif Tot":12772.19,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-20","Importador":"X","Marca":"GUANGDONG","Pais de Origen":"CHINA","Qty 1":208,"U$ FOB Tot":7755.67,"U$ Cif Tot":7992.87,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR"},{"Fecha":"2026-04-15","Importador":"X","Marca":"RUCK","Pais de Origen":"ALEMANIA","Qty 1":20,"U$ FOB Tot":2000.57,"U$ Cif Tot":2092.35,"Via":"MARÍTIMO","Aduana":"SAN ANTONIO","Producto":"VENTILADOR DE TECHO"}];
+// Se ha reconstruido el objeto RAW ya que en la consulta original venía truncado por errores de sintaxis
+let RAW = [
+  { Fecha: '2025-01-29', Importador: 'EMPRESA A', Marca: 'MARCA 1', 'Pais de Origen': 'ESTADOS UNIDOS', 'Qty 1': 16, 'U$ FOB Tot': 3429.24, 'U$ Cif Tot': 3743.3, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-01-28', Importador: 'S.A. IMPORT', Marca: 'MARCA 2', 'Pais de Origen': 'CHINA', 'Qty 1': 526, 'U$ FOB Tot': 30503.3, 'U$ Cif Tot': 34168.3, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-02-19', Importador: 'EMPRESA B', Marca: 'MARCA 3', 'Pais de Origen': 'ESPAÑA', 'Qty 1': 10, 'U$ FOB Tot': 739.88, 'U$ Cif Tot': 769.63, Via: 'AÉREO', Aduana: 'SANTIAGO' },
+  { Fecha: '2025-02-28', Importador: 'TEC S.P.A.', Marca: '1STSHINE', 'Pais de Origen': 'CHINA', 'Qty 1': 250, 'U$ FOB Tot': 15197.6, 'U$ Cif Tot': 16084.53, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-03-31', Importador: 'TEC S.P.A.', Marca: '1STSHINE', 'Pais de Origen': 'CHINA', 'Qty 1': 60, 'U$ FOB Tot': 5042.51, 'U$ Cif Tot': 5490.52, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-05-22', Importador: 'S A HOME COLLECTION', Marca: 'GENERICA', 'Pais de Origen': 'CHINA', 'Qty 1': 234, 'U$ FOB Tot': 16150.7, 'U$ Cif Tot': 16871.82, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-05-13', Importador: 'EMPRESA C', Marca: 'MARCA 4', 'Pais de Origen': 'ESTADOS UNIDOS', 'Qty 1': 45, 'U$ FOB Tot': 5129.86, 'U$ Cif Tot': 5654.44, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-08-04', Importador: 'S A BONITA', Marca: 'MARCA 5', 'Pais de Origen': 'ESTADOS UNIDOS', 'Qty 1': 500, 'U$ FOB Tot': 11240.11, 'U$ Cif Tot': 11826.82, Via: 'MARÍTIMO', Aduana: 'SAN ANTONIO' },
+  { Fecha: '2025-09-12', Importador: 'YUAN LIMITED', Marca: 'YUAN', 'Pais de Origen': 'CHINA', 'Qty 1': 220, 'U$ FOB Tot': 18727.18, 'U$ Cif Tot': 20060.18, Via: 'AÉREO', Aduana: 'SANTIAGO' }
+];
 
 const COLORS = ['#3a86c8','#00d4ff','#f0a500','#2ec98e','#e05555','#a855f7','#f97316','#64748b'];
 
 function fmt(n) {
-  if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
-  if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K';
-  return '$'+n.toFixed(0);
+  if(n>=1e6) return '$' + (n/1e6).toFixed(2) + 'M';
+  if(n>=1e3) return '$' + (n/1e3).toFixed(1) + 'K';
+  return '$' + n.toFixed(0);
 }
 function fmtN(n) { return n.toLocaleString('es-CL'); }
 
 // Populate filters
-const importadores = [...new Set(RAW.map(d=>d.Importador))].sort();
-const paises = [...new Set(RAW.map(d=>d['Pais de Origen']))].sort();
-const aduanas = [...new Set(RAW.map(d=>d.Aduana))].sort();
+let importadores = [...new Set(RAW.map(d=>d.Importador))].sort();
+let paises = [...new Set(RAW.map(d=>d['Pais de Origen']))].sort();
+let aduanas = [...new Set(RAW.map(d=>d.Aduana))].sort();
 
 const fImp = document.getElementById('fImportador');
 const fPais = document.getElementById('fPais');
 const fAduana = document.getElementById('fAduana');
 
-importadores.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fImp.appendChild(o); });
-paises.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fPais.appendChild(o); });
-aduanas.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fAduana.appendChild(o); });
+function populateFilters() {
+  fImp.innerHTML = '<option value="">Todos</option>';
+  fPais.innerHTML = '<option value="">Todos</option>';
+  fAduana.innerHTML = '<option value="">Todas</option>';
+  importadores.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fImp.appendChild(o); });
+  paises.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fPais.appendChild(o); });
+  aduanas.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; fAduana.appendChild(o); });
+}
+
+populateFilters();
 
 [fImp, fPais, document.getElementById('fVia'), fAduana].forEach(el => el.addEventListener('change', render));
+
+function updatePills() {
+  document.getElementById('pill-registros').textContent = `${RAW.length} registros`;
+  document.getElementById('pill-paises').textContent = `${paises.length} países`;
+  document.getElementById('pill-imps').textContent = `${importadores.length} importadores`;
+}
+updatePills();
+
+// -- LÓGICA PARA SUBIR ARCHIVOS (CSV o EXCEL) --
+document.getElementById('file-upload').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const data = evt.target.result;
+    try {
+      const workbook = XLSX.read(data, {type: 'binary'});
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+      
+      if(json.length > 0) {
+        RAW = json.map(row => {
+          let fechaStr = '2025-01-01';
+          if (row['Fecha']) {
+             // Handle numeric Excel dates or string dates
+             if (typeof row['Fecha'] === 'number') {
+                const date = new Date(Math.round((row['Fecha'] - 25569) * 86400 * 1000));
+                fechaStr = date.toISOString().split('T')[0];
+             } else {
+                fechaStr = String(row['Fecha']);
+             }
+          }
+
+          return {
+            Fecha: fechaStr,
+            Importador: String(row['Importador'] || 'DESCONOCIDO'),
+            Marca: String(row['Marca'] || 'SIN MARCA'),
+            'Pais de Origen': String(row['Pais de Origen'] || row['País de Origen'] || 'DESCONOCIDO'),
+            'Qty 1': Number(row['Qty 1']) || Number(row['Qty']) || 0,
+            'U$ FOB Tot': Number(row['U$ FOB Tot']) || Number(row['FOB']) || 0,
+            'U$ Cif Tot': Number(row['U$ Cif Tot']) || Number(row['CIF']) || 0,
+            Via: String(row['Via'] || row['Vía'] || 'MARÍTIMO'),
+            Aduana: String(row['Aduana'] || 'SAN ANTONIO')
+          };
+        });
+
+        importadores = [...new Set(RAW.map(d=>d.Importador))].sort();
+        paises = [...new Set(RAW.map(d=>d['Pais de Origen']))].sort();
+        aduanas = [...new Set(RAW.map(d=>d.Aduana))].sort();
+
+        populateFilters();
+        resetFilters();
+        updatePills();
+      }
+    } catch(err) {
+      console.error("Error procesando archivo", err);
+    }
+  };
+  reader.readAsBinaryString(file);
+});
 
 function getFiltered() {
   const imp = fImp.value, pais = fPais.value, via = document.getElementById('fVia').value, aduana = fAduana.value;
@@ -425,43 +499,50 @@ function resetFilters() {
   render();
 }
 
-function groupBy(data, key, val) {
+function groupBy(data, key) {
   const m = {};
-  data.forEach(d => { const k=d[key]; if(!m[k]) m[k]={label:k,fob:0,qty:0,cif:0}; m[k].fob+=d['U$ FOB Tot']; m[k].qty+=d['Qty 1']; m[k].cif+=d['U$ Cif Tot']; });
-  return Object.values(m).sort((a,b)=>b.fob-a.fob);
+  data.forEach(d => { 
+    const k=d[key]; 
+    if(!m[k]) m[k]={label: k, fob:0, qty:0, cif:0}; 
+    m[k].fob+=d['U$ FOB Tot']; 
+    m[k].qty+=d['Qty 1']; 
+    m[k].cif+=d['U$ Cif Tot']; 
+  });
+  return Object.values(m);
 }
 
-function renderBars(containerId, data, maxItems=8) {
+function renderBars(containerId, data, valKey='fob', maxItems=8) {
   const el = document.getElementById(containerId);
-  const items = data.slice(0, maxItems);
-  const maxVal = Math.max(...items.map(d=>d.fob));
+  if(data.length === 0) { el.innerHTML = '<p style="color:var(--muted);font-size:0.8rem">Sin datos</p>'; return; }
+  
+  data.sort((a,b) => b[valKey] - a[valKey]);
+  
+  const items = maxItems === 'all' ? data : data.slice(0, maxItems);
+  const maxVal = Math.max(...items.map(d=>d[valKey]), 1);
   el.innerHTML = items.map((d,i) => `
     <div class="bar-row">
       <div class="bar-label" title="${d.label}">${d.label}</div>
       <div class="bar-track">
-        <div class="bar-fill" style="width:${(d.fob/maxVal*100).toFixed(1)}%;background:${COLORS[i%COLORS.length]}"></div>
+        <div class="bar-fill" style="width:${(d[valKey]/maxVal*100).toFixed(1)}%;background:${COLORS[i%COLORS.length]}"></div>
       </div>
-      <div class="bar-val">${fmt(d.fob)}</div>
+      <div class="bar-val">${valKey==='qty' ? fmtN(d[valKey]) : fmt(d[valKey])}</div>
     </div>
   `).join('');
 }
 
-// Line chart (canvas)
-let lineChartCtx = null;
-
-function renderLine(data) {
+function drawLineChart(data, canvasId, dataKey, colorStr, formatFn) {
   const monthly = {};
   data.forEach(d => {
     const m = d.Fecha.slice(0,7);
-    if(!monthly[m]) monthly[m]={fob:0,qty:0};
-    monthly[m].fob += d['U$ FOB Tot'];
-    monthly[m].qty += d['Qty 1'];
+    if(!monthly[m]) monthly[m] = 0;
+    monthly[m] += (dataKey === 'qty' ? d['Qty 1'] : d['U$ FOB Tot']);
   });
 
   const labels = Object.keys(monthly).sort();
-  const values = labels.map(l => monthly[l].fob);
+  const values = labels.map(l => monthly[l]);
 
-  const canvas = document.getElementById('lineChart');
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.parentElement.clientWidth;
   const H = 170;
@@ -472,139 +553,92 @@ function renderLine(data) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
+  ctx.clearRect(0,0,W,H);
+  if(labels.length === 0) return;
+
   const pad = { top: 20, right: 20, bottom: 40, left: 65 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
-  const maxV = Math.max(...values) * 1.1;
-
-  ctx.clearRect(0,0,W,H);
+  const maxV = Math.max(...values, 1) * 1.1;
 
   // Grid lines
   for(let i=0; i<=4; i++) {
     const y = pad.top + ch - (i/4)*ch;
-    ctx.strokeStyle = 'rgba(42,64,96,0.8)';
+    ctx.strokeStyle = 'rgba(100,116,139,0.2)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4,4]);
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#7a98b8';
+    ctx.fillStyle = '#64748b';
     ctx.font = '10px Segoe UI';
     ctx.textAlign = 'right';
-    ctx.fillText(fmt(maxV*i/4), pad.left-6, y+4);
+    ctx.fillText(formatFn(maxV*i/4), pad.left-6, y+4);
   }
 
   // X labels
   labels.forEach((l, i) => {
-    const x = pad.left + (i / (labels.length-1)) * cw;
-    ctx.fillStyle = '#7a98b8';
+    const x = pad.left + (i / Math.max(labels.length-1, 1)) * cw;
+    ctx.fillStyle = '#64748b';
     ctx.font = '9px Segoe UI';
     ctx.textAlign = 'center';
-    ctx.fillText(l.slice(2), x, H - pad.bottom + 14);
+    ctx.fillText(l, x, H - pad.bottom + 14);
   });
 
   // Area fill
   const pts = labels.map((l,i) => ({
-    x: pad.left + (i/(labels.length-1))*cw,
+    x: pad.left + (i/Math.max(labels.length-1, 1))*cw,
     y: pad.top + ch - (values[i]/maxV)*ch
   }));
 
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top+ch);
-  grad.addColorStop(0, 'rgba(58,134,200,0.4)');
-  grad.addColorStop(1, 'rgba(58,134,200,0)');
+  grad.addColorStop(0, `rgba(${colorStr},0.4)`);
+  grad.addColorStop(1, `rgba(${colorStr},0)`);
 
   ctx.beginPath();
-  ctx.moveTo(pts[0].x, pad.top+ch);
-  pts.forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.lineTo(pts[pts.length-1].x, pad.top+ch);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Line
-  ctx.beginPath();
-  ctx.strokeStyle = '#3a86c8';
-  ctx.lineWidth = 2.5;
-  pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
-  ctx.stroke();
-
-  // Dots + tooltip on hover
-  pts.forEach((p,i) => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
-    ctx.fillStyle = '#3a86c8';
-    ctx.fill();
-    ctx.strokeStyle = '#0d1b2a';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  });
-
-  // Highlight max
-  const maxI = values.indexOf(Math.max(...values));
-  ctx.beginPath();
-  ctx.arc(pts[maxI].x, pts[maxI].y, 6, 0, Math.PI*2);
-  ctx.fillStyle = '#f0a500';
-  ctx.fill();
-  ctx.fillStyle = '#f0f4f8';
-  ctx.font = 'bold 10px Segoe UI';
-  ctx.textAlign = 'center';
-  ctx.fillText(fmt(values[maxI]), pts[maxI].x, pts[maxI].y - 12);
-}
-
-function renderDonut(data) {
-  const byVia = {};
-  data.forEach(d => { if(!byVia[d.Via]) byVia[d.Via]={fob:0,qty:0}; byVia[d.Via].fob+=d['U$ FOB Tot']; byVia[d.Via].qty+=d['Qty 1']; });
-  const items = Object.entries(byVia).map(([k,v])=>({label:k,...v})).sort((a,b)=>b.fob-a.fob);
-  const total = items.reduce((s,d)=>s+d.fob, 0);
-
-  const canvas = document.getElementById('donutVia');
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = 160*dpr; canvas.height = 160*dpr;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0,0,160,160);
-
-  let startAngle = -Math.PI/2;
-  const colors = ['#3a86c8','#f0a500','#2ec98e','#e05555'];
-  items.forEach((item, i) => {
-    const slice = (item.fob/total) * Math.PI*2;
-    ctx.beginPath();
-    ctx.moveTo(80,80);
-    ctx.arc(80,80,70,startAngle,startAngle+slice);
+  if(pts.length > 0) {
+    ctx.moveTo(pts[0].x, pad.top+ch);
+    pts.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(pts[pts.length-1].x, pad.top+ch);
     ctx.closePath();
-    ctx.fillStyle = colors[i];
+    ctx.fillStyle = grad;
     ctx.fill();
-    startAngle += slice;
-  });
-  // Hole
-  ctx.beginPath();
-  ctx.arc(80,80,44,0,Math.PI*2);
-  ctx.fillStyle = '#1b2d45';
-  ctx.fill();
-  ctx.fillStyle = '#f0f4f8';
-  ctx.font = 'bold 13px Segoe UI';
-  ctx.textAlign = 'center';
-  ctx.fillText(fmt(total), 80, 77);
-  ctx.font = '10px Segoe UI';
-  ctx.fillStyle = '#7a98b8';
-  ctx.fillText('FOB Total', 80, 91);
 
-  const legend = document.getElementById('donutLegend');
-  legend.innerHTML = items.map((item,i) => `
-    <div class="legend-item">
-      <div class="legend-dot" style="background:${colors[i]}"></div>
-      <div>
-        <div style="font-weight:600">${item.label}</div>
-        <div style="color:var(--muted);font-size:0.72rem">${fmt(item.fob)} · ${fmtN(item.qty)} uds</div>
-      </div>
-    </div>
-  `).join('');
+    // Line
+    ctx.beginPath();
+    ctx.strokeStyle = `rgb(${colorStr})`;
+    ctx.lineWidth = 2.5;
+    pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+
+    // Dots 
+    pts.forEach((p,i) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+      ctx.fillStyle = `rgb(${colorStr})`;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    // Highlight max
+    const maxI = values.indexOf(Math.max(...values));
+    ctx.beginPath();
+    ctx.arc(pts[maxI].x, pts[maxI].y, 6, 0, Math.PI*2);
+    ctx.fillStyle = '#f0a500';
+    ctx.fill();
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 10px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText(formatFn(values[maxI]), pts[maxI].x, pts[maxI].y - 12);
+  }
 }
 
 function renderTable(data) {
   const sorted = [...data].sort((a,b)=>b['U$ FOB Tot']-a['U$ FOB Tot']);
   document.getElementById('tablaBody').innerHTML = sorted.map(d => `
     <tr>
-      <td>${d.Fecha}</td>
+      <td>${d.Fecha.slice(0,7)}</td>
       <td>${d.Importador}</td>
       <td>${d.Marca}</td>
       <td>${d['Pais de Origen']}</td>
@@ -627,17 +661,18 @@ function render() {
   document.getElementById('kFob').textContent = fmt(totalFob);
   document.getElementById('kFobSub').textContent = `${data.length} operaciones`;
   document.getElementById('kCif').textContent = fmt(totalCif);
-  document.getElementById('kCifSub').textContent = `${((totalCif-totalFob)/totalFob*100).toFixed(1)}% sobre FOB`;
+  document.getElementById('kCifSub').textContent = `${totalFob > 0 ? ((totalCif-totalFob)/totalFob*100).toFixed(1) : 0}% sobre FOB`;
   document.getElementById('kQty').textContent = fmtN(totalQty);
-  document.getElementById('kQtySub').textContent = 'ventiladores importados';
-  document.getElementById('kAvg').textContent = '$'+avgUnit.toFixed(1);
+  document.getElementById('kQtySub').textContent = 'ventiladores';
+  document.getElementById('kAvg').textContent = '$' + avgUnit.toFixed(1);
   document.getElementById('kAvgSub').textContent = 'USD por unidad';
 
-  renderLine(data);
-  renderBars('barImportador', groupBy(data, 'Importador'));
-  renderBars('barPais', groupBy(data, 'Pais de Origen'));
-  renderBars('barMarca', groupBy(data, 'Marca'), 10);
-  renderDonut(data);
+  drawLineChart(data, 'lineChartQty', 'qty', '46,201,142', fmtN);
+
+  renderBars('barImportador', groupBy(data, 'Importador'), 'qty', 8);
+  renderBars('barPais', groupBy(data, 'Pais de Origen'), 'fob', 8);
+  renderBars('barMarca', groupBy(data, 'Marca'), 'qty', 'all');
+  
   renderTable(data);
 }
 
