@@ -40,7 +40,7 @@
         const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>;
         const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
         const IconInvoice = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
-        const IconReceipt = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17V7"/></svg>;
+        const IconReceipt = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17V7"/></svg>;
         const IconCreditNote = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>;
         const IconBuilding = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>;
         const IconTrendingUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
@@ -381,7 +381,7 @@
                     } else if (file.name.includes('COMPRA_REGISTRO')) {
                         parsed.data.forEach(row => {
                             const tipoDocStr = String(row['Tipo Doc']).trim();
-                            if (row['RUT Proveedor'] && (tipoDocStr === '33' || tipoDocStr === '914')) {
+                            if (row['RUT Proveedor'] && (tipoDocStr === '33' || tipoDocStr === '914' || tipoDocStr === '61')) {
                                 newDetalleCompras.push({
                                     Mes: mesStr,
                                     Rut: row['RUT Proveedor'],
@@ -541,14 +541,17 @@
                     const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '33');
                     const cNeto33 = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
                     
+                    const detComprasMes61 = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '61');
+                    const cNeto61 = detComprasMes61.reduce((acc, curr) => acc + curr.Neto, 0);
+
                     const honMes = dataHonorarios.filter(d => d.Mes === m);
                     const hBruto = honMes.reduce((acc, curr) => acc + curr.Brutos, 0);
                     
                     const detComprasMesDIN = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '914');
                     const cNetoDIN = detComprasMesDIN.reduce((acc, curr) => acc + curr.Neto, 0);
 
-                    // Gastos incluyen DIN
-                    const totalGastosMesConDin = cNeto33 + hBruto + cNetoDIN;
+                    // Gastos incluyen DIN, descontando Notas de Crédito (61)
+                    const totalGastosMesConDin = cNeto33 + hBruto + cNetoDIN - cNeto61;
                     comprasYHonorarios.push(totalGastosMesConDin);
 
                     // Utilidad (Ingresos - Gastos Totales incluyendo DIN)
@@ -594,8 +597,10 @@
 
                 let compras33 = { docs: 0, neto: 0, total: 0 };
                 let comprasDIN = { docs: 0, neto: 0, total: 0 };
+                let compras61 = { docs: 0, neto: 0, total: 0 };
                 const detCompras33 = [];
                 const detComprasDIN = [];
+                const detCompras61 = [];
 
                 detCompras.forEach(c => {
                     if (c.TipoDoc === '33') {
@@ -608,12 +613,17 @@
                         comprasDIN.neto += c.Neto;
                         comprasDIN.total += c.Total;
                         detComprasDIN.push(c);
+                    } else if (c.TipoDoc === '61') {
+                        compras61.docs += 1;
+                        compras61.neto += c.Neto;
+                        compras61.total += c.Total;
+                        detCompras61.push(c);
                     }
                 });
 
                 const totalGastos = {
-                    neto: compras33.neto + comprasDIN.neto + honorarios.brutos,
-                    total: compras33.total + comprasDIN.total + honorarios.pagado
+                    neto: compras33.neto + comprasDIN.neto + honorarios.brutos - compras61.neto,
+                    total: compras33.total + comprasDIN.total + honorarios.pagado - compras61.total
                 };
 
                 const utilidad = {
@@ -625,6 +635,10 @@
                 detCompras33.forEach(c => {
                     const name = c.RazonSocial || 'Sin Razón Social';
                     gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
+                });
+                detCompras61.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) - c.Neto;
                 });
                 detHonorarios.forEach(h => {
                     const name = h.RazonSocial || 'Sin Razón Social';
@@ -644,8 +658,8 @@
 
                 return { 
                     facturas, boletas, notasCredito, totalIngresos, honorarios, 
-                    compras33, comprasDIN, totalGastos, utilidad, 
-                    detVentas, detCompras33, detComprasDIN, detHonorarios,
+                    compras33, comprasDIN, compras61, totalGastos, utilidad, 
+                    detVentas, detCompras33, detComprasDIN, detCompras61, detHonorarios,
                     gastosChartLabels, gastosChartData
                 };
 
@@ -836,9 +850,15 @@
                                                         <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.brutos)}</td>
                                                         <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
                                                     </tr>
+                                                    <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                                        <td className={`flex items-center gap-2 font-medium text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconCreditNote /> Notas de Crédito (NC)</td>
+                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras61.docs} recibidos</td>
+                                                        <td className={`text-right text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.compras61.neto)}</td>
+                                                        <td className={`text-right font-bold text-red-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.compras61.total)}</td>
+                                                    </tr>
                                                     <tr className="bg-slate-800 text-white">
                                                         <td className={`font-bold text-rose-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>TOTAL GASTOS</td>
-                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{processedData.compras33.docs + processedData.comprasDIN.docs + processedData.honorarios.docs}</td>
+                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{processedData.compras33.docs + processedData.comprasDIN.docs + processedData.honorarios.docs + processedData.compras61.docs}</td>
                                                         <td className={`text-right font-bold ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{formatCurrency(processedData.totalGastos.neto)}</td>
                                                         <td className={`text-right font-black text-rose-400 ${isExporting ? 'p-1.5 text-sm' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalGastos.total)}</td>
                                                     </tr>
