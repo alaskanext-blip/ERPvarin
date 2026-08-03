@@ -667,23 +667,48 @@
 
             const uniqueProveedores = useMemo(() => {
                 if (!processedData) return ['Todos'];
-                const provs = processedData.detCompras33.map(c => c.RazonSocial || 'Sin Razón Social');
-                return ['Todos', ...Array.from(new Set(provs)).sort()];
+                const provs = new Set();
+                processedData.detCompras33.forEach(c => provs.add(c.RazonSocial || 'Sin Razón Social'));
+                processedData.detCompras61.forEach(c => provs.add(c.RazonSocial || 'Sin Razón Social'));
+                return ['Todos', ...Array.from(provs).sort()];
             }, [processedData]);
 
-            const filteredCompras33 = useMemo(() => {
+            const comprasLocalesAgrupadas = useMemo(() => {
                 if (!processedData) return [];
-                if (selectedProveedor === 'Todos') return processedData.detCompras33;
-                return processedData.detCompras33.filter(c => (c.RazonSocial || 'Sin Razón Social') === selectedProveedor);
+                const map = {};
+                
+                processedData.detCompras33.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    if (!map[name]) map[name] = { RazonSocial: name, docs33: 0, docs61: 0, totalNeto: 0, totalMonto: 0 };
+                    map[name].docs33 += 1;
+                    map[name].totalNeto += c.Neto;
+                    map[name].totalMonto += c.Total;
+                });
+
+                processedData.detCompras61.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    if (!map[name]) map[name] = { RazonSocial: name, docs33: 0, docs61: 0, totalNeto: 0, totalMonto: 0 };
+                    map[name].docs61 += 1;
+                    map[name].totalNeto -= c.Neto;
+                    map[name].totalMonto -= c.Total;
+                });
+
+                let result = Object.values(map).sort((a,b) => b.totalMonto - a.totalMonto);
+                
+                if (selectedProveedor !== 'Todos') {
+                    result = result.filter(r => r.RazonSocial === selectedProveedor);
+                }
+                
+                return result;
             }, [processedData, selectedProveedor]);
 
-            const filteredCompras33Totals = useMemo(() => {
-                return filteredCompras33.reduce((acc, curr) => {
-                    acc.neto += curr.Neto;
-                    acc.total += curr.Total;
+            const filteredComprasTotales = useMemo(() => {
+                return comprasLocalesAgrupadas.reduce((acc, curr) => {
+                    acc.neto += curr.totalNeto;
+                    acc.total += curr.totalMonto;
                     return acc;
                 }, { neto: 0, total: 0 });
-            }, [filteredCompras33]);
+            }, [comprasLocalesAgrupadas]);
 
             const hasData = dataVentasResumen.length > 0 || dataVentasDetalle.length > 0 || dataComprasDetalle.length > 0 || dataHonorarios.length > 0;
 
@@ -955,9 +980,9 @@
                                             )}
                                     </CollapsibleTable>
 
-                                    {/* TABLA: REGISTRO DE COMPRAS (SÓLO 33) */}
-                                    <CollapsibleTable title="4. Compras Locales" count={filteredCompras33.length} isExporting={isExporting}>
-                                            {processedData.detCompras33.length > 0 ? (
+                                    {/* TABLA: REGISTRO DE COMPRAS (AGRUPADAS 33 Y 61) */}
+                                    <CollapsibleTable title="4. Compras Locales (Análisis 33 - 61)" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
+                                            {comprasLocalesAgrupadas.length > 0 ? (
                                                 <div className="flex flex-col h-full">
                                                     {!isExporting && (
                                                         <div className="p-2 bg-white border-b border-slate-200 flex items-center gap-2">
@@ -975,24 +1000,22 @@
                                                         <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                             <tr className="text-slate-500 uppercase">
                                                                 <th className="p-2 md:p-3 border-b font-semibold">Razón Social (Proveedor)</th>
-                                                                <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
                                                                 <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {filteredCompras33.map((c, idx) => (
+                                                            {comprasLocalesAgrupadas.map((c, idx) => (
                                                                 <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                    <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
-                                                                    <td className="p-2 md:p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
-                                                                    <td className="p-2 md:p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
+                                                                    <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial}</td>
+                                                                    <td className={`p-2 md:p-3 text-right font-bold ${c.totalMonto < 0 ? 'text-red-500' : 'text-slate-800'}`}>{formatCurrency(c.totalMonto)}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
                                                         {selectedProveedor !== 'Todos' && !isExporting && (
                                                             <tfoot className="bg-slate-100 font-bold sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
                                                                 <tr>
-                                                                    <td colSpan="2" className="p-3 text-right text-slate-700 uppercase tracking-wide">Total:</td>
-                                                                    <td className="p-3 text-right text-slate-800 text-sm">{formatCurrency(filteredCompras33Totals.total)}</td>
+                                                                    <td className="p-3 text-right text-slate-700 uppercase tracking-wide">Total:</td>
+                                                                    <td className={`p-3 text-right text-sm ${filteredComprasTotales.total < 0 ? 'text-red-600' : 'text-slate-800'}`}>{formatCurrency(filteredComprasTotales.total)}</td>
                                                                 </tr>
                                                             </tfoot>
                                                         )}
