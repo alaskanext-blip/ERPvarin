@@ -36,11 +36,9 @@
     <!-- SIDEBAR DE NAVEGACIÓN -->
     <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800 shrink-0">
         <div class="p-8">
-            <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
-                <span class="flex items-center gap-2">
-                    <i class="ph ph-package text-3xl text-sky-400"></i> VARIN
-                </span>
-                <span class="text-zinc-500 font-light tracking-[0.3em]">Traaq</span>
+            <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-3">
+                <img src="https://varin.nl/cdn/shop/files/logo-varin_524x120.svg?v=1704292157" alt="VARIN" class="h-8 object-contain object-left brightness-0 invert" />
+                <span class="text-zinc-500 font-light tracking-[0.3em] text-sm">Traaq</span>
             </h1>
             <p class="text-xs text-zinc-500 mt-3 font-medium uppercase tracking-widest border-t border-zinc-800 pt-3">Stock Manager</p>
         </div>
@@ -103,7 +101,7 @@
             </header>
             
             <!-- KPIs GLOBALES -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                 <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
                     <div class="flex justify-between items-start mb-4">
                         <p class="text-xs font-semibold uppercase tracking-wider text-sky-800">WH Hub</p>
@@ -124,6 +122,13 @@
                         <i class="ph ph-shopping-bag text-emerald-600 text-2xl"></i>
                     </div>
                     <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
+                </div>
+                <div class="bg-violet-100 p-6 rounded-lg shadow-sm border border-violet-300 flex flex-col justify-between hover:border-violet-400 transition-colors">
+                    <div class="flex justify-between items-start mb-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-violet-800">DropGO</p>
+                        <i class="ph ph-paper-plane-tilt text-violet-600 text-2xl"></i>
+                    </div>
+                    <p id="kpi-bodega4" class="text-4xl font-light text-violet-950">0</p>
                 </div>
             </div>
         </div>
@@ -200,11 +205,12 @@
                         </div>
                         <div class="grid grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega de Destino</label>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega de la Operación</label>
                                 <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
                                     <option value="WH Hub">WH Hub</option>
                                     <option value="Office">Office</option>
                                     <option value="Full ML">Full ML</option>
+                                    <option value="DropGO">DropGO</option>
                                 </select>
                             </div>
                             <div>
@@ -395,6 +401,7 @@
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
                 this.kpi3 = document.getElementById('kpi-bodega3');
+                this.kpi4 = document.getElementById('kpi-bodega4');
                 this.tableBody = document.getElementById('table-body');
                 this.skuFilterInput = document.getElementById('filter-sku');
                 this.monthFilterInput = document.getElementById('filter-month');
@@ -585,6 +592,7 @@
                 this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
+                this.kpi4.innerText = getTot(['DropGO']);
 
                 const tableBody = document.getElementById('table-body');
                 if (tableBody) {
@@ -595,6 +603,7 @@
                             const isEditing = this.editingId === item.id;
                             const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
                             const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
+                            const isDropGo = item.warehouse === 'DropGO';
                             
                             if (isEditing) {
                                 return `
@@ -606,6 +615,7 @@
                                                 <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
                                                 <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
                                                 <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
+                                                <option value="DropGO" ${item.warehouse === 'DropGO' ? 'selected' : ''}>DropGO</option>
                                             </select>
                                         </td>
                                         <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
@@ -621,6 +631,7 @@
                             let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
                             if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
                             else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
+                            else if (isDropGo) badgeClass = 'bg-violet-200 text-violet-900 border-violet-300';
                             
                             return `
                                 <tr class="hover:bg-zinc-50 transition-colors group">
@@ -961,21 +972,22 @@
                 if (this.inventory.length === 0) return this.showNotification("Sin datos.", "error");
                 const aggregated = {};
                 this.inventory.forEach(item => {
-                    if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0 };
+                    if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0, dropGo: 0 };
                     const qty = parseInt(item.quantity) || 0;
                     if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') aggregated[item.sku].whHub += qty;
                     else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') aggregated[item.sku].office += qty;
                     else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
+                    else if (item.warehouse === 'DropGO') aggregated[item.sku].dropGo += qty;
                 });
                 
-                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'Total Unidades'];
+                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'Bodega DropGO', 'Total Unidades'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
                 
                 const sortedSkus = Object.keys(aggregated).sort((a, b) => a.localeCompare(b));
                 const rows = sortedSkus.map(sku => {
                     const data = aggregated[sku];
-                    const total = data.whHub + data.office + data.fullML;
-                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${total}`;
+                    const total = data.whHub + data.office + data.fullML + data.dropGo;
+                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${data.dropGo},${total}`;
                 });
                 
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
