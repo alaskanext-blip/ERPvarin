@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Varin | Mercado Libre | Ventas</title>
+    <title>Varin | Smart Traaq | ML Ventas</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
@@ -39,7 +39,7 @@
     <div id="login-section" class="w-full max-w-md">
         <div class="glass-card p-8 rounded-3xl shadow-2xl transition-all duration-500">
             <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-900/40">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-900/40">
                     <i class="fa-solid fa-lock text-3xl text-white"></i>
                 </div>
                 <h1 class="text-3xl font-bold text-white tracking-tight">Acceso Restringido</h1>
@@ -49,12 +49,12 @@
             <div class="space-y-6">
                 <div class="relative">
                     <input type="password" id="pass-input" 
-                        class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center text-lg tracking-[0.5em]"
+                        class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-center text-lg tracking-[0.5em]"
                         placeholder="••••••••">
                 </div>
 
                 <button id="login-btn" 
-                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
                     Entrar al Dashboard
                 </button>
 
@@ -80,10 +80,10 @@
                     <div class="p-2 bg-blue-100 text-blue-600 rounded-lg">
                         <i class="fa-solid fa-cart-shopping"></i>
                     </div>
-                    Varin | Mercado Libre | Ventas
+                    Varin | Smart Traaq | ML Ventas
                 </h1>
                 <div class="text-slate-500 mt-3 flex items-center gap-3 flex-wrap">
-                    <span id="header-status">Mostrando datos de demostración. Sube tu reporte para analizar.</span>
+                    <span id="header-status">Conectando...</span>
                     <span id="date-badge" class="hidden inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
                         <i class="fa-regular fa-calendar"></i>
                         <span id="date-range"></span>
@@ -98,7 +98,7 @@
                 <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-md flex-1 md:flex-none">
                     <i class="fa-solid fa-file-excel"></i>
                     Cargar Excel
-                    <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" id="file-upload" />
+                    <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" />
                 </label>
                 <!-- Botón para cerrar sesión agregado -->
                 <button onclick="window.location.reload()" class="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-slate-200 hover:border-red-100" title="Bloquear Pantalla">
@@ -127,10 +127,16 @@
                 <input type="date" id="date-end" class="bg-transparent text-slate-700 outline-none focus:ring-0 text-sm cursor-pointer">
             </div>
 
+            <!-- Nuevo filtro para Año -->
+            <select id="year-filter" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
+                <option value="all">Todos los Años</option>
+            </select>
+
             <!-- Filtros Originales -->
             <select id="sku-filter" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
                 <option value="all">Todos los Productos (SKU)</option>
             </select>
+
             <select id="status-filter" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
                 <option value="all">Todos los Estados de Envío</option>
             </select>
@@ -186,7 +192,7 @@
             </div>
         </div>
 
-        <!-- GRÁFICOS -->
+        <!-- GRÁFICOS DIARIOS -->
         <div class="grid grid-cols-1 gap-6 mb-8">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 class="text-lg font-bold text-slate-800 mb-6">Evolución de Ingresos en el Tiempo</h3>
@@ -196,6 +202,28 @@
             </div>
         </div>
 
+        <!-- NUEVOS GRÁFICOS MENSUALES -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-slate-400"></i> Ingresos Totales Mensuales
+                </h3>
+                <div class="relative flex-1 flex justify-center items-center min-h-[250px] w-full">
+                    <canvas id="monthlyIncomeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-cubes-stacked text-slate-400"></i> Unidades Vendidas Mensuales
+                </h3>
+                <div class="relative flex-1 flex justify-center items-center min-h-[250px] w-full">
+                    <canvas id="monthlyUnitsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS DE ESTADO Y REGIÓN -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
                 <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
@@ -217,7 +245,7 @@
         </div>
 
         <!-- TABLAS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="p-6 border-b border-slate-100">
                     <h3 class="text-lg font-bold text-slate-800">Productos Destacados</h3>
@@ -418,6 +446,8 @@
         let trendChartInstance = null;
         let statusChartInstance = null;
         let regionChartInstance = null;
+        let monthlyIncomeChartInstance = null;
+        let monthlyUnitsChartInstance = null;
         let globalMinDateStr = '';
         let globalMaxDateStr = '';
 
@@ -428,10 +458,13 @@
         const statusFilter = document.getElementById('status-filter');
         const dateStartFilter = document.getElementById('date-start');
         const dateEndFilter = document.getElementById('date-end');
+        const yearFilter = document.getElementById('year-filter');
         const clearFiltersBtn = document.getElementById('clear-filters');
         const fileUpload = document.getElementById('file-upload');
         const errorContainer = document.getElementById('error-container');
         const errorText = document.getElementById('error-text');
+
+        const monthsNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
         // Utils for Dates
         function dateToInputString(dateObj) {
@@ -570,9 +603,11 @@
             if (isNewUpload) {
                 const skus = [...new Set(allData.map(d => d.sku).filter(s => s !== 'Sin SKU'))];
                 const statuses = [...new Set(allData.map(d => d.estado))];
+                const years = [...new Set(allData.map(d => d.fechaObj.getFullYear()))].sort((a,b) => b-a);
                 
                 skuFilter.innerHTML = '<option value="all">Todos los Productos (SKU)</option>' + skus.map(s => `<option value="${s}">${s}</option>`).join('');
                 statusFilter.innerHTML = '<option value="all">Todos los Estados de Envío</option>' + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+                yearFilter.innerHTML = '<option value="all">Todos los Años</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
 
                 const dates = allData.map(d => d.fechaObj.getTime());
                 const minDate = new Date(Math.min(...dates));
@@ -594,8 +629,9 @@
             const stVal = statusFilter.value;
             const dsVal = dateStartFilter.value;
             const deVal = dateEndFilter.value;
+            const yearVal = yearFilter.value;
 
-            if (sVal !== 'all' || stVal !== 'all' || dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) {
+            if (sVal !== 'all' || stVal !== 'all' || yearVal !== 'all' || dsVal !== globalMinDateStr || deVal !== globalMaxDateStr) {
                 clearFiltersBtn.classList.remove('hidden');
             } else {
                 clearFiltersBtn.classList.add('hidden');
@@ -608,7 +644,8 @@
                 const matchSku = (sVal === 'all' || item.sku === sVal);
                 const matchStatus = (stVal === 'all' || item.estado === stVal);
                 const matchDate = (item.fechaObj >= startDateObj && item.fechaObj <= endDateObj);
-                return matchSku && matchStatus && matchDate;
+                const matchYear = (yearVal === 'all' || item.fechaObj.getFullYear().toString() === yearVal);
+                return matchSku && matchStatus && matchDate && matchYear;
             });
 
             updateHeader();
@@ -673,6 +710,64 @@
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
                             plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatCLP(ctx.raw)}` } } },
                             scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+
+            // Monthly Aggregation logic
+            const monthlyMap = {};
+            filteredData.forEach(d => {
+                const monthYear = `${monthsNames[d.fechaObj.getMonth()]} ${d.fechaObj.getFullYear()}`;
+                if (!monthlyMap[monthYear]) {
+                    monthlyMap[monthYear] = { bruto: 0, unidades: 0, sortKey: new Date(d.fechaObj.getFullYear(), d.fechaObj.getMonth(), 1).getTime() };
+                }
+                monthlyMap[monthYear].bruto += d.ingresosBrutos;
+                monthlyMap[monthYear].unidades += d.unidades;
+            });
+
+            // Sort months chronologically
+            const sortedMonths = Object.keys(monthlyMap).sort((a, b) => monthlyMap[a].sortKey - monthlyMap[b].sortKey);
+            const monthlyBrutoData = sortedMonths.map(m => monthlyMap[m].bruto);
+            const monthlyUnitsData = sortedMonths.map(m => monthlyMap[m].unidades);
+
+            // Monthly Income Chart (Bar)
+            if (monthlyIncomeChartInstance) monthlyIncomeChartInstance.destroy();
+            const ctxMonthlyIncome = document.getElementById('monthlyIncomeChart').getContext('2d');
+            monthlyIncomeChartInstance = new Chart(ctxMonthlyIncome, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: 'Ingreso Bruto Mensual',
+                        data: monthlyBrutoData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { tooltip: { callbacks: { label: (ctx) => ` ${formatCLP(ctx.raw)}` } }, legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } }
+                }
+            });
+
+            // Monthly Units Chart (Bar)
+            if (monthlyUnitsChartInstance) monthlyUnitsChartInstance.destroy();
+            const ctxMonthlyUnits = document.getElementById('monthlyUnitsChart').getContext('2d');
+            monthlyUnitsChartInstance = new Chart(ctxMonthlyUnits, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: 'Unidades Vendidas',
+                        data: monthlyUnitsData,
+                        backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} unidades` } }, legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { borderDash: [2, 4] } }, x: { grid: { display: false } } }
+                }
             });
 
             // Status Data
@@ -754,10 +849,12 @@
         statusFilter.addEventListener('change', applyFilters);
         dateStartFilter.addEventListener('change', applyFilters);
         dateEndFilter.addEventListener('change', applyFilters);
+        yearFilter.addEventListener('change', applyFilters);
         
         clearFiltersBtn.addEventListener('click', function() {
             skuFilter.value = 'all';
             statusFilter.value = 'all';
+            yearFilter.value = 'all';
             dateStartFilter.value = globalMinDateStr;
             dateEndFilter.value = globalMaxDateStr;
             applyFilters();
