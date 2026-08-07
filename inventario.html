@@ -14,6 +14,9 @@
     <!-- SheetJS (Para procesar Excel/CSV) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
@@ -50,11 +53,14 @@
             <button data-target="view-ingreso" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-arrows-left-right text-xl"></i> <span class="font-medium text-sm tracking-wide">Registro Manual</span>
             </button>
-            <button data-target="view-carga" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
-                <i class="ph ph-upload-simple text-xl"></i> <span class="font-medium text-sm tracking-wide">Subir Data</span>
-            </button>
             <button data-target="view-reportes" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-chart-bar text-xl"></i> <span class="font-medium text-sm tracking-wide">Reportes</span>
+            </button>
+            <button data-target="view-graficos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-chart-line-up text-xl"></i> <span class="font-medium text-sm tracking-wide">Gráficos</span>
+            </button>
+            <button data-target="view-carga" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-upload-simple text-xl"></i> <span class="font-medium text-sm tracking-wide">Subir Data</span>
             </button>
         </nav>
         
@@ -344,6 +350,33 @@
                     </div>
                 </div>
             </section>
+
+            <!-- VISTA: GRÁFICOS -->
+            <section id="view-graficos" class="view-section h-full overflow-y-auto pb-10">
+                <div class="max-w-5xl w-full mx-auto space-y-6">
+                    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                        <div>
+                            <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Análisis de Movimientos</h2>
+                            <p class="text-zinc-500 text-sm mt-1">Evolución mensual de entradas y salidas en el tiempo.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <select id="chart-year" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[120px]">
+                                <!-- Opciones generadas por JS -->
+                            </select>
+                            <select id="chart-warehouse" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[150px]">
+                                <option value="ALL">Todas las Bodegas</option>
+                                <option value="WH Hub">WH Hub</option>
+                                <option value="Office">Office</option>
+                                <option value="Full ML">Full ML</option>
+                                <option value="DropGO">DropGO</option>
+                            </select>
+                        </div>
+                    </header>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 h-[500px]">
+                        <canvas id="movementsChart"></canvas>
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -355,6 +388,7 @@
             report1MonthFilter: '',
             report2MonthFilter: '',
             editingId: null,
+            chartInstance: null,
             
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
@@ -409,6 +443,8 @@
                 this.report2MonthSelect = document.getElementById('report2-month');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
+                this.chartYearInput = document.getElementById('chart-year');
+                this.chartWarehouseInput = document.getElementById('chart-warehouse');
             },
 
             setDefaultDate() {
@@ -452,6 +488,14 @@
                         this.report2MonthFilter = e.target.value;
                         this.renderDashboard();
                     });
+                }
+                
+                // Filtros del Gráfico
+                if (this.chartYearInput) {
+                    this.chartYearInput.addEventListener('change', () => this.renderChart());
+                }
+                if (this.chartWarehouseInput) {
+                    this.chartWarehouseInput.addEventListener('change', () => this.renderChart());
                 }
             },
 
@@ -653,8 +697,139 @@
                 
                 // Enviar baseData (filtrada por SKU pero NO por mes global) a renderReport
                 this.renderReport(baseData);
+                
+                // Refrescar el gráfico con la información actualizada
+                this.renderChart();
             },
             
+            populateChartFilters() {
+                const years = new Set();
+                this.inventory.forEach(item => {
+                    if (item.sortDate) {
+                        years.add(item.sortDate.substring(0, 4));
+                    }
+                });
+                
+                const sortedYears = [...years].sort().reverse();
+                const currentYear = new Date().getFullYear().toString();
+                if (!years.has(currentYear)) sortedYears.unshift(currentYear);
+
+                const currentSelection = this.chartYearInput.value || currentYear;
+                
+                let html = '';
+                sortedYears.forEach(y => {
+                    html += `<option value="${y}" ${y === currentSelection ? 'selected' : ''}>${y}</option>`;
+                });
+                
+                if (this.chartYearInput && this.chartYearInput.innerHTML !== html) {
+                    this.chartYearInput.innerHTML = html;
+                }
+            },
+
+            renderChart() {
+                const ctx = document.getElementById('movementsChart');
+                if (!ctx || !this.chartYearInput || !this.chartWarehouseInput) return;
+
+                this.populateChartFilters();
+
+                const selectedYear = this.chartYearInput.value;
+                const selectedWH = this.chartWarehouseInput.value;
+
+                // 12 meses
+                const entries = new Array(12).fill(0);
+                const exits = new Array(12).fill(0);
+
+                this.inventory.forEach(item => {
+                    if (!item.sortDate) return;
+                    const itemYear = item.sortDate.substring(0, 4);
+                    if (itemYear !== selectedYear) return;
+
+                    // Lógica para emparejar los nombres antiguos si existen
+                    const whMatch = selectedWH === 'ALL' || 
+                                    item.warehouse === selectedWH || 
+                                    (selectedWH === 'Full ML' && item.warehouse.includes('3')) || 
+                                    (selectedWH === 'Office' && item.warehouse.includes('2')) || 
+                                    (selectedWH === 'WH Hub' && item.warehouse.includes('1'));
+                    
+                    if (!whMatch) return;
+
+                    const monthIdx = parseInt(item.sortDate.substring(5, 7)) - 1;
+                    const qty = parseInt(item.quantity) || 0;
+
+                    if (qty > 0) entries[monthIdx] += qty;
+                    if (qty < 0) exits[monthIdx] += qty; // Lo conservamos negativo para dibujarlo hacia abajo
+                });
+
+                if (this.chartInstance) {
+                    this.chartInstance.destroy();
+                }
+
+                this.chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                        datasets: [
+                            {
+                                label: 'Entradas (+)',
+                                data: entries,
+                                borderColor: '#10b981', // Emerald
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true,
+                                pointBackgroundColor: '#10b981'
+                            },
+                            {
+                                label: 'Salidas (-)',
+                                data: exits,
+                                borderColor: '#ef4444', // Red
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                fill: true,
+                                pointBackgroundColor: '#ef4444'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                grid: {
+                                    color: '#f4f4f5'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
             renderReport(baseData) {
                 const tbodyAll = document.getElementById('report-table-all');
                 const tbodyFullML = document.getElementById('report-table-fullml');
