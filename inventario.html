@@ -16,7 +16,7 @@
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    
     <style>
         /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
@@ -39,9 +39,11 @@
     <!-- SIDEBAR DE NAVEGACIÓN -->
     <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800 shrink-0">
         <div class="p-8">
-            <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-3">
-                <img src="https://varin.nl/cdn/shop/files/logo-varin_524x120.svg?v=1704292157" alt="VARIN" class="h-8 object-contain object-left brightness-0 invert" />
-                <span class="text-zinc-500 font-light tracking-[0.3em] text-sm">Traaq</span>
+            <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
+                <span class="flex items-center gap-2">
+                    <img src="https://varin.nl/cdn/shop/files/logo-varin_524x120.svg?v=1704292157" alt="Varin Logo" class="h-8 brightness-0 invert">
+                </span>
+                <span class="text-zinc-500 font-light tracking-[0.3em]">Traaq</span>
             </h1>
             <p class="text-xs text-zinc-500 mt-3 font-medium uppercase tracking-widest border-t border-zinc-800 pt-3">Stock Manager</p>
         </div>
@@ -53,11 +55,11 @@
             <button data-target="view-ingreso" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-arrows-left-right text-xl"></i> <span class="font-medium text-sm tracking-wide">Registro Manual</span>
             </button>
-            <button data-target="view-reportes" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
-                <i class="ph ph-chart-bar text-xl"></i> <span class="font-medium text-sm tracking-wide">Reportes</span>
-            </button>
             <button data-target="view-graficos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-chart-line-up text-xl"></i> <span class="font-medium text-sm tracking-wide">Gráficos</span>
+            </button>
+            <button data-target="view-reportes" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-chart-bar text-xl"></i> <span class="font-medium text-sm tracking-wide">Reportes</span>
             </button>
             <button data-target="view-carga" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-upload-simple text-xl"></i> <span class="font-medium text-sm tracking-wide">Subir Data</span>
@@ -107,7 +109,7 @@
             </header>
             
             <!-- KPIs GLOBALES -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
                     <div class="flex justify-between items-start mb-4">
                         <p class="text-xs font-semibold uppercase tracking-wider text-sky-800">WH Hub</p>
@@ -129,12 +131,12 @@
                     </div>
                     <p id="kpi-bodega3" class="text-4xl font-light text-emerald-950">0</p>
                 </div>
-                <div class="bg-violet-100 p-6 rounded-lg shadow-sm border border-violet-300 flex flex-col justify-between hover:border-violet-400 transition-colors">
+                <div class="bg-amber-100 p-6 rounded-lg shadow-sm border border-amber-300 flex flex-col justify-between hover:border-amber-400 transition-colors">
                     <div class="flex justify-between items-start mb-4">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-violet-800">DropGO</p>
-                        <i class="ph ph-paper-plane-tilt text-violet-600 text-2xl"></i>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-amber-800">DropGO</p>
+                        <i class="ph ph-truck text-amber-600 text-2xl"></i>
                     </div>
-                    <p id="kpi-bodega4" class="text-4xl font-light text-violet-950">0</p>
+                    <p id="kpi-bodega4" class="text-4xl font-light text-amber-950">0</p>
                 </div>
             </div>
         </div>
@@ -234,6 +236,38 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </section>
+
+            <!-- VISTA: GRÁFICOS -->
+            <section id="view-graficos" class="view-section h-full overflow-y-auto pb-10">
+                <div class="max-w-5xl w-full mx-auto space-y-6">
+                    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                        <div>
+                            <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Análisis de Movimientos</h2>
+                            <p class="text-zinc-500 text-sm mt-1">Evolución mensual de entradas y salidas en el tiempo.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="relative w-full sm:w-48">
+                                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
+                                <input type="text" id="chart-sku" list="chart-sku-list" placeholder="Todos los SKU" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
+                                <datalist id="chart-sku-list"></datalist>
+                            </div>
+                            <select id="chart-year" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[120px]">
+                                <!-- Opciones generadas por JS -->
+                            </select>
+                            <select id="chart-warehouse" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[150px]">
+                                <option value="ALL">Todas las Bodegas</option>
+                                <option value="WH Hub">WH Hub</option>
+                                <option value="Office">Office</option>
+                                <option value="Full ML">Full ML</option>
+                                <option value="DropGO">DropGO</option>
+                            </select>
+                        </div>
+                    </header>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 h-[500px]">
+                        <canvas id="movementChart"></canvas>
+                    </div>
                 </div>
             </section>
 
@@ -350,33 +384,6 @@
                     </div>
                 </div>
             </section>
-
-            <!-- VISTA: GRÁFICOS -->
-            <section id="view-graficos" class="view-section h-full overflow-y-auto pb-10">
-                <div class="max-w-5xl w-full mx-auto space-y-6">
-                    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                        <div>
-                            <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Análisis de Movimientos</h2>
-                            <p class="text-zinc-500 text-sm mt-1">Evolución mensual de entradas y salidas en el tiempo.</p>
-                        </div>
-                        <div class="flex gap-3">
-                            <select id="chart-year" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[120px]">
-                                <!-- Opciones generadas por JS -->
-                            </select>
-                            <select id="chart-warehouse" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[150px]">
-                                <option value="ALL">Todas las Bodegas</option>
-                                <option value="WH Hub">WH Hub</option>
-                                <option value="Office">Office</option>
-                                <option value="Full ML">Full ML</option>
-                                <option value="DropGO">DropGO</option>
-                            </select>
-                        </div>
-                    </header>
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 h-[500px]">
-                        <canvas id="movementsChart"></canvas>
-                    </div>
-                </div>
-            </section>
         </div>
     </main>
 
@@ -445,6 +452,8 @@
                 this.dateInput = document.getElementById('input-date');
                 this.chartYearInput = document.getElementById('chart-year');
                 this.chartWarehouseInput = document.getElementById('chart-warehouse');
+                this.chartSkuInput = document.getElementById('chart-sku');
+                this.chartSkuList = document.getElementById('chart-sku-list');
             },
 
             setDefaultDate() {
@@ -489,13 +498,16 @@
                         this.renderDashboard();
                     });
                 }
-                
+
                 // Filtros del Gráfico
                 if (this.chartYearInput) {
                     this.chartYearInput.addEventListener('change', () => this.renderChart());
                 }
                 if (this.chartWarehouseInput) {
                     this.chartWarehouseInput.addEventListener('change', () => this.renderChart());
+                }
+                if (this.chartSkuInput) {
+                    this.chartSkuInput.addEventListener('input', () => this.renderChart());
                 }
             },
 
@@ -508,6 +520,144 @@
                 });
                 activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
                 this.renderDashboard();
+                
+                if (targetId === 'view-graficos') {
+                    this.renderChart();
+                }
+            },
+
+            populateChartFilters() {
+                const years = new Set();
+                this.inventory.forEach(item => {
+                    if (item.sortDate) years.add(item.sortDate.substring(0, 4));
+                });
+                
+                const currentYear = new Date().getFullYear().toString();
+                if (years.size === 0) years.add(currentYear);
+
+                const sortedYears = [...years].sort().reverse();
+                let html = '';
+                sortedYears.forEach(y => {
+                    html += `<option value="${y}" ${y === currentYear ? 'selected' : ''}>Año ${y}</option>`;
+                });
+
+                if (this.chartYearInput && this.chartYearInput.innerHTML !== html) {
+                    this.chartYearInput.innerHTML = html;
+                }
+                
+                if (this.chartSkuList) {
+                    const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
+                    const skuHtml = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
+                    if (this.chartSkuList.innerHTML !== skuHtml) {
+                        this.chartSkuList.innerHTML = skuHtml;
+                    }
+                }
+            },
+
+            renderChart() {
+                if (!document.getElementById('movementChart')) return;
+                
+                this.populateChartFilters();
+
+                const selectedYear = this.chartYearInput.value;
+                const selectedWH = this.chartWarehouseInput.value;
+                const selectedSku = this.chartSkuInput.value.trim().toUpperCase();
+
+                // 12 meses
+                const entries = new Array(12).fill(0);
+                const exits = new Array(12).fill(0);
+
+                this.inventory.forEach(item => {
+                    if (!item.sortDate || !item.sortDate.startsWith(selectedYear)) return;
+
+                    const whMatch = selectedWH === 'ALL' || 
+                                    item.warehouse === selectedWH || 
+                                    (selectedWH === 'Full ML' && item.warehouse.includes('3')) || 
+                                    (selectedWH === 'Office' && item.warehouse.includes('2')) || 
+                                    (selectedWH === 'WH Hub' && item.warehouse.includes('1'));
+                    
+                    if (!whMatch) return;
+                    
+                    if (selectedSku && !item.sku.toUpperCase().includes(selectedSku)) return;
+
+                    const monthIdx = parseInt(item.sortDate.substring(5, 7)) - 1;
+                    const qty = parseInt(item.quantity) || 0;
+
+                    if (qty > 0) entries[monthIdx] += qty;
+                    else exits[monthIdx] += qty; // exits already negative
+                });
+
+                const ctx = document.getElementById('movementChart').getContext('2d');
+                
+                if (this.chartInstance) {
+                    this.chartInstance.destroy();
+                }
+
+                this.chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                        datasets: [
+                            {
+                                label: 'Entradas (+)',
+                                data: entries,
+                                borderColor: '#10b981', // emerald-500
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            },
+                            {
+                                label: 'Salidas (-)',
+                                data: exits,
+                                borderColor: '#ef4444', // red-500
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                grid: {
+                                    color: '#f4f4f5', // zinc-100
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
             },
 
             showNotification(msg, type = 'success') {
@@ -528,6 +678,9 @@
             saveAndRender() {
                 localStorage.setItem('inventory_db_varin', JSON.stringify(this.inventory));
                 this.renderDashboard();
+                if (document.getElementById('view-graficos').classList.contains('active')) {
+                    this.renderChart();
+                }
             },
 
             toggleEdit(id) {
@@ -647,7 +800,7 @@
                             const isEditing = this.editingId === item.id;
                             const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
                             const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
-                            const isDropGo = item.warehouse === 'DropGO';
+                            const isDrop = item.warehouse === 'DropGO';
                             
                             if (isEditing) {
                                 return `
@@ -675,7 +828,7 @@
                             let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
                             if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
                             else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
-                            else if (isDropGo) badgeClass = 'bg-violet-200 text-violet-900 border-violet-300';
+                            else if (isDrop) badgeClass = 'bg-amber-200 text-amber-900 border-amber-300';
                             
                             return `
                                 <tr class="hover:bg-zinc-50 transition-colors group">
@@ -697,139 +850,8 @@
                 
                 // Enviar baseData (filtrada por SKU pero NO por mes global) a renderReport
                 this.renderReport(baseData);
-                
-                // Refrescar el gráfico con la información actualizada
-                this.renderChart();
             },
             
-            populateChartFilters() {
-                const years = new Set();
-                this.inventory.forEach(item => {
-                    if (item.sortDate) {
-                        years.add(item.sortDate.substring(0, 4));
-                    }
-                });
-                
-                const sortedYears = [...years].sort().reverse();
-                const currentYear = new Date().getFullYear().toString();
-                if (!years.has(currentYear)) sortedYears.unshift(currentYear);
-
-                const currentSelection = this.chartYearInput.value || currentYear;
-                
-                let html = '';
-                sortedYears.forEach(y => {
-                    html += `<option value="${y}" ${y === currentSelection ? 'selected' : ''}>${y}</option>`;
-                });
-                
-                if (this.chartYearInput && this.chartYearInput.innerHTML !== html) {
-                    this.chartYearInput.innerHTML = html;
-                }
-            },
-
-            renderChart() {
-                const ctx = document.getElementById('movementsChart');
-                if (!ctx || !this.chartYearInput || !this.chartWarehouseInput) return;
-
-                this.populateChartFilters();
-
-                const selectedYear = this.chartYearInput.value;
-                const selectedWH = this.chartWarehouseInput.value;
-
-                // 12 meses
-                const entries = new Array(12).fill(0);
-                const exits = new Array(12).fill(0);
-
-                this.inventory.forEach(item => {
-                    if (!item.sortDate) return;
-                    const itemYear = item.sortDate.substring(0, 4);
-                    if (itemYear !== selectedYear) return;
-
-                    // Lógica para emparejar los nombres antiguos si existen
-                    const whMatch = selectedWH === 'ALL' || 
-                                    item.warehouse === selectedWH || 
-                                    (selectedWH === 'Full ML' && item.warehouse.includes('3')) || 
-                                    (selectedWH === 'Office' && item.warehouse.includes('2')) || 
-                                    (selectedWH === 'WH Hub' && item.warehouse.includes('1'));
-                    
-                    if (!whMatch) return;
-
-                    const monthIdx = parseInt(item.sortDate.substring(5, 7)) - 1;
-                    const qty = parseInt(item.quantity) || 0;
-
-                    if (qty > 0) entries[monthIdx] += qty;
-                    if (qty < 0) exits[monthIdx] += qty; // Lo conservamos negativo para dibujarlo hacia abajo
-                });
-
-                if (this.chartInstance) {
-                    this.chartInstance.destroy();
-                }
-
-                this.chartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-                        datasets: [
-                            {
-                                label: 'Entradas (+)',
-                                data: entries,
-                                borderColor: '#10b981', // Emerald
-                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                borderWidth: 2,
-                                tension: 0.3,
-                                fill: true,
-                                pointBackgroundColor: '#10b981'
-                            },
-                            {
-                                label: 'Salidas (-)',
-                                data: exits,
-                                borderColor: '#ef4444', // Red
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                borderWidth: 2,
-                                tension: 0.3,
-                                fill: true,
-                                pointBackgroundColor: '#ef4444'
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false,
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed.y !== null) {
-                                            label += context.parsed.y;
-                                        }
-                                        return label;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                grid: {
-                                    color: '#f4f4f5'
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                }
-                            }
-                        }
-                    }
-                });
-            },
-
             renderReport(baseData) {
                 const tbodyAll = document.getElementById('report-table-all');
                 const tbodyFullML = document.getElementById('report-table-fullml');
@@ -1147,22 +1169,22 @@
                 if (this.inventory.length === 0) return this.showNotification("Sin datos.", "error");
                 const aggregated = {};
                 this.inventory.forEach(item => {
-                    if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0, dropGo: 0 };
+                    if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0, dropGO: 0 };
                     const qty = parseInt(item.quantity) || 0;
                     if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') aggregated[item.sku].whHub += qty;
                     else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') aggregated[item.sku].office += qty;
                     else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
-                    else if (item.warehouse === 'DropGO') aggregated[item.sku].dropGo += qty;
+                    else if (item.warehouse === 'DropGO') aggregated[item.sku].dropGO += qty;
                 });
                 
-                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'Bodega DropGO', 'Total Unidades'];
+                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'DropGO', 'Total Unidades'];
                 const currentDate = new Date().toLocaleDateString('es-CL');
                 
                 const sortedSkus = Object.keys(aggregated).sort((a, b) => a.localeCompare(b));
                 const rows = sortedSkus.map(sku => {
                     const data = aggregated[sku];
-                    const total = data.whHub + data.office + data.fullML + data.dropGo;
-                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${data.dropGo},${total}`;
+                    const total = data.whHub + data.office + data.fullML + data.dropGO;
+                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${data.dropGO},${total}`;
                 });
                 
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
