@@ -351,6 +351,22 @@
             <!-- VISTA: REPORTES -->
             <section id="view-reportes" class="view-section h-full overflow-y-auto pb-10">
                 <div class="space-y-8">
+                    <!-- Gráfico Apilado -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="font-medium text-zinc-800 tracking-tight">Distribución de Salidas por SKU</h3>
+                                <p class="text-xs text-zinc-500 mt-1">Salidas totales desglosadas por bodega de origen.</p>
+                            </div>
+                            <select id="report-chart-month" class="p-2 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-xs shadow-sm cursor-pointer min-w-[150px]">
+                                <option value="">Todos los meses</option>
+                            </select>
+                        </div>
+                        <div class="h-[400px]">
+                            <canvas id="stackedReportChart"></canvas>
+                        </div>
+                    </div>
+                    
                     <!-- TABLA 1: Todas las bodegas -->
                     <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
                         <div class="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-50/50 shrink-0">
@@ -366,7 +382,7 @@
                             <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
                                 <thead class="bg-zinc-100 text-zinc-600 font-medium border-b border-zinc-200">
                                     <tr>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
                                     </tr>
@@ -398,7 +414,7 @@
                             <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
                                 <thead class="bg-emerald-50 text-emerald-800 font-medium border-b border-emerald-200">
                                     <tr>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">SKU</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
                                     </tr>
@@ -421,8 +437,10 @@
             currentMonthFilter: '',
             report1MonthFilter: '',
             report2MonthFilter: '',
+            reportChartMonthFilter: '',
             editingId: null,
             chartInstance: null,
+            stackedChartInstance: null,
             
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
@@ -475,6 +493,7 @@
                 this.monthFilterInput = document.getElementById('filter-month');
                 this.report1MonthSelect = document.getElementById('report1-month');
                 this.report2MonthSelect = document.getElementById('report2-month');
+                this.reportChartMonthSelect = document.getElementById('report-chart-month');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
                 this.chartYearInput = document.getElementById('chart-year');
@@ -528,6 +547,12 @@
                         this.renderDashboard();
                     });
                 }
+                if(this.reportChartMonthSelect) {
+                    this.reportChartMonthSelect.addEventListener('change', (e) => {
+                        this.reportChartMonthFilter = e.target.value;
+                        this.renderDashboard();
+                    });
+                }
 
                 // Filtros del Gráfico
                 if (this.chartYearInput) {
@@ -553,6 +578,12 @@
                 
                 if (targetId === 'view-graficos') {
                     this.renderChart();
+                } else if (targetId === 'view-reportes') {
+                    let baseData = this.inventory;
+                    if (this.currentSkuFilter) {
+                        baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
+                    }
+                    this.renderReport(baseData);
                 }
             },
 
@@ -768,6 +799,7 @@
                 let htmlGlobal = '<option value="">Todos los meses</option>';
                 let htmlR1 = '<option value="">Todos los meses</option>';
                 let htmlR2 = '<option value="">Todos los meses</option>';
+                let htmlRChart = '<option value="">Todos los meses</option>';
                 
                 sortedMonths.forEach(m => {
                     const [year, month] = m.split('-');
@@ -775,9 +807,10 @@
                     htmlGlobal += `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
                     htmlR1 += `<option value="${m}" ${this.report1MonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
                     htmlR2 += `<option value="${m}" ${this.report2MonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
+                    htmlRChart += `<option value="${m}" ${this.reportChartMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
                 });
                 
-                // Actualizar los 3 dropdowns si han cambiado
+                // Actualizar dropdowns si han cambiado
                 if (this.monthFilterInput && this.monthFilterInput.innerHTML !== htmlGlobal) {
                     this.monthFilterInput.innerHTML = htmlGlobal;
                 }
@@ -786,6 +819,9 @@
                 }
                 if (this.report2MonthSelect && this.report2MonthSelect.innerHTML !== htmlR2) {
                     this.report2MonthSelect.innerHTML = htmlR2;
+                }
+                if (this.reportChartMonthSelect && this.reportChartMonthSelect.innerHTML !== htmlRChart) {
+                    this.reportChartMonthSelect.innerHTML = htmlRChart;
                 }
             },
 
@@ -852,7 +888,7 @@
                             const total = data.whHub + data.office + data.fullML + data.dropGO;
                             return `
                                 <tr class="hover:bg-zinc-50 transition-colors">
-                                    <td class="px-6 py-3 font-mono text-xs text-zinc-500">${sku}</td>
+                                    <td class="px-6 py-3 font-mono text-xs text-zinc-500 whitespace-nowrap">${sku}</td>
                                     <td class="px-6 py-3 font-medium text-zinc-900">${data.name}</td>
                                     <td class="px-6 py-3 text-center text-sky-700 font-medium">${data.whHub}</td>
                                     <td class="px-6 py-3 text-center text-zinc-700 font-medium">${data.office}</td>
@@ -906,7 +942,7 @@
                             
                             return `
                                 <tr class="hover:bg-zinc-50 transition-colors group">
-                                    <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                                    <td class="px-6 py-4 font-mono text-xs text-zinc-500 whitespace-nowrap">${item.sku}</td>
                                     <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
                                     <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
                                     <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
@@ -933,6 +969,7 @@
 
                 const reportAll = {};
                 const reportFullML = {};
+                const stackedChartData = {};
 
                 // 1. Detección Inteligente de Traslados
                 // Empareja salidas con entradas idénticas (mismo SKU, cantidad y fecha) en diferentes bodegas.
@@ -956,7 +993,7 @@
                             inItem.parsedQty === outItem.parsedQty && 
                             inItem.warehouse !== outItem.warehouse
                         );
-                        // Si encuentra su "pareja", se registran como traslado para ignorarlos en las ventas
+                        // Si encuentra su pareja, se registran como traslado para ignorarlos en las ventas
                         if (inIndex !== -1) {
                             transferIds.add(outItem.id);
                             transferIds.add(group.ins[inIndex].id);
@@ -967,6 +1004,79 @@
                 // Filtramos la data individualmente según el mes seleccionado en cada reporte
                 const dataR1 = this.report1MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report1MonthFilter)) : baseData;
                 const dataR2 = this.report2MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report2MonthFilter)) : baseData;
+                const dataRChart = this.reportChartMonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.reportChartMonthFilter)) : baseData;
+
+                // Construcción de datos para Gráfico Apilado
+                dataRChart.forEach(item => {
+                    let qty = parseInt(item.quantity) || 0;
+                    if (qty < 0 && !transferIds.has(item.id)) {
+                        if (!stackedChartData[item.sku]) {
+                            stackedChartData[item.sku] = { whHub: 0, office: 0, fullML: 0, dropGO: 0, total: 0 };
+                        }
+                        const absQty = Math.abs(qty);
+                        stackedChartData[item.sku].total += absQty;
+                        
+                        if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') stackedChartData[item.sku].whHub += absQty;
+                        else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') stackedChartData[item.sku].office += absQty;
+                        else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) stackedChartData[item.sku].fullML += absQty;
+                        else if (item.warehouse === 'DropGO') stackedChartData[item.sku].dropGO += absQty;
+                    }
+                });
+
+                // Ordenar SKUs para el gráfico (de mayor a menor salida total)
+                const sortedChartSkus = Object.keys(stackedChartData).sort((a, b) => stackedChartData[b].total - stackedChartData[a].total);
+
+                // Renderizar Gráfico Apilado
+                const canvasCtx = document.getElementById('stackedReportChart');
+                if (canvasCtx) {
+                    if (this.stackedChartInstance) {
+                        this.stackedChartInstance.destroy();
+                    }
+                    
+                    this.stackedChartInstance = new Chart(canvasCtx.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: sortedChartSkus,
+                            datasets: [
+                                {
+                                    label: 'Full ML',
+                                    data: sortedChartSkus.map(sku => stackedChartData[sku].fullML),
+                                    backgroundColor: '#10b981' // emerald-500
+                                },
+                                {
+                                    label: 'Office',
+                                    data: sortedChartSkus.map(sku => stackedChartData[sku].office),
+                                    backgroundColor: '#a1a1aa' // zinc-400
+                                },
+                                {
+                                    label: 'WH Hub',
+                                    data: sortedChartSkus.map(sku => stackedChartData[sku].whHub),
+                                    backgroundColor: '#38bdf8' // sky-400
+                                },
+                                {
+                                    label: 'DropGO',
+                                    data: sortedChartSkus.map(sku => stackedChartData[sku].dropGO),
+                                    backgroundColor: '#fbbf24' // amber-400
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'top' },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false
+                                }
+                            },
+                            scales: {
+                                x: { stacked: true, grid: { display: false } },
+                                y: { stacked: true, grid: { color: '#f4f4f5' } }
+                            }
+                        }
+                    });
+                }
 
                 // Calcular datos para Tabla 1 (Office + Full ML) usando dataR1
                 dataR1.forEach(item => {
@@ -1009,7 +1119,7 @@
                 } else {
                     tbodyAll.innerHTML = sortedAll.map(item => `
                         <tr class="hover:bg-zinc-50 transition-colors">
-                            <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                            <td class="px-6 py-4 font-mono text-xs text-zinc-500 whitespace-nowrap">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
                             <td class="px-6 py-4 text-right font-bold text-sky-600">${item.outputs}</td>
                         </tr>
@@ -1022,7 +1132,7 @@
                 } else {
                     tbodyFullML.innerHTML = sortedFullML.map(item => `
                         <tr class="hover:bg-emerald-50/50 transition-colors">
-                            <td class="px-6 py-4 font-mono text-xs text-zinc-500">${item.sku}</td>
+                            <td class="px-6 py-4 font-mono text-xs text-zinc-500 whitespace-nowrap">${item.sku}</td>
                             <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
                             <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.outputs}</td>
                         </tr>
