@@ -145,8 +145,34 @@
         <div class="flex-1 min-h-0 overflow-hidden relative">
             
             <!-- VISTA: DASHBOARD -->
-            <section id="view-dashboard" class="view-section active h-full">
-                <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col h-full">
+            <section id="view-dashboard" class="view-section active h-full gap-6">
+                <!-- Stock Actualizado por SKU -->
+                <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1 min-h-0">
+                    <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
+                        <h3 class="font-medium text-zinc-800 italic">Stock Actualizado por SKU</h3>
+                    </div>
+                    <div class="overflow-y-auto flex-1">
+                        <table class="w-full text-sm text-left relative">
+                            <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">WH Hub</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Office</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Full ML</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">DropGO</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-summary-body" class="divide-y divide-zinc-100">
+                                <!-- Filas generadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Últimos Movimientos Registrados -->
+                <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1 min-h-0">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <h3 class="font-medium text-zinc-800 italic">Últimos Movimientos Registrados</h3>
                     </div>
@@ -765,7 +791,7 @@
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                 this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
                 
-                // 1. Data Base Filtrada SOLO por SKU (Usada para Reportes)
+                // 1. Data Base Filtrada SOLO por SKU (Usada para Reportes y Stock General)
                 let baseData = this.inventory;
                 if (this.currentSkuFilter) {
                     baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
@@ -790,6 +816,47 @@
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
                 this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
                 this.kpi4.innerText = getTot(['DropGO']);
+
+                const stockSummaryBody = document.getElementById('stock-summary-body');
+                if (stockSummaryBody) {
+                    const stockSummary = {};
+                    
+                    // Consideramos todo el inventario para el total histórico, filtrado únicamente por el SKU si se ha buscado uno (ignoramos filtro mensual aquí)
+                    let stockSource = baseData; // baseData ya está filtrada por currentSkuFilter
+                    
+                    stockSource.forEach(item => {
+                        if (!stockSummary[item.sku]) {
+                            stockSummary[item.sku] = { name: item.name, whHub: 0, office: 0, fullML: 0, dropGO: 0 };
+                        }
+                        const qty = parseInt(item.quantity) || 0;
+                        const wh = item.warehouse;
+                        if (wh === 'WH Hub' || wh === 'Bodega 1') stockSummary[item.sku].whHub += qty;
+                        else if (wh === 'Office' || wh === 'Bodega 2') stockSummary[item.sku].office += qty;
+                        else if (wh === 'Full ML' || wh.includes('3')) stockSummary[item.sku].fullML += qty;
+                        else if (wh === 'DropGO') stockSummary[item.sku].dropGO += qty;
+                    });
+
+                    const sortedSkus = Object.keys(stockSummary).sort();
+                    if (sortedSkus.length === 0) {
+                        stockSummaryBody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin stock registrado para mostrar.</td></tr>`;
+                    } else {
+                        stockSummaryBody.innerHTML = sortedSkus.map(sku => {
+                            const data = stockSummary[sku];
+                            const total = data.whHub + data.office + data.fullML + data.dropGO;
+                            return `
+                                <tr class="hover:bg-zinc-50 transition-colors">
+                                    <td class="px-6 py-3 font-mono text-xs text-zinc-500">${sku}</td>
+                                    <td class="px-6 py-3 font-medium text-zinc-900">${data.name}</td>
+                                    <td class="px-6 py-3 text-center text-sky-700 font-medium">${data.whHub}</td>
+                                    <td class="px-6 py-3 text-center text-zinc-700 font-medium">${data.office}</td>
+                                    <td class="px-6 py-3 text-center text-emerald-700 font-medium">${data.fullML}</td>
+                                    <td class="px-6 py-3 text-center text-amber-700 font-medium">${data.dropGO}</td>
+                                    <td class="px-6 py-3 text-right font-bold text-zinc-900">${total}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                }
 
                 const tableBody = document.getElementById('table-body');
                 if (tableBody) {
