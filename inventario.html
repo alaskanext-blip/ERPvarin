@@ -18,16 +18,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
         .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Tipografía corporativa premium */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
 
-        /* Scrollbar estilizada */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
@@ -149,7 +146,6 @@
             
             <!-- VISTA: DASHBOARD -->
             <section id="view-dashboard" class="view-section active h-full pb-10">
-                <!-- Stock Actualizado por SKU -->
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <h3 class="font-medium text-zinc-800 italic">Stock Actualizado por SKU</h3>
@@ -158,7 +154,7 @@
                         <table class="w-full text-sm text-left relative">
                             <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 whitespace-nowrap">SKU</th>
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">WH Hub</th>
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Office</th>
@@ -175,9 +171,8 @@
                 </div>
             </section>
 
-            <!-- VISTA: TODAS LAS TRANSACCIONES -->
+            <!-- VISTA: MOVIMIENTOS -->
             <section id="view-transacciones" class="view-section h-full pb-10">
-                <!-- Últimos Movimientos Registrados -->
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <h3 class="font-medium text-zinc-800 italic">Últimos Movimientos Registrados</h3>
@@ -186,7 +181,7 @@
                         <table class="w-full text-sm text-left relative">
                             <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">SKU</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 whitespace-nowrap">SKU</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
@@ -351,7 +346,7 @@
             <!-- VISTA: REPORTES -->
             <section id="view-reportes" class="view-section h-full overflow-y-auto pb-10">
                 <div class="space-y-8">
-                    <!-- Gráfico Apilado -->
+                    <!-- Gráfico Apilado Estilizado -->
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200">
                         <div class="flex justify-between items-center mb-4">
                             <div>
@@ -362,7 +357,7 @@
                                 <option value="">Todos los meses</option>
                             </select>
                         </div>
-                        <div class="h-[400px]">
+                        <div class="h-[450px]">
                             <canvas id="stackedReportChart"></canvas>
                         </div>
                     </div>
@@ -503,7 +498,7 @@
             },
 
             setDefaultDate() {
-                if (!this.dateInput) return; // Añadido check de seguridad
+                if (!this.dateInput) return;
                 const now = new Date();
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -524,7 +519,6 @@
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
                 this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
                 
-                // Filtros Globales
                 this.skuFilterInput.addEventListener('input', (e) => {
                     this.currentSkuFilter = e.target.value.trim().toUpperCase();
                     this.renderDashboard();
@@ -534,11 +528,10 @@
                     this.renderDashboard();
                 });
 
-                // Filtros de Reportes Individuales
                 if(this.report1MonthSelect) {
                     this.report1MonthSelect.addEventListener('change', (e) => {
                         this.report1MonthFilter = e.target.value;
-                        this.renderDashboard(); // Se llama a renderDashboard para refrescar todo coherentemente
+                        this.renderDashboard();
                     });
                 }
                 if(this.report2MonthSelect) {
@@ -554,7 +547,6 @@
                     });
                 }
 
-                // Filtros del Gráfico
                 if (this.chartYearInput) {
                     this.chartYearInput.addEventListener('change', () => this.renderChart());
                 }
@@ -617,14 +609,12 @@
 
             renderChart() {
                 if (!document.getElementById('movementChart')) return;
-                
                 this.populateChartFilters();
 
                 const selectedYear = this.chartYearInput.value;
                 const selectedWH = this.chartWarehouseInput.value;
                 const selectedSku = this.chartSkuInput.value.trim().toUpperCase();
 
-                // 12 meses
                 const entries = new Array(12).fill(0);
                 const exits = new Array(12).fill(0);
 
@@ -638,18 +628,16 @@
                                     (selectedWH === 'WH Hub' && item.warehouse.includes('1'));
                     
                     if (!whMatch) return;
-                    
                     if (selectedSku && !item.sku.toUpperCase().includes(selectedSku)) return;
 
                     const monthIdx = parseInt(item.sortDate.substring(5, 7)) - 1;
                     const qty = parseInt(item.quantity) || 0;
 
                     if (qty > 0) entries[monthIdx] += qty;
-                    else exits[monthIdx] += qty; // exits already negative
+                    else exits[monthIdx] += qty;
                 });
 
                 const ctx = document.getElementById('movementChart').getContext('2d');
-                
                 if (this.chartInstance) {
                     this.chartInstance.destroy();
                 }
@@ -662,7 +650,7 @@
                             {
                                 label: 'Entradas (+)',
                                 data: entries,
-                                borderColor: '#10b981', // emerald-500
+                                borderColor: '#10b981',
                                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                                 borderWidth: 2,
                                 fill: true,
@@ -671,7 +659,7 @@
                             {
                                 label: 'Salidas (-)',
                                 data: exits,
-                                borderColor: '#ef4444', // red-500
+                                borderColor: '#ef4444',
                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                                 borderWidth: 2,
                                 fill: true,
@@ -682,40 +670,11 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false,
-                        },
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed.y !== null) {
-                                            label += context.parsed.y;
-                                        }
-                                        return label;
-                                    }
-                                }
-                            }
-                        },
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'top' } },
                         scales: {
-                            y: {
-                                grid: {
-                                    color: '#f4f4f5', // zinc-100
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    display: false
-                                }
-                            }
+                            y: { grid: { color: '#f4f4f5' } },
+                            x: { grid: { display: false } }
                         }
                     }
                 });
@@ -788,9 +747,7 @@
             populateMonthFilter() {
                 const months = new Set();
                 this.inventory.forEach(item => {
-                    if (item.sortDate) {
-                        months.add(item.sortDate.substring(0, 7)); // YYYY-MM
-                    }
+                    if (item.sortDate) months.add(item.sortDate.substring(0, 7));
                 });
                 
                 const sortedMonths = [...months].sort().reverse();
@@ -810,19 +767,10 @@
                     htmlRChart += `<option value="${m}" ${this.reportChartMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
                 });
                 
-                // Actualizar dropdowns si han cambiado
-                if (this.monthFilterInput && this.monthFilterInput.innerHTML !== htmlGlobal) {
-                    this.monthFilterInput.innerHTML = htmlGlobal;
-                }
-                if (this.report1MonthSelect && this.report1MonthSelect.innerHTML !== htmlR1) {
-                    this.report1MonthSelect.innerHTML = htmlR1;
-                }
-                if (this.report2MonthSelect && this.report2MonthSelect.innerHTML !== htmlR2) {
-                    this.report2MonthSelect.innerHTML = htmlR2;
-                }
-                if (this.reportChartMonthSelect && this.reportChartMonthSelect.innerHTML !== htmlRChart) {
-                    this.reportChartMonthSelect.innerHTML = htmlRChart;
-                }
+                if (this.monthFilterInput && this.monthFilterInput.innerHTML !== htmlGlobal) this.monthFilterInput.innerHTML = htmlGlobal;
+                if (this.report1MonthSelect && this.report1MonthSelect.innerHTML !== htmlR1) this.report1MonthSelect.innerHTML = htmlR1;
+                if (this.report2MonthSelect && this.report2MonthSelect.innerHTML !== htmlR2) this.report2MonthSelect.innerHTML = htmlR2;
+                if (this.reportChartMonthSelect && this.reportChartMonthSelect.innerHTML !== htmlRChart) this.reportChartMonthSelect.innerHTML = htmlRChart;
             },
 
             renderDashboard() {
@@ -831,13 +779,11 @@
                 const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                 this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
                 
-                // 1. Data Base Filtrada SOLO por SKU (Usada para Reportes)
                 let baseData = this.inventory;
                 if (this.currentSkuFilter) {
                     baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
                 }
 
-                // 2. Data filtrada por SKU + Mes Global (Usada para el Dashboard y KPIs principales)
                 let dashboardData = baseData;
                 if (this.currentMonthFilter) {
                     dashboardData = dashboardData.filter(item => item.sortDate && item.sortDate.startsWith(this.currentMonthFilter));
@@ -850,7 +796,6 @@
                     return b.id - a.id;
                 });
                 
-                // Calcular KPIs con la data de la vista global
                 const getTot = (bodegasArray) => dashboardData.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
                 this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
                 this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
@@ -860,8 +805,6 @@
                 const stockSummaryBody = document.getElementById('stock-summary-body');
                 if (stockSummaryBody) {
                     const stockSummary = {};
-                    
-                    // Consideramos todo el inventario para el total histórico, filtrado únicamente por el SKU si se ha buscado uno (ignoramos filtro mensual aquí)
                     let stockSource = this.inventory;
                     if (this.currentSkuFilter) {
                         stockSource = stockSource.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
@@ -958,7 +901,6 @@
                     }
                 }
                 
-                // Enviar baseData (filtrada por SKU pero NO por mes global) a renderReport
                 this.renderReport(baseData);
             },
             
@@ -971,8 +913,6 @@
                 const reportFullML = {};
                 const stackedChartData = {};
 
-                // 1. Detección Inteligente de Traslados
-                // Empareja salidas con entradas idénticas (mismo SKU, cantidad y fecha) en diferentes bodegas.
                 const transferIds = new Set();
                 const groupedBase = {};
                 
@@ -993,7 +933,6 @@
                             inItem.parsedQty === outItem.parsedQty && 
                             inItem.warehouse !== outItem.warehouse
                         );
-                        // Si encuentra su pareja, se registran como traslado para ignorarlos en las ventas
                         if (inIndex !== -1) {
                             transferIds.add(outItem.id);
                             transferIds.add(group.ins[inIndex].id);
@@ -1001,12 +940,10 @@
                     });
                 });
 
-                // Filtramos la data individualmente según el mes seleccionado en cada reporte
                 const dataR1 = this.report1MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report1MonthFilter)) : baseData;
                 const dataR2 = this.report2MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report2MonthFilter)) : baseData;
                 const dataRChart = this.reportChartMonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.reportChartMonthFilter)) : baseData;
 
-                // Construcción de datos para Gráfico Apilado
                 dataRChart.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
                     if (qty < 0 && !transferIds.has(item.id)) {
@@ -1023,10 +960,9 @@
                     }
                 });
 
-                // Ordenar SKUs para el gráfico (de mayor a menor salida total)
                 const sortedChartSkus = Object.keys(stackedChartData).sort((a, b) => stackedChartData[b].total - stackedChartData[a].total);
 
-                // Renderizar Gráfico Apilado
+                // Renderizar Gráfico de Barras Estilizado (Horizontal y Redondeado)
                 const canvasCtx = document.getElementById('stackedReportChart');
                 if (canvasCtx) {
                     if (this.stackedChartInstance) {
@@ -1041,47 +977,80 @@
                                 {
                                     label: 'Full ML',
                                     data: sortedChartSkus.map(sku => stackedChartData[sku].fullML),
-                                    backgroundColor: '#10b981' // emerald-500
+                                    backgroundColor: '#10b981', // emerald-500
+                                    borderRadius: 4,
+                                    borderSkipped: false,
+                                    barThickness: 14
                                 },
                                 {
                                     label: 'Office',
                                     data: sortedChartSkus.map(sku => stackedChartData[sku].office),
-                                    backgroundColor: '#a1a1aa' // zinc-400
+                                    backgroundColor: '#a1a1aa', // zinc-400
+                                    borderRadius: 4,
+                                    borderSkipped: false,
+                                    barThickness: 14
                                 },
                                 {
                                     label: 'WH Hub',
                                     data: sortedChartSkus.map(sku => stackedChartData[sku].whHub),
-                                    backgroundColor: '#38bdf8' // sky-400
+                                    backgroundColor: '#38bdf8', // sky-400
+                                    borderRadius: 4,
+                                    borderSkipped: false,
+                                    barThickness: 14
                                 },
                                 {
                                     label: 'DropGO',
                                     data: sortedChartSkus.map(sku => stackedChartData[sku].dropGO),
-                                    backgroundColor: '#fbbf24' // amber-400
+                                    backgroundColor: '#fbbf24', // amber-400
+                                    borderRadius: 4,
+                                    borderSkipped: false,
+                                    barThickness: 14
                                 }
                             ]
                         },
                         options: {
+                            indexAxis: 'y', // Orientación horizontal para mayor limpieza y legibilidad
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'top' },
+                                legend: { 
+                                    position: 'top',
+                                    labels: {
+                                        usePointStyle: true,
+                                        boxWidth: 8,
+                                        font: { family: "'Inter', sans-serif", size: 11 }
+                                    }
+                                },
                                 tooltip: {
                                     mode: 'index',
-                                    intersect: false
+                                    intersect: false,
+                                    backgroundColor: 'rgba(0,0,0,0.85)',
+                                    titleFont: { family: "'Inter', sans-serif", size: 13 },
+                                    bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                                    padding: 12,
+                                    cornerRadius: 8
                                 }
                             },
                             scales: {
-                                x: { stacked: true, grid: { display: false } },
-                                y: { stacked: true, grid: { color: '#f4f4f5' } }
+                                x: { 
+                                    stacked: true, 
+                                    grid: { display: false },
+                                    border: { display: false },
+                                    ticks: { font: { family: "'Inter', sans-serif" } }
+                                },
+                                y: { 
+                                    stacked: true, 
+                                    grid: { display: false },
+                                    border: { display: false },
+                                    ticks: { font: { family: "'Inter', sans-serif", size: 11 } }
+                                }
                             }
                         }
                     });
                 }
 
-                // Calcular datos para Tabla 1 (Office + Full ML) usando dataR1
                 dataR1.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
-                    // SUMAR SOLO SI: Es salida (<0), pertenece a Office/Full ML, y NO es un traslado
                     if (qty < 0 && !transferIds.has(item.id) && (item.warehouse === 'Office' || item.warehouse === 'Bodega 2' || item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
                         if (!reportAll[item.sku]) {
                             reportAll[item.sku] = { name: item.name, outputs: 0 };
@@ -1090,10 +1059,8 @@
                     }
                 });
 
-                // Calcular datos para Tabla 2 (Solo Full ML) usando dataR2
                 dataR2.forEach(item => {
                     let qty = parseInt(item.quantity) || 0;
-                    // SUMAR SOLO SI: Es salida (<0), pertenece a Full ML, y NO es un traslado
                     if (qty < 0 && !transferIds.has(item.id) && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
                         if (!reportFullML[item.sku]) {
                             reportFullML[item.sku] = { name: item.name, outputs: 0 };
@@ -1102,7 +1069,6 @@
                     }
                 });
 
-                // Ordenar ambos reportes por el Total de Ventas (mayor a menor)
                 const sortedAll = Object.keys(reportAll).map(sku => ({
                     sku,
                     ...reportAll[sku]
@@ -1113,7 +1079,6 @@
                     ...reportFullML[sku]
                 })).sort((a, b) => b.outputs - a.outputs);
 
-                // Renderizar tabla global (Office + Full ML)
                 if (sortedAll.length === 0) {
                     tbodyAll.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Office o Full ML para el período/filtros seleccionados.</td></tr>`;
                 } else {
@@ -1126,7 +1091,6 @@
                     `).join('');
                 }
 
-                // Renderizar tabla Full ML
                 if (sortedFullML.length === 0) {
                     tbodyFullML.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Full ML para el período/filtros seleccionados.</td></tr>`;
                 } else {
