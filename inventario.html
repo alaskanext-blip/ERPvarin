@@ -88,8 +88,11 @@
             <button onclick="App.exportToExcel()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-200 text-black py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-download-simple text-lg"></i> Exportar Stock
             </button>
-            <button onclick="App.exportDetail()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
+            <button onclick="App.exportDetail()" class="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-list-numbers text-lg"></i> Exportar Detalle
+            </button>
+            <button onclick="App.clearAllData()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm mt-4">
+                <i class="ph ph-trash text-lg"></i> Borrar Toda la Data
             </button>
         </div>
     </aside>
@@ -101,6 +104,21 @@
         <div id="toast" class="absolute top-6 right-6 z-50 px-5 py-4 rounded-md shadow-xl flex items-center gap-3 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-[-10px]">
             <i id="toast-icon" class="ph text-2xl"></i>
             <span id="toast-msg" class="font-medium text-sm tracking-wide"></span>
+        </div>
+
+        <!-- Modal de Confirmación Custom -->
+        <div id="confirm-modal" class="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="confirm-modal-box">
+                <div class="flex items-center gap-3 text-red-600 mb-4">
+                    <i class="ph ph-warning-circle text-3xl"></i>
+                    <h3 id="confirm-modal-title" class="text-lg font-semibold">Confirmar acción</h3>
+                </div>
+                <p id="confirm-modal-msg" class="text-zinc-600 text-sm mb-6">¿Estás seguro de que deseas continuar?</p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="App.closeConfirmModal()" class="px-4 py-2 rounded-md text-sm font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition-colors">Cancelar</button>
+                    <button id="confirm-modal-btn" class="px-4 py-2 rounded-md text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors shadow-sm">Sí, confirmar</button>
+                </div>
+            </div>
         </div>
 
         <!-- PARTE SUPERIOR GLOBAL -->
@@ -623,6 +641,12 @@
                 this.chartWarehouseInput = document.getElementById('chart-warehouse');
                 this.chartSkuInput = document.getElementById('chart-sku');
                 this.chartSkuList = document.getElementById('chart-sku-list');
+                
+                this.confirmModal = document.getElementById('confirm-modal');
+                this.confirmModalBox = document.getElementById('confirm-modal-box');
+                this.confirmModalTitle = document.getElementById('confirm-modal-title');
+                this.confirmModalMsg = document.getElementById('confirm-modal-msg');
+                this.confirmModalBtn = document.getElementById('confirm-modal-btn');
             },
 
             setDefaultDate() {
@@ -869,12 +893,46 @@
                 this.showNotification('Registro actualizado.');
             },
 
+            showConfirmModal(title, message, onConfirm) {
+                this.confirmModalTitle.innerText = title;
+                this.confirmModalMsg.innerText = message;
+                this.confirmModalBtn.onclick = () => {
+                    onConfirm();
+                    this.closeConfirmModal();
+                };
+                this.confirmModal.classList.remove('opacity-0', 'pointer-events-none');
+                this.confirmModalBox.classList.remove('scale-95');
+                this.confirmModalBox.classList.add('scale-100');
+            },
+
+            closeConfirmModal() {
+                this.confirmModal.classList.add('opacity-0', 'pointer-events-none');
+                this.confirmModalBox.classList.remove('scale-100');
+                this.confirmModalBox.classList.add('scale-95');
+            },
+
             deleteItem(id) {
-                if (confirm('¿Eliminar este movimiento?')) {
-                    this.inventory = this.inventory.filter(item => item.id !== id);
-                    this.saveAndRender();
-                    this.showNotification('Registro eliminado.');
-                }
+                this.showConfirmModal(
+                    '¿Eliminar este movimiento?',
+                    'Esta acción eliminará este registro permanentemente. ¿Deseas continuar?',
+                    () => {
+                        this.inventory = this.inventory.filter(item => item.id !== id);
+                        this.saveAndRender();
+                        this.showNotification('Registro eliminado.');
+                    }
+                );
+            },
+
+            clearAllData() {
+                this.showConfirmModal(
+                    '¿Borrar toda la base de datos?',
+                    'Esta acción eliminará permanentemente TODOS los registros del inventario. No podrás recuperarlos. ¿Deseas continuar?',
+                    () => {
+                        this.inventory = [];
+                        this.saveAndRender();
+                        this.showNotification('Toda la data ha sido eliminada exitosamente.', 'success');
+                    }
+                );
             },
 
             populateMonthFilter() {
