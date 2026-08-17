@@ -18,17 +18,32 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
+        :root {
+            --s: #ffffff;
+            --s2: #f4f4f5;
+            --br: #e4e4e7;
+            --r: 0.5rem;
+            --m: #71717a;
+            --mo: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
         .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
+        /* Tipografía corporativa premium */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
 
+        /* Scrollbar estilizada */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #d4d4d8; }
+
+        /* Estilos base para el panel de Estadísticas */
+        .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.sc{background:var(--s);border:1px solid var(--br);border-radius:var(--r);padding:18px}.sc h3{font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}.sc .cnt{font-size:.75rem;color:var(--m);background:var(--s2);padding:2px 8px;border-radius:50px}.br2{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.79rem}.bl{width:110px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}.bt{flex:1;height:6px;background:var(--s2);border-radius:3px;overflow:hidden}.bf{height:100%;border-radius:3px;transition:width .6s}.bq{width:36px;text-align:right;font-family:var(--mo);color:var(--m);font-size:.74rem;flex-shrink:0}
     </style>
 </head>
 <body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
@@ -51,6 +66,9 @@
             </button>
             <button data-target="view-transacciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-list-dashes text-xl"></i> <span class="font-medium text-sm tracking-wide">Movimientos</span>
+            </button>
+            <button data-target="view-estadisticas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-chart-donut text-xl"></i> <span class="font-medium text-sm tracking-wide">Estadísticas</span>
             </button>
             <button data-target="view-ingreso" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-arrows-left-right text-xl"></i> <span class="font-medium text-sm tracking-wide">Registro Manual</span>
@@ -146,6 +164,7 @@
             
             <!-- VISTA: DASHBOARD -->
             <section id="view-dashboard" class="view-section active h-full pb-10">
+                <!-- Stock Actualizado por SKU -->
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <h3 class="font-medium text-zinc-800 italic">Stock Actualizado por SKU</h3>
@@ -154,7 +173,7 @@
                         <table class="w-full text-sm text-left relative">
                             <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 whitespace-nowrap">SKU</th>
+                                    <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 whitespace-nowrap w-40">SKU</th>
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">WH Hub</th>
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Office</th>
@@ -171,7 +190,7 @@
                 </div>
             </section>
 
-            <!-- VISTA: MOVIMIENTOS -->
+            <!-- VISTA: TODAS LAS TRANSACCIONES (MOVIMIENTOS) -->
             <section id="view-transacciones" class="view-section h-full pb-10">
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
@@ -181,7 +200,7 @@
                         <table class="w-full text-sm text-left relative">
                             <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 whitespace-nowrap">SKU</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 whitespace-nowrap w-40">SKU</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Producto</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
@@ -196,6 +215,13 @@
                     </div>
                 </div>
             </section>
+
+            <!-- VISTA: ESTADISTICAS -->
+            <div id="view-estadisticas" class="view-section h-full overflow-y-auto pb-10">
+              <h1 class="text-2xl font-light text-zinc-900 tracking-tight mb-1">Estadísticas de Inventario</h1>
+              <p class="text-zinc-500 text-sm mb-6">Resumen de stock actual global, por bodega y por categoría.</p>
+              <div id="sg" class="sg"></div>
+            </div>
 
             <!-- VISTA: REGISTRO MANUAL -->
             <section id="view-ingreso" class="view-section h-full overflow-y-auto pb-10">
@@ -328,7 +354,7 @@
                             <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Restaurar / Importar Detalle Histórico</h2>
                             <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">
                                 Sube un archivo de "Detalle de Movimientos" para restaurar o poblar la base de datos. <br>
-                                <span class="font-semibold text-red-600">Nota:</span> Esta acción no borra lo actual, solo añade los registros.
+                                <span class="font-semibold text-red-600">Nota:</span> Esta acción no borra lo actual, solo añade los registros nuevos.
                             </p>
                         </header>
                         
@@ -377,7 +403,7 @@
                             <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
                                 <thead class="bg-zinc-100 text-zinc-600 font-medium border-b border-zinc-200">
                                     <tr>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap">SKU</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap w-40">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
                                     </tr>
@@ -406,10 +432,10 @@
                             </div>
                         </div>
                         <div class="p-6 overflow-x-auto">
-                            <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
+                            <table class="w-full text-sm text-left border border-emerald-200 rounded-lg overflow-hidden min-w-full">
                                 <thead class="bg-emerald-50 text-emerald-800 font-medium border-b border-emerald-200">
                                     <tr>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap">SKU</th>
+                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap w-40">SKU</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
                                         <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
                                     </tr>
@@ -426,6 +452,108 @@
     </main>
 
     <script>
+        var BODS = ['DropGO','Full ML','Office','WH Hub'];
+        var COL  = ['#fbbf24','#10b981','#a1a1aa','#38bdf8']; // Amber, Emerald, Zinc, Sky
+        var prods = [];
+
+        function rStats() {
+          var aggGlobal = {};
+          var aggWH = {};
+          
+          // Mapeo unificado para coincidir 100% con el Dashboard
+          App.inventory.forEach(function(item) {
+            let wh = item.warehouse || '';
+            if (wh === 'WH Hub' || wh === 'Bodega 1') wh = 'WH Hub';
+            else if (wh === 'Office' || wh === 'Bodega 2') wh = 'Office';
+            else if (wh === 'Full ML' || wh.includes('3')) wh = 'Full ML';
+            else if (wh === 'DropGO') wh = 'DropGO';
+            else wh = 'WH Hub';
+
+            const qty = parseInt(item.quantity) || 0;
+            let cat = 'ventilación';
+            const lowName = (item.name || '').toLowerCase();
+            if (lowName.includes('calefac') || lowName.includes('estufa') || lowName.includes('heater')) cat = 'calefacción';
+            else if (lowName.includes('segur') || lowName.includes('camara') || lowName.includes('alarma')) cat = 'seguridad';
+
+            // Acumular Global por SKU (Para cuadrar con tabla Dashboard)
+            if (!aggGlobal[item.sku]) {
+                aggGlobal[item.sku] = { sku: item.sku, nombre: item.name, categoria: cat, cantidad: 0 };
+            }
+            aggGlobal[item.sku].cantidad += qty;
+
+            // Acumular por Bodega Específica
+            var key = item.sku + '_' + wh;
+            if (!aggWH[key]) {
+                aggWH[key] = { sku: item.sku, nombre: item.name, bodega: wh, categoria: cat, cantidad: 0 };
+            }
+            aggWH[key].cantidad += qty;
+          });
+
+          // Extraer arrays de objetos y filtrar saldos en cero o negativos
+          var prodsGlobal = Object.keys(aggGlobal).map(k => aggGlobal[k]).filter(p => p.cantidad > 0).sort((a,b) => b.cantidad - a.cantidad);
+          prods = Object.keys(aggWH).map(k => aggWH[k]);
+
+          var html = '';
+
+          // 1. TARJETA GLOBAL (Stock Total por SKU)
+          if (prodsGlobal.length > 0) {
+              var maxGlobal = Math.max.apply(null, prodsGlobal.map(p => p.cantidad).concat([1]));
+              var totalGlobal = prodsGlobal.reduce((s, p) => s + p.cantidad, 0);
+              
+              html += '<div class="sc" style="grid-column: 1 / -1;"><h3>Inventario Global por SKU' +
+                      ' <span class="cnt">' + prodsGlobal.length + ' SKUs &bull; ' + totalGlobal.toLocaleString() + ' und</span></h3>' +
+                      '<div class="sg">';
+              
+              prodsGlobal.forEach(p => {
+                  html += '<div class="br2">' +
+                          '<div class="bl" title="' + p.nombre + '">' + p.sku + '</div>' +
+                          '<div class="bt"><div class="bf" style="width:' + Math.round(p.cantidad / maxGlobal * 100) + '%;background:#18181b"></div></div>' +
+                          '<div class="bq">' + p.cantidad + '</div></div>';
+              });
+              html += '</div></div>';
+          }
+
+          // 2. TARJETAS POR BODEGA
+          BODS.forEach(function(b, i) {
+            var bp = prods.filter(p => p.bodega === b && p.cantidad > 0).sort((a,b) => b.cantidad - a.cantidad);
+            if (!bp.length) return;
+            var totalB = bp.reduce((s,p) => s + p.cantidad, 0);
+            var max = Math.max.apply(null, bp.map(p => p.cantidad).concat([1]));
+            html += '<div class="sc"><h3>' + b +
+              ' <span class="cnt">' + bp.length + ' SKUs &bull; ' + totalB.toLocaleString() + ' und</span></h3>' +
+              bp.map(function(p) {
+                return '<div class="br2">' +
+                  '<div class="bl" title="' + p.nombre + '">' + p.sku + '</div>' +
+                  '<div class="bt"><div class="bf" style="width:' +
+                    Math.round(p.cantidad / max * 100) + '%;background:' + COL[i] +
+                  '"></div></div>' +
+                  '<div class="bq">' + p.cantidad + '</div></div>';
+              }).join('') + '</div>';
+          });
+
+          // 3. TARJETA POR CATEGORÍA
+          var targetCats = ['ventilación', 'calefacción', 'seguridad'];
+          var cb = targetCats.map(function(c) {
+            return { 
+              c: c.charAt(0).toUpperCase() + c.slice(1), 
+              t: prodsGlobal.filter(p => p.categoria === c).reduce((s,p) => s + p.cantidad, 0) 
+            };
+          });
+          cb.sort((a, b) => b.t - a.t);
+          var mc = cb.length ? Math.max.apply(null, cb.map(r => r.t).concat([1])) : 1;
+          
+          html += '<div class="sc"><h3>Por categoría global</h3>' +
+            cb.map(function(r, i) {
+              return '<div class="br2"><div class="bl">' + r.c + '</div>' +
+                '<div class="bt"><div class="bf" style="width:' +
+                  Math.round(r.t / mc * 100) + '%;background:#6366f1' +
+                '"></div></div><div class="bq">' + r.t + '</div></div>';
+            }).join('') + '</div>';
+            
+          const sgEl = document.getElementById('sg');
+          if (sgEl) sgEl.innerHTML = html;
+        }
+
         const App = {
             inventory: [],
             currentSkuFilter: '',
@@ -576,6 +704,8 @@
                         baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
                     }
                     this.renderReport(baseData);
+                } else if (targetId === 'view-estadisticas') {
+                    rStats();
                 }
             },
 
@@ -700,6 +830,9 @@
                 this.renderDashboard();
                 if (document.getElementById('view-graficos').classList.contains('active')) {
                     this.renderChart();
+                }
+                if (document.getElementById('view-estadisticas').classList.contains('active')) {
+                    rStats();
                 }
             },
 
@@ -962,7 +1095,6 @@
 
                 const sortedChartSkus = Object.keys(stackedChartData).sort((a, b) => stackedChartData[b].total - stackedChartData[a].total);
 
-                // Renderizar Gráfico de Barras Estilizado (Horizontal y Redondeado)
                 const canvasCtx = document.getElementById('stackedReportChart');
                 if (canvasCtx) {
                     if (this.stackedChartInstance) {
@@ -980,7 +1112,7 @@
                                     backgroundColor: '#10b981', // emerald-500
                                     borderRadius: 4,
                                     borderSkipped: false,
-                                    barThickness: 14
+                                    barThickness: 12
                                 },
                                 {
                                     label: 'Office',
@@ -988,7 +1120,7 @@
                                     backgroundColor: '#a1a1aa', // zinc-400
                                     borderRadius: 4,
                                     borderSkipped: false,
-                                    barThickness: 14
+                                    barThickness: 12
                                 },
                                 {
                                     label: 'WH Hub',
@@ -996,7 +1128,7 @@
                                     backgroundColor: '#38bdf8', // sky-400
                                     borderRadius: 4,
                                     borderSkipped: false,
-                                    barThickness: 14
+                                    barThickness: 12
                                 },
                                 {
                                     label: 'DropGO',
@@ -1004,12 +1136,12 @@
                                     backgroundColor: '#fbbf24', // amber-400
                                     borderRadius: 4,
                                     borderSkipped: false,
-                                    barThickness: 14
+                                    barThickness: 12
                                 }
                             ]
                         },
                         options: {
-                            indexAxis: 'y', // Orientación horizontal para mayor limpieza y legibilidad
+                            indexAxis: 'y', // Convertir a gráfico horizontal
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
@@ -1024,10 +1156,10 @@
                                 tooltip: {
                                     mode: 'index',
                                     intersect: false,
-                                    backgroundColor: 'rgba(0,0,0,0.85)',
+                                    backgroundColor: 'rgba(0,0,0,0.8)',
                                     titleFont: { family: "'Inter', sans-serif", size: 13 },
                                     bodyFont: { family: "'Inter', sans-serif", size: 12 },
-                                    padding: 12,
+                                    padding: 10,
                                     cornerRadius: 8
                                 }
                             },
@@ -1190,11 +1322,24 @@
                                 const currentSortDate = mlDate ? mlDate.sort : todaySort;
                                 const currentQty = -Math.abs(parseInt(row[idxUnidades]) || 1);
 
+                                // Lógica estricta de asignación de bodega basada en la Columna AL (índice 37)
+                                let tipoEnvio = row[37] || '';
+                                if (!tipoEnvio.includes('Full') && !tipoEnvio.includes('Correo')) {
+                                    const found = row.find(val => val.includes('Mercado Envíos Full') || val.includes('Correo y puntos de despacho'));
+                                    if (found) tipoEnvio = found;
+                                }
+
+                                let assignedWarehouse = 'Full ML';
+                                if (tipoEnvio.includes('Correo') || tipoEnvio.includes('despacho') || !tipoEnvio.includes('Full')) {
+                                    assignedWarehouse = 'Office';
+                                }
+
                                 const isDuplicate = this.inventory.some(item => {
                                     if (saleId && item.mlSaleId === saleId) return true;
                                     return item.sku === row[idxSKU] && 
                                            item.quantity === currentQty && 
-                                           item.sortDate === currentSortDate;
+                                           item.sortDate === currentSortDate &&
+                                           item.warehouse === assignedWarehouse;
                                 });
 
                                 if (isDuplicate) {
@@ -1209,7 +1354,7 @@
                                     sku: row[idxSKU],
                                     name: row[idxTitulo] || 'Venta Mercado Libre',
                                     quantity: currentQty,
-                                    warehouse: 'Full ML',
+                                    warehouse: assignedWarehouse,
                                     status: 'Vendido',
                                     date: mlDate ? mlDate.display : today.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
                                 });
@@ -1246,6 +1391,7 @@
 
                         let newRecords = [];
                         let parseErrors = 0;
+                        let duplicatesIgnored = 0;
 
                         for (let i = 1; i < lines.length; i++) {
                             const rowRegex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
@@ -1279,6 +1425,18 @@
                                     continue;
                                 }
 
+                                const isDuplicate = this.inventory.some(item => 
+                                    item.sku === sku && 
+                                    item.sortDate === sortDate && 
+                                    item.quantity === cantidad && 
+                                    item.warehouse === bodega
+                                );
+
+                                if (isDuplicate) {
+                                    duplicatesIgnored++;
+                                    continue;
+                                }
+
                                 newRecords.push({
                                     id: Date.now() + i, 
                                     sortDate: sortDate,
@@ -1298,10 +1456,11 @@
                             this.inventory = [...newRecords, ...this.inventory];
                             this.saveAndRender();
                             let msg = `Importación histórica exitosa: ${newRecords.length} registros agregados.`;
-                            if (parseErrors > 0) msg += ` (${parseErrors} filas ignoradas por formato incorrecto).`;
+                            if (duplicatesIgnored > 0) msg += ` (${duplicatesIgnored} duplicados omitidos).`;
+                            if (parseErrors > 0) msg += ` (${parseErrors} ignorados por formato).`;
                             this.showNotification(msg);
                         } else {
-                            this.showNotification("No se encontraron registros válidos para importar.", "error");
+                            this.showNotification(duplicatesIgnored > 0 ? "No hay registros nuevos, todos eran duplicados." : "No se encontraron registros válidos para importar.", duplicatesIgnored > 0 ? 'success' : 'error');
                         }
 
                     } catch (err) {
@@ -1366,6 +1525,7 @@
             }
         };
 
+        // Arrancar la app
         document.addEventListener('DOMContentLoaded', () => App.init());
     </script>
 </body>
