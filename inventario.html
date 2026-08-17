@@ -223,6 +223,7 @@
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Bodega</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Estado</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acciones</th>
                                 </tr>
                             </thead>
@@ -878,13 +879,14 @@
                 const newWarehouse = row.querySelector('.edit-warehouse').value;
                 const newQty = parseInt(row.querySelector('.edit-qty').value);
                 const newSortDate = row.querySelector('.edit-date').value;
+                const newStatus = row.querySelector('.edit-status').value;
                 const [y, m, d] = newSortDate.split('-');
                 const dateObj = new Date(y, m - 1, d);
                 const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
                 this.inventory = this.inventory.map(item => {
                     if (item.id === id) {
-                        return { ...item, sku: newSku, name: newName, warehouse: newWarehouse, quantity: newQty, sortDate: newSortDate, date: formattedDate };
+                        return { ...item, sku: newSku, name: newName, warehouse: newWarehouse, quantity: newQty, sortDate: newSortDate, date: formattedDate, status: newStatus };
                     }
                     return item;
                 });
@@ -1061,6 +1063,13 @@
                                         </td>
                                         <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
                                         <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
+                                        <td class="px-6 py-4">
+                                            <select class="edit-status p-1 border rounded text-[10px] uppercase font-semibold">
+                                                <option value="Disponible" ${item.status === 'Disponible' ? 'selected' : ''}>Disponible</option>
+                                                <option value="Reservado" ${item.status === 'Reservado' ? 'selected' : ''}>Reservado</option>
+                                                <option value="Vendido" ${item.status === 'Vendido' ? 'selected' : ''}>Vendido</option>
+                                            </select>
+                                        </td>
                                         <td class="px-6 py-4 text-center space-x-1">
                                             <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
                                             <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
@@ -1081,6 +1090,7 @@
                                     <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
                                     <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
                                     <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
+                                    <td class="px-6 py-4 text-zinc-500 text-xs">${item.status || '-'}</td>
                                     <td class="px-6 py-4 text-center space-x-2">
                                         <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
                                         <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
