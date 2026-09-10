@@ -252,6 +252,13 @@
             const [isExporting, setIsExporting] = useState(false);
             const [selectedProveedor, setSelectedProveedor] = useState('Todos');
 
+            // NUEVO: Filtros para aislar "la operación"
+            const [filtros, setFiltros] = useState({
+                compras: true,
+                importaciones: true,
+                honorarios: true
+            });
+
             useEffect(() => {
                 setSelectedProveedor('Todos');
             }, [selectedMonth]);
@@ -555,27 +562,27 @@
                     ventas.push(vNeto);
 
                     const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '33');
-                    const cNeto33 = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
+                    const cNeto33 = filtros.compras ? detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
                     
                     const detComprasMes61 = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '61');
-                    const cNeto61 = detComprasMes61.reduce((acc, curr) => acc + curr.Neto, 0);
+                    const cNeto61 = filtros.compras ? detComprasMes61.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
 
                     const honMes = dataHonorarios.filter(d => d.Mes === m);
-                    const hBruto = honMes.reduce((acc, curr) => acc + curr.Brutos, 0);
+                    const hBruto = filtros.honorarios ? honMes.reduce((acc, curr) => acc + curr.Brutos, 0) : 0;
                     
                     const detComprasMesDIN = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '914');
-                    const cNetoDIN = detComprasMesDIN.reduce((acc, curr) => acc + curr.Neto, 0);
+                    const cNetoDIN = filtros.importaciones ? detComprasMesDIN.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
 
-                    // Gastos incluyen DIN, descontando Notas de Crédito (61)
+                    // Gastos condicionados por filtros
                     const totalGastosMesConDin = cNeto33 + hBruto + cNetoDIN - cNeto61;
                     comprasYHonorarios.push(totalGastosMesConDin);
 
-                    // Utilidad (Ingresos - Gastos Totales incluyendo DIN)
+                    // Utilidad condicionada por filtros
                     utilidades.push(vNeto - totalGastosMesConDin);
                 });
 
                 return { labels, ventas, compras: comprasYHonorarios, utilidades };
-            }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios]);
+            }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios, filtros]);
 
             const processedData = useMemo(() => {
                 const resVentas = dataVentasResumen.filter(d => selectedMonth === 'Todos' || d.Mes === selectedMonth);
@@ -638,8 +645,8 @@
                 });
 
                 const totalGastos = {
-                    neto: compras33.neto + comprasDIN.neto + honorarios.brutos - compras61.neto,
-                    total: compras33.total + comprasDIN.total + honorarios.pagado - compras61.total
+                    neto: (filtros.compras ? compras33.neto - compras61.neto : 0) + (filtros.importaciones ? comprasDIN.neto : 0) + (filtros.honorarios ? honorarios.brutos : 0),
+                    total: (filtros.compras ? compras33.total - compras61.total : 0) + (filtros.importaciones ? comprasDIN.total : 0) + (filtros.honorarios ? honorarios.pagado : 0)
                 };
 
                 const utilidad = {
@@ -648,18 +655,28 @@
                 };
 
                 const gastosPorProveedorMap = {};
-                detCompras33.forEach(c => {
-                    const name = c.RazonSocial || 'Sin Razón Social';
-                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
-                });
-                detCompras61.forEach(c => {
-                    const name = c.RazonSocial || 'Sin Razón Social';
-                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) - c.Neto;
-                });
-                detHonorarios.forEach(h => {
-                    const name = h.RazonSocial || 'Sin Razón Social';
-                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + h.Brutos;
-                });
+                if (filtros.compras) {
+                    detCompras33.forEach(c => {
+                        const name = c.RazonSocial || 'Sin Razón Social';
+                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
+                    });
+                    detCompras61.forEach(c => {
+                        const name = c.RazonSocial || 'Sin Razón Social';
+                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) - c.Neto;
+                    });
+                }
+                if (filtros.honorarios) {
+                    detHonorarios.forEach(h => {
+                        const name = h.RazonSocial || 'Sin Razón Social';
+                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + h.Brutos;
+                    });
+                }
+                if (filtros.importaciones) {
+                    detComprasDIN.forEach(c => {
+                        const name = c.RazonSocial || 'Sin Razón Social';
+                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
+                    });
+                }
                 
                 const sortedGastos = Object.entries(gastosPorProveedorMap).sort((a, b) => b[1] - a[1]);
                 const top5Gastos = sortedGastos.slice(0, 5);
@@ -679,7 +696,7 @@
                     gastosChartLabels, gastosChartData
                 };
 
-            }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth]);
+            }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth, filtros]);
 
             const uniqueProveedores = useMemo(() => {
                 if (!processedData) return ['Todos'];
@@ -798,6 +815,27 @@
                             </div>
                         )}
 
+                        {/* NUEVO: Panel de Filtros para aislar "La Operación" */}
+                        {hasData && !isExporting && (
+                            <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                                <span className="text-sm font-bold text-slate-700 flex-shrink-0">Filtros de Análisis (Operación):</span>
+                                <div className="flex flex-wrap gap-4">
+                                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
+                                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.compras} onChange={e => setFiltros({...filtros, compras: e.target.checked})} />
+                                        Compras (Facturas)
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
+                                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.importaciones} onChange={e => setFiltros({...filtros, importaciones: e.target.checked})} />
+                                        Importaciones (DIN)
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
+                                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.honorarios} onChange={e => setFiltros({...filtros, honorarios: e.target.checked})} />
+                                        Honorarios (BH)
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
                         {hasData && processedData && (
                             <div id="report-content" className={`mx-auto ${isExporting ? 'bg-white p-4 w-[1200px] space-y-4' : 'space-y-8'}`}>
                                 
@@ -840,7 +878,10 @@
                                         <div className={`bg-white rounded-xl shadow-sm border border-slate-200 ${isExporting ? 'p-3' : 'p-5'} flex flex-col`}>
                                             <span className={`text-slate-500 font-bold uppercase tracking-wider ${isExporting ? 'text-[9px]' : 'text-xs mb-1'}`}>Documentos</span>
                                             <span className={`font-black text-slate-700 ${isExporting ? 'text-sm' : 'text-2xl'}`}>
-                                                {processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs + processedData.compras33.docs + processedData.comprasDIN.docs + processedData.compras61.docs + processedData.honorarios.docs}
+                                                {processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs + 
+                                                (filtros.compras ? processedData.compras33.docs + processedData.compras61.docs : 0) + 
+                                                (filtros.importaciones ? processedData.comprasDIN.docs : 0) + 
+                                                (filtros.honorarios ? processedData.honorarios.docs : 0)}
                                             </span>
                                         </div>
                                     </div>
@@ -904,33 +945,45 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
-                                                        <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras (Facturas)</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
-                                                        <td className={`flex items-center gap-2 font-medium text-cyan-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShip /> Importaciones (DIN)</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.comprasDIN.docs} recibidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.comprasDIN.neto)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.comprasDIN.total)}</td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-200 hover:bg-slate-50">
-                                                        <td className={`flex items-center gap-2 font-medium text-amber-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconBriefcase /> Honorarios (BH)</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.honorarios.docs} recibidos</td>
-                                                        <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.brutos)}</td>
-                                                        <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
-                                                    </tr>
-                                                    <tr className="border-b border-slate-200 hover:bg-slate-50">
-                                                        <td className={`flex items-center gap-2 font-medium text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconCreditNote /> Notas de Crédito (NC)</td>
-                                                        <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras61.docs} recibidos</td>
-                                                        <td className={`text-right text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.compras61.neto)}</td>
-                                                        <td className={`text-right font-bold text-red-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.compras61.total)}</td>
-                                                    </tr>
+                                                    {filtros.compras && (
+                                                        <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                            <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras (Facturas)</td>
+                                                            <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
+                                                            <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
+                                                            <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {filtros.importaciones && (
+                                                        <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                            <td className={`flex items-center gap-2 font-medium text-cyan-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShip /> Importaciones (DIN)</td>
+                                                            <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.comprasDIN.docs} recibidos</td>
+                                                            <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.comprasDIN.neto)}</td>
+                                                            <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.comprasDIN.total)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {filtros.honorarios && (
+                                                        <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                                            <td className={`flex items-center gap-2 font-medium text-amber-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconBriefcase /> Honorarios (BH)</td>
+                                                            <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.honorarios.docs} recibidos</td>
+                                                            <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.brutos)}</td>
+                                                            <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {filtros.compras && (
+                                                        <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                                            <td className={`flex items-center gap-2 font-medium text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconCreditNote /> Notas de Crédito (NC)</td>
+                                                            <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras61.docs} recibidos</td>
+                                                            <td className={`text-right text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.compras61.neto)}</td>
+                                                            <td className={`text-right font-bold text-red-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>-{formatCurrency(processedData.compras61.total)}</td>
+                                                        </tr>
+                                                    )}
                                                     <tr className="bg-slate-800 text-white">
                                                         <td className={`font-bold text-rose-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>TOTAL GASTOS</td>
-                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{processedData.compras33.docs + processedData.comprasDIN.docs + processedData.honorarios.docs + processedData.compras61.docs}</td>
+                                                        <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>
+                                                            {(filtros.compras ? processedData.compras33.docs + processedData.compras61.docs : 0) + 
+                                                             (filtros.importaciones ? processedData.comprasDIN.docs : 0) + 
+                                                             (filtros.honorarios ? processedData.honorarios.docs : 0)}
+                                                        </td>
                                                         <td className={`text-right font-bold ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{formatCurrency(processedData.totalGastos.neto)}</td>
                                                         <td className={`text-right font-black text-rose-400 ${isExporting ? 'p-1.5 text-sm' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalGastos.total)}</td>
                                                     </tr>
@@ -1027,82 +1080,85 @@
                                             )}
                                     </CollapsibleTable>
 
-                                    {/* TABLA: REGISTRO DE COMPRAS (AGRUPADAS 33 Y 61) */}
-                                    <CollapsibleTable title="4. Compras Locales (Análisis 33 - 61)" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
-                                            {comprasLocalesAgrupadas.length > 0 ? (
-                                                <div className="flex flex-col h-full">
-                                                    {!isExporting && (
-                                                        <div className="p-2 bg-white border-b border-slate-200 flex items-center gap-2">
-                                                            <span className="text-xs font-bold text-slate-500 uppercase ml-1">Filtro Proveedor:</span>
-                                                            <select 
-                                                                className="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-md p-1.5 flex-1 max-w-[200px] outline-none cursor-pointer"
-                                                                value={selectedProveedor}
-                                                                onChange={(e) => setSelectedProveedor(e.target.value)}
-                                                            >
-                                                                {uniqueProveedores.map(p => <option key={p} value={p}>{p}</option>)}
-                                                            </select>
-                                                        </div>
-                                                    )}
+                                    {/* TABLA: REGISTRO DE COMPRAS */}
+                                    {filtros.compras && (
+                                        <CollapsibleTable title="4. Compras Locales" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
+                                                {comprasLocalesAgrupadas.length > 0 ? (
+                                                    <div className="flex flex-col h-full">
+                                                        {!isExporting && (
+                                                            <div className="p-2 bg-white border-b border-slate-200 flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-slate-500 uppercase ml-1">Filtro Proveedor:</span>
+                                                                <select 
+                                                                    className="bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 rounded-md p-1.5 flex-1 max-w-[200px] outline-none cursor-pointer"
+                                                                    value={selectedProveedor}
+                                                                    onChange={(e) => setSelectedProveedor(e.target.value)}
+                                                                >
+                                                                    {uniqueProveedores.map(p => <option key={p} value={p}>{p}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                        <table className="w-full text-left border-collapse text-[10px] md:text-xs">
+                                                            <thead className="bg-white sticky top-0 shadow-sm z-10">
+                                                                <tr className="text-slate-500 uppercase">
+                                                                    <th className="p-2 md:p-3 border-b font-semibold">Razón Social (Proveedor)</th>
+                                                                    <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {comprasLocalesAgrupadas.map((c, idx) => (
+                                                                    <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                                                                        <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial}</td>
+                                                                        <td className={`p-2 md:p-3 text-right font-bold ${c.totalMonto < 0 ? 'text-red-500' : 'text-slate-800'}`}>{formatCurrency(c.totalMonto)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                            {selectedProveedor !== 'Todos' && !isExporting && (
+                                                                <tfoot className="bg-slate-100 font-bold sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
+                                                                    <tr>
+                                                                        <td className="p-3 text-right text-slate-700 uppercase tracking-wide">Total:</td>
+                                                                        <td className={`p-3 text-right text-sm ${filteredComprasTotales.total < 0 ? 'text-red-600' : 'text-slate-800'}`}>{formatCurrency(filteredComprasTotales.total)}</td>
+                                                                    </tr>
+                                                                </tfoot>
+                                                            )}
+                                                        </table>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
+                                                        No hay compras en este periodo.
+                                                    </div>
+                                                )}
+                                        </CollapsibleTable>
+                                    )}
+
+                                    {/* TABLA: IMPORTACIONES (DIN 914) */}
+                                    {filtros.importaciones && (
+                                        <CollapsibleTable title="5. Importaciones (DIN)" count={processedData.detComprasDIN.length} isExporting={isExporting}>
+                                                {processedData.detComprasDIN.length > 0 ? (
                                                     <table className="w-full text-left border-collapse text-[10px] md:text-xs">
                                                         <thead className="bg-white sticky top-0 shadow-sm z-10">
                                                             <tr className="text-slate-500 uppercase">
                                                                 <th className="p-2 md:p-3 border-b font-semibold">Razón Social (Proveedor)</th>
+                                                                <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
                                                                 <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {comprasLocalesAgrupadas.map((c, idx) => (
+                                                            {processedData.detComprasDIN.map((c, idx) => (
                                                                 <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                    <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial}</td>
-                                                                    <td className={`p-2 md:p-3 text-right font-bold ${c.totalMonto < 0 ? 'text-red-500' : 'text-slate-800'}`}>{formatCurrency(c.totalMonto)}</td>
+                                                                    <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
+                                                                    <td className="p-2 md:p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
+                                                                    <td className="p-2 md:p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
-                                                        {selectedProveedor !== 'Todos' && !isExporting && (
-                                                            <tfoot className="bg-slate-100 font-bold sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
-                                                                <tr>
-                                                                    <td className="p-3 text-right text-slate-700 uppercase tracking-wide">Total:</td>
-                                                                    <td className={`p-3 text-right text-sm ${filteredComprasTotales.total < 0 ? 'text-red-600' : 'text-slate-800'}`}>{formatCurrency(filteredComprasTotales.total)}</td>
-                                                                </tr>
-                                                            </tfoot>
-                                                        )}
                                                     </table>
-                                                </div>
-                                            ) : (
-                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
-                                                    Sube RCV_COMPRA para ver facturas.
-                                                </div>
-                                            )}
-                                    </CollapsibleTable>
-
-                                    {/* TABLA: IMPORTACIONES (DIN 914) */}
-                                    <CollapsibleTable title="5. Importaciones (DIN)" count={processedData.detComprasDIN.length} isExporting={isExporting}>
-                                            {processedData.detComprasDIN.length > 0 ? (
-                                                <table className="w-full text-left border-collapse text-[10px] md:text-xs">
-                                                    <thead className="bg-white sticky top-0 shadow-sm z-10">
-                                                        <tr className="text-slate-500 uppercase">
-                                                            <th className="p-2 md:p-3 border-b font-semibold">Razón Social</th>
-                                                            <th className="p-2 md:p-3 border-b font-semibold whitespace-nowrap">Fecha</th>
-                                                            <th className="p-2 md:p-3 border-b font-semibold text-right">M. Total</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {processedData.detComprasDIN.map((c, idx) => (
-                                                            <tr key={idx} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                                                                <td className="p-2 md:p-3 font-medium text-slate-800 truncate max-w-[120px]" title={c.RazonSocial}>{c.RazonSocial || 'Sin Razón Social'}</td>
-                                                                <td className="p-2 md:p-3 text-slate-500 whitespace-nowrap">{c.Fecha}</td>
-                                                                <td className="p-2 md:p-3 text-right font-bold text-slate-800">{formatCurrency(c.Total)}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            ) : (
-                                                <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
-                                                    No hay importaciones en este periodo.
-                                                </div>
-                                            )}
-                                    </CollapsibleTable>
-
+                                                ) : (
+                                                    <div className="h-full flex items-center justify-center text-slate-400 text-sm p-6">
+                                                        No hay importaciones en este periodo.
+                                                    </div>
+                                                )}
+                                        </CollapsibleTable>
+                                    )}
                                 </div>
                             </div>
                         )}
