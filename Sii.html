@@ -393,13 +393,15 @@
                     } else if (file.name.includes('COMPRA_REGISTRO')) {
                         parsed.data.forEach(row => {
                             const tipoDocStr = String(row['Tipo Doc']).trim();
-                            if (row['RUT Proveedor'] && (tipoDocStr === '33' || tipoDocStr === '914' || tipoDocStr === '61')) {
+                            // Se agrega el tipo 34 (Factura Exenta)
+                            if (row['RUT Proveedor'] && (tipoDocStr === '33' || tipoDocStr === '34' || tipoDocStr === '914' || tipoDocStr === '61')) {
                                 newDetalleCompras.push({
                                     Mes: mesStr,
                                     Rut: row['RUT Proveedor'],
                                     RazonSocial: row['Razon Social'] || row['Razón Social'],
                                     Fecha: row['Fecha Docto'],
-                                    Neto: getInt(row['Monto Neto']),
+                                    // Respaldo inteligente: Si Neto es 0, busca en Exento o directamente usa el Total
+                                    Neto: getInt(row['Monto Neto']) || getInt(row['Monto Exento']) || getInt(row['Monto Total']) || 0,
                                     Total: getInt(row['Monto Total']),
                                     TipoDoc: tipoDocStr
                                 });
@@ -561,7 +563,8 @@
                     });
                     ventas.push(vNeto);
 
-                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '33');
+                    // Ahora filtramos tanto 33 como 34 para los gastos
+                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && (d.TipoDoc === '33' || d.TipoDoc === '34'));
                     const cNeto33 = filtros.compras ? detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
                     
                     const detComprasMes61 = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '61');
@@ -626,7 +629,8 @@
                 const detCompras61 = [];
 
                 detCompras.forEach(c => {
-                    if (c.TipoDoc === '33') {
+                    // Agrupamos la doc tipo 33 y 34 en la misma bolsa de compras locales
+                    if (c.TipoDoc === '33' || c.TipoDoc === '34') {
                         compras33.docs += 1;
                         compras33.neto += c.Neto;
                         compras33.total += c.Total;
@@ -947,7 +951,7 @@
                                                 <tbody>
                                                     {filtros.compras && (
                                                         <tr className="border-b border-slate-100 hover:bg-slate-50">
-                                                            <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras (Facturas)</td>
+                                                            <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras (Afectas y Exentas)</td>
                                                             <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
                                                             <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
                                                             <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
@@ -1082,7 +1086,7 @@
 
                                     {/* TABLA: REGISTRO DE COMPRAS */}
                                     {filtros.compras && (
-                                        <CollapsibleTable title="4. Compras Locales" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
+                                        <CollapsibleTable title="4. Compras Locales (Afectas y Exentas)" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
                                                 {comprasLocalesAgrupadas.length > 0 ? (
                                                     <div className="flex flex-col h-full">
                                                         {!isExporting && (
