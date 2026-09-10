@@ -224,6 +224,8 @@
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Cant.</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Fecha</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Estado</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Valor</th>
+                                    <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50">Comentario</th>
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acciones</th>
                                 </tr>
                             </thead>
@@ -295,6 +297,16 @@
                                     <option>Reservado</option>
                                     <option>Vendido</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label id="label-value" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Valor de Venta (Opcional)</label>
+                                <input type="number" id="input-value" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ej. 15000" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Comentario (Opcional)</label>
+                                <input type="text" id="input-comment" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Notas adicionales..." />
                             </div>
                         </div>
                         <div class="pt-4">
@@ -709,6 +721,22 @@
                 if (this.chartSkuInput) {
                     this.chartSkuInput.addEventListener('input', () => this.renderChart());
                 }
+
+                // Lógica de Registro Manual para Valor de Venta
+                const statusInput = document.getElementById('input-status');
+                const valueInput = document.getElementById('input-value');
+                const valueLabel = document.getElementById('label-value');
+                if (statusInput && valueInput) {
+                    statusInput.addEventListener('change', (e) => {
+                        if (e.target.value === 'Vendido') {
+                            valueInput.required = true;
+                            if (valueLabel) valueLabel.innerText = 'Valor de Venta (Requerido)';
+                        } else {
+                            valueInput.required = false;
+                            if (valueLabel) valueLabel.innerText = 'Valor de Venta (Opcional)';
+                        }
+                    });
+                }
             },
 
             navigate(targetId, activeBtn) {
@@ -880,13 +908,15 @@
                 const newQty = parseInt(row.querySelector('.edit-qty').value);
                 const newSortDate = row.querySelector('.edit-date').value;
                 const newStatus = row.querySelector('.edit-status').value;
+                const newValue = row.querySelector('.edit-value').value;
+                const newComment = row.querySelector('.edit-comment').value;
                 const [y, m, d] = newSortDate.split('-');
                 const dateObj = new Date(y, m - 1, d);
                 const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
                 this.inventory = this.inventory.map(item => {
                     if (item.id === id) {
-                        return { ...item, sku: newSku, name: newName, warehouse: newWarehouse, quantity: newQty, sortDate: newSortDate, date: formattedDate, status: newStatus };
+                        return { ...item, sku: newSku, name: newName, warehouse: newWarehouse, quantity: newQty, sortDate: newSortDate, date: formattedDate, status: newStatus, value: newValue, comment: newComment };
                     }
                     return item;
                 });
@@ -1040,7 +1070,7 @@
                 const tableBody = document.getElementById('table-body');
                 if (tableBody) {
                     if(sortedDashboard.length === 0) {
-                        tableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar con los filtros actuales.</td></tr>`;
+                        tableBody.innerHTML = `<tr><td colspan="9" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar con los filtros actuales.</td></tr>`;
                     } else {
                         const rowsHtml = sortedDashboard.slice(0, 100).map(item => {
                             const isEditing = this.editingId === item.id;
@@ -1070,6 +1100,8 @@
                                                 <option value="Vendido" ${item.status === 'Vendido' ? 'selected' : ''}>Vendido</option>
                                             </select>
                                         </td>
+                                        <td class="px-6 py-4"><input type="number" class="edit-value w-20 p-1 border rounded text-xs" value="${item.value || ''}" placeholder="$"></td>
+                                        <td class="px-6 py-4"><input type="text" class="edit-comment w-32 p-1 border rounded text-xs" value="${item.comment || ''}" placeholder="Nota..."></td>
                                         <td class="px-6 py-4 text-center space-x-1">
                                             <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
                                             <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
@@ -1091,6 +1123,8 @@
                                     <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
                                     <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
                                     <td class="px-6 py-4 text-zinc-500 text-xs">${item.status || '-'}</td>
+                                    <td class="px-6 py-4 text-zinc-600 text-xs font-medium">${item.value ? '$' + Number(item.value).toLocaleString('es-CL') : '-'}</td>
+                                    <td class="px-6 py-4 text-zinc-500 text-[10px] truncate max-w-[120px]" title="${item.comment || ''}">${item.comment || '-'}</td>
                                     <td class="px-6 py-4 text-center space-x-2">
                                         <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
                                         <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
@@ -1321,6 +1355,8 @@
                     quantity: qty,
                     warehouse: document.getElementById('input-bodega').value,
                     status: document.getElementById('input-status').value,
+                    value: document.getElementById('input-value').value,
+                    comment: document.getElementById('input-comment').value,
                     date: formattedDate
                 });
                 this.saveAndRender();
@@ -1328,6 +1364,8 @@
                 document.getElementById('input-sku').value = '';
                 document.getElementById('input-name').value = '';
                 document.getElementById('input-qty').value = '1';
+                document.getElementById('input-value').value = '';
+                document.getElementById('input-comment').value = '';
                 this.setDefaultDate();
             },
 
@@ -1390,13 +1428,14 @@
                                 const currentSortDate = mlDate ? mlDate.sort : todaySort;
                                 const currentQty = -Math.abs(parseInt(row[idxUnidades]) || 1);
 
-                                // Lógica estricta de asignación de bodega basada en la Columna AL (índice 37)
+                                // Lógica estricta de asignación de bodega basada en la Columna AL (índice 37) o búsqueda en la fila
                                 let tipoEnvio = row[37] || '';
                                 if (!tipoEnvio.includes('Full') && !tipoEnvio.includes('Correo')) {
                                     const found = row.find(val => val.includes('Mercado Envíos Full') || val.includes('Correo y puntos de despacho'));
                                     if (found) tipoEnvio = found;
                                 }
 
+                                // Asignar bodega correcta según el tipo de envío de Mercado Libre
                                 let assignedWarehouse = 'Full ML';
                                 if (tipoEnvio.includes('Correo') || tipoEnvio.includes('despacho') || !tipoEnvio.includes('Full')) {
                                     assignedWarehouse = 'Office';
@@ -1415,6 +1454,10 @@
                                     continue;
                                 }
 
+                                // Extraer valor de la venta de la Columna H (índice 7)
+                                const valorRaw = row[7] || '';
+                                const valorVenta = valorRaw.replace(/\D/g, ''); // Elimina símbolos y deja solo el número
+
                                 newDeductions.push({
                                     id: Date.now() + i,
                                     mlSaleId: saleId,
@@ -1424,6 +1467,8 @@
                                     quantity: currentQty,
                                     warehouse: assignedWarehouse,
                                     status: 'Vendido',
+                                    value: valorVenta,
+                                    comment: 'Importación ML',
                                     date: mlDate ? mlDate.display : today.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
                                 });
                             }
@@ -1572,7 +1617,7 @@
             exportDetail() {
                 if (this.inventory.length === 0) return this.showNotification("No hay movimientos registrados.", "error");
 
-                const headers = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado'];
+                const headers = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado', 'Valor', 'Comentario'];
                 
                 const sortedDetail = [...this.inventory].sort((a, b) => {
                     const timeA = new Date(a.sortDate || '2000-01-01').getTime();
@@ -1581,7 +1626,8 @@
                 });
 
                 const rows = sortedDetail.map(item => {
-                    return `"${item.date}","${item.sku}","${item.name}","${item.warehouse}",${item.quantity},"${item.status || ''}"`;
+                    const cleanComment = item.comment ? item.comment.replace(/"/g, '""') : '';
+                    return `"${item.date}","${item.sku}","${item.name}","${item.warehouse}",${item.quantity},"${item.status || ''}","${item.value || ''}","${cleanComment}"`;
                 });
 
                 const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
