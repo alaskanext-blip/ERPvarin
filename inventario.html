@@ -27,16 +27,13 @@
             --mo: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
 
-        /* Clases auxiliares para el manejo de vistas */
         .view-section { display: none; }
         .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Tipografía corporativa premium */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
 
-        /* Scrollbar estilizada */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
@@ -48,12 +45,11 @@
 </head>
 <body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
 
-    <!-- SIDEBAR DE NAVEGACIÓN -->
     <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800 shrink-0">
         <div class="p-8">
             <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
                 <span class="flex items-center gap-2">
-                    <img src="https://varin.nl/cdn/shop/files/logo-varin_524x120.svg?v=1704292157" alt="Varin Logo" class="h-8 brightness-0 invert">
+                    <img src="https://varin.nl/cdn/shop/files/logo-varin_524x120.svg?v=1704292157" alt="Varin Logo" class="h-8 brightness-0 invert" onerror="this.src='https://placehold.co/120x30/000000/ffffff?text=VARIN'">
                 </span>
                 <span class="text-zinc-500 font-light tracking-[0.3em]">Traaq</span>
             </h1>
@@ -76,6 +72,9 @@
             <button data-target="view-graficos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-chart-line-up text-xl"></i> <span class="font-medium text-sm tracking-wide">Gráficos</span>
             </button>
+            <button data-target="view-ventas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-currency-dollar text-xl"></i> <span class="font-medium text-sm tracking-wide">Ventas</span>
+            </button>
             <button data-target="view-reportes" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-chart-bar text-xl"></i> <span class="font-medium text-sm tracking-wide">Reportes</span>
             </button>
@@ -85,28 +84,19 @@
         </nav>
         
         <div class="p-6 bg-zinc-950 space-y-3">
-            <button onclick="App.exportToExcel()" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-zinc-200 text-black py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
-                <i class="ph ph-download-simple text-lg"></i> Exportar Stock
-            </button>
-            <button onclick="App.exportDetail()" class="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
-                <i class="ph ph-list-numbers text-lg"></i> Exportar Detalle
-            </button>
-            <button onclick="App.clearAllData()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm mt-4">
+            <button onclick="App.clearAllData()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-trash text-lg"></i> Borrar Toda la Data
             </button>
         </div>
     </aside>
 
-    <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-1 relative h-screen overflow-hidden flex flex-col p-10">
         
-        <!-- Notificaciones flotantes -->
         <div id="toast" class="absolute top-6 right-6 z-50 px-5 py-4 rounded-md shadow-xl flex items-center gap-3 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-[-10px]">
             <i id="toast-icon" class="ph text-2xl"></i>
             <span id="toast-msg" class="font-medium text-sm tracking-wide"></span>
         </div>
 
-        <!-- Modal de Confirmación Custom -->
         <div id="confirm-modal" class="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
             <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="confirm-modal-box">
                 <div class="flex items-center gap-3 text-red-600 mb-4">
@@ -121,30 +111,27 @@
             </div>
         </div>
 
-        <!-- PARTE SUPERIOR GLOBAL -->
         <div class="shrink-0 space-y-6 mb-8">
             <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h2 class="text-3xl font-light text-zinc-900 tracking-tight">Inventario VARIN</h2>
                     <p class="text-zinc-500 text-sm mt-1">Gestión centralizada de existencias Varin Traaq.</p>
                 </div>
-                <!-- Buscador por SKU y Filtro de Mes -->
                 <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <div class="relative w-full sm:w-48">
                         <i class="ph ph-calendar-blank absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg z-10"></i>
-                        <select id="filter-month" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm cursor-pointer appearance-none">
+                        <select id="filter-month" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer appearance-none">
                             <option value="">Todos los meses</option>
                         </select>
                     </div>
                     <div class="relative w-full sm:w-72">
                         <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
-                        <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
+                        <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
                         <datalist id="sku-list"></datalist>
                     </div>
                 </div>
             </header>
             
-            <!-- KPIs GLOBALES -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
                     <div class="flex justify-between items-start mb-4">
@@ -177,12 +164,9 @@
             </div>
         </div>
 
-        <!-- ZONA DE CONTENIDO DINÁMICO -->
         <div class="flex-1 min-h-0 overflow-hidden relative">
             
-            <!-- VISTA: DASHBOARD -->
             <section id="view-dashboard" class="view-section active h-full pb-10">
-                <!-- Stock Actualizado por SKU -->
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <h3 class="font-medium text-zinc-800 italic">Stock Actualizado por SKU</h3>
@@ -200,15 +184,12 @@
                                     <th class="px-6 py-3 uppercase text-[10px] tracking-wider bg-zinc-50 text-right">Total</th>
                                 </tr>
                             </thead>
-                            <tbody id="stock-summary-body" class="divide-y divide-zinc-100">
-                                <!-- Filas generadas por JS -->
-                            </tbody>
+                            <tbody id="stock-summary-body" class="divide-y divide-zinc-100"></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- VISTA: TODAS LAS TRANSACCIONES (MOVIMIENTOS) -->
             <section id="view-transacciones" class="view-section h-full pb-10">
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
@@ -229,22 +210,18 @@
                                     <th class="px-6 py-4 uppercase text-[10px] tracking-wider bg-zinc-50 text-center">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-body" class="divide-y divide-zinc-100">
-                                <!-- Filas generadas por JS -->
-                            </tbody>
+                            <tbody id="table-body" class="divide-y divide-zinc-100"></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- VISTA: ESTADISTICAS -->
             <div id="view-estadisticas" class="view-section h-full overflow-y-auto pb-10">
               <h1 class="text-2xl font-light text-zinc-900 tracking-tight mb-1">Estadísticas de Inventario</h1>
               <p class="text-zinc-500 text-sm mb-6">Resumen de stock actual global, por bodega y por categoría.</p>
               <div id="sg" class="sg"></div>
             </div>
 
-            <!-- VISTA: REGISTRO MANUAL -->
             <section id="view-ingreso" class="view-section h-full overflow-y-auto pb-10">
                 <div class="max-w-3xl w-full mx-auto space-y-6">
                     <header>
@@ -268,22 +245,22 @@
                         <div class="grid grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">SKU</label>
-                                <input required type="text" id="input-sku" list="manual-sku-list" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm font-mono" placeholder="Ej. VA-E002" oninput="App.syncDescription(this.value, document.getElementById('input-name'))" autocomplete="off" />
+                                <input required type="text" id="input-sku" list="manual-sku-list" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm font-mono" placeholder="Ej. VA-E002" oninput="App.syncDescription(this.value, document.getElementById('input-name'))" autocomplete="off" />
                                 <datalist id="manual-sku-list"></datalist>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Cantidad</label>
-                                <input required type="number" id="input-qty" min="1" value="1" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" />
+                                <input required type="number" id="input-qty" min="1" value="1" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm" />
                             </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Nombre del Producto</label>
-                            <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Descripción del producto" />
+                            <input required type="text" id="input-name" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm" placeholder="Descripción del producto" />
                         </div>
                         <div class="grid grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega de la Operación</label>
-                                <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Bodega</label>
+                                <select id="input-bodega" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm appearance-none cursor-pointer">
                                     <option value="WH Hub">WH Hub</option>
                                     <option value="Office">Office</option>
                                     <option value="Full ML">Full ML</option>
@@ -292,7 +269,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Estado</label>
-                                <select id="input-status" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm appearance-none cursor-pointer">
+                                <select id="input-status" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm appearance-none cursor-pointer">
                                     <option>Disponible</option>
                                     <option>Reservado</option>
                                     <option>Vendido</option>
@@ -302,41 +279,38 @@
                         <div class="grid grid-cols-2 gap-6">
                             <div>
                                 <label id="label-value" class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Valor de Venta (Opcional)</label>
-                                <input type="number" id="input-value" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Ej. 15000" />
+                                <input type="number" id="input-value" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm" placeholder="Ej. 15000" />
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Comentario (Opcional)</label>
-                                <input type="text" id="input-comment" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white focus:ring-1 focus:ring-black focus:border-black outline-none transition-all text-sm" placeholder="Notas adicionales..." />
+                                <input type="text" id="input-comment" class="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-md focus:bg-white outline-none transition-all text-sm" placeholder="Notas adicionales..." />
                             </div>
                         </div>
                         <div class="pt-4">
-                            <button type="submit" class="w-full bg-black hover:bg-zinc-800 text-white font-medium py-3 rounded-md transition-colors text-sm tracking-wide shadow-md">
-                                Registrar Movimiento
-                            </button>
+                            <button type="submit" class="w-full bg-black hover:bg-zinc-800 text-white font-medium py-3 rounded-md transition-colors text-sm tracking-wide shadow-md">Registrar Movimiento</button>
                         </div>
                     </form>
                 </div>
             </section>
 
-            <!-- VISTA: GRÁFICOS -->
-            <section id="view-graficos" class="view-section h-full overflow-y-auto pb-10">
-                <div class="max-w-5xl w-full mx-auto space-y-6">
+            <section id="view-ventas" class="view-section h-full overflow-y-auto pb-10">
+                <div class="max-w-6xl w-full mx-auto space-y-6">
                     <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                         <div>
-                            <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Análisis de Movimientos</h2>
-                            <p class="text-zinc-500 text-sm mt-1">Evolución mensual de entradas y salidas en el tiempo.</p>
+                            <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Visualizador Mensual de Ventas</h2>
+                            <p class="text-zinc-500 text-sm mt-1">Monitorea los ingresos y unidades despachadas a lo largo del tiempo.</p>
                         </div>
                         <div class="flex flex-wrap gap-3">
                             <div class="relative w-full sm:w-48">
                                 <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
-                                <input type="text" id="chart-sku" list="chart-sku-list" placeholder="Todos los SKU" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
-                                <datalist id="chart-sku-list"></datalist>
+                                <input type="text" id="ventas-sku" list="ventas-sku-list" placeholder="Todos los SKU" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md outline-none text-sm shadow-sm font-mono" autocomplete="off" />
+                                <datalist id="ventas-sku-list"></datalist>
                             </div>
-                            <select id="chart-year" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[120px]">
-                                <!-- Opciones generadas por JS -->
+                            <select id="ventas-month" class="p-2.5 bg-white border border-zinc-200 rounded-md outline-none text-sm shadow-sm cursor-pointer min-w-[150px]">
+                                <option value="">Todos los meses</option>
                             </select>
-                            <select id="chart-warehouse" class="p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer min-w-[150px]">
-                                <option value="ALL">Todas las Bodegas</option>
+                            <select id="ventas-bodega" class="p-2.5 bg-white border border-zinc-200 rounded-md outline-none text-sm shadow-sm cursor-pointer min-w-[150px]">
+                                <option value="ALL">Todas las Bodegas (Salida)</option>
                                 <option value="WH Hub">WH Hub</option>
                                 <option value="Office">Office</option>
                                 <option value="Full ML">Full ML</option>
@@ -344,137 +318,102 @@
                             </select>
                         </div>
                     </header>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-emerald-50 p-6 rounded-lg border border-emerald-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-800 mb-1">Ingresos Totales (Meses Filtrados)</p>
+                                <p id="ventas-kpi-value" class="text-3xl font-light text-emerald-950">$0</p>
+                            </div>
+                            <i class="ph ph-money text-4xl text-emerald-400"></i>
+                        </div>
+                        <div class="bg-sky-50 p-6 rounded-lg border border-sky-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-sky-800 mb-1">Unidades Vendidas</p>
+                                <p id="ventas-kpi-units" class="text-3xl font-light text-sky-950">0</p>
+                            </div>
+                            <i class="ph ph-package text-4xl text-sky-400"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 h-[400px]">
+                        <canvas id="ventasChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-graficos" class="view-section h-full overflow-y-auto pb-10">
+                <div class="max-w-5xl w-full mx-auto space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Análisis General de Movimientos</h2>
+                        <p class="text-zinc-500 text-sm mt-1">Comparativo de unidades ingresadas vs unidades despachadas mensualmente.</p>
+                    </header>
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 h-[500px]">
                         <canvas id="movementChart"></canvas>
                     </div>
                 </div>
             </section>
 
-            <!-- VISTA: CARGA MASIVA -->
-            <section id="view-carga" class="view-section h-full overflow-y-auto pb-10 text-center">
-                <div class="max-w-3xl w-full mx-auto space-y-8">
-                    <!-- Importación Ventas ML -->
-                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
-                        <header>
-                            <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i class="ph ph-shopping-cart text-sky-600 text-3xl"></i>
+            <section id="view-reportes" class="view-section h-full overflow-y-auto pb-10">
+                <div class="max-w-4xl w-full mx-auto space-y-6">
+                    <header>
+                        <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Reportes y Exportación</h2>
+                        <p class="text-zinc-500 text-sm mt-1">Descarga la información de tu inventario en formato de hoja de cálculo.</p>
+                    </header>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                        <div class="bg-white p-8 rounded-lg shadow-sm border border-zinc-200 text-center space-y-4 hover:border-zinc-300 transition-all cursor-pointer group" onclick="App.exportToExcel()">
+                            <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto group-hover:bg-emerald-100 transition-colors">
+                                <i class="ph ph-file-xls text-emerald-600 text-4xl"></i>
                             </div>
-                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Ventas de Mercado Libre</h2>
-                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">
-                                Sube el reporte de ventas de ML. El sistema omitirá automáticamente las ventas ya registradas.
-                            </p>
-                        </header>
-                        
-                        <div class="relative border-2 border-dashed border-sky-200 rounded-lg p-10 bg-sky-50/50 hover:bg-sky-50 hover:border-sky-400 transition-all cursor-pointer group">
-                            <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                            <div class="pointer-events-none flex flex-col items-center">
-                                <i class="ph ph-upload-simple text-3xl text-sky-500 group-hover:text-sky-700 mb-3 transition-colors"></i>
-                                <p class="text-sky-900 font-medium">Subir reporte ML (.csv, .xlsx)</p>
+                            <h3 class="font-medium text-lg text-zinc-900">Reporte de Stock Actual</h3>
+                            <p class="text-sm text-zinc-500">Descarga un archivo Excel con el resumen consolidado del inventario disponible agrupado por cada SKU y bodega.</p>
+                            <div class="pt-2">
+                                <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-md text-sm font-medium transition-colors w-full shadow-sm">Descargar Stock</button>
                             </div>
                         </div>
-                    </div>
-
-                    <hr class="border-zinc-200 my-8">
-
-                    <!-- Importación Detalle Historico -->
-                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
-                        <header>
-                            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i class="ph ph-database text-emerald-600 text-3xl"></i>
-                            </div>
-                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Restaurar / Importar Detalle Histórico</h2>
-                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">
-                                Sube un archivo de "Detalle de Movimientos" para restaurar o poblar la base de datos. <br>
-                                <span class="font-semibold text-red-600">Nota:</span> Esta acción no borra lo actual, solo añade los registros nuevos.
-                            </p>
-                        </header>
                         
-                        <div class="relative border-2 border-dashed border-emerald-200 rounded-lg p-10 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-400 transition-all cursor-pointer group">
-                            <input type="file" id="file-upload-historico" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                            <div class="pointer-events-none flex flex-col items-center">
-                                <i class="ph ph-file-csv text-3xl text-emerald-500 group-hover:text-emerald-700 mb-3 transition-colors"></i>
-                                <p class="text-emerald-900 font-medium">Subir Detalle Histórico (.csv)</p>
+                        <div class="bg-white p-8 rounded-lg shadow-sm border border-zinc-200 text-center space-y-4 hover:border-zinc-300 transition-all cursor-pointer group" onclick="App.exportDetail()">
+                            <div class="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center mx-auto group-hover:bg-sky-100 transition-colors">
+                                <i class="ph ph-list-numbers text-sky-600 text-4xl"></i>
+                            </div>
+                            <h3 class="font-medium text-lg text-zinc-900">Historial de Movimientos</h3>
+                            <p class="text-sm text-zinc-500">Descarga un Excel con el detalle línea por línea de todas las transacciones históricas registradas en la app.</p>
+                            <div class="pt-2">
+                                <button class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-md text-sm font-medium transition-colors w-full shadow-sm">Descargar Movimientos</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- VISTA: REPORTES -->
-            <section id="view-reportes" class="view-section h-full overflow-y-auto pb-10">
-                <div class="space-y-8">
-                    <!-- Gráfico Apilado Estilizado -->
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h3 class="font-medium text-zinc-800 tracking-tight">Distribución de Salidas por SKU</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Salidas totales desglosadas por bodega de origen.</p>
+            <section id="view-carga" class="view-section h-full overflow-y-auto pb-10 text-center">
+                <div class="max-w-3xl w-full mx-auto space-y-8">
+                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
+                        <header>
+                            <div class="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-shopping-cart text-sky-600 text-3xl"></i></div>
+                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Ventas de Mercado Libre</h2>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el reporte. Se deducirá stock de Full ML o Office según el tipo de envío y se ignorarán duplicados.</p>
+                        </header>
+                        <div class="relative border-2 border-dashed border-sky-200 rounded-lg p-10 bg-sky-50/50 hover:bg-sky-50 transition-all cursor-pointer group">
+                            <input type="file" id="file-upload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div class="pointer-events-none flex flex-col items-center">
+                                <i class="ph ph-upload-simple text-3xl text-sky-500 group-hover:text-sky-700 mb-3"></i>
+                                <p class="text-sky-900 font-medium">Subir reporte ML (.csv, .xlsx)</p>
                             </div>
-                            <select id="report-chart-month" class="p-2 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-xs shadow-sm cursor-pointer min-w-[150px]">
-                                <option value="">Todos los meses</option>
-                            </select>
-                        </div>
-                        <div class="h-[450px]">
-                            <canvas id="stackedReportChart"></canvas>
                         </div>
                     </div>
-                    
-                    <!-- TABLA 1: Todas las bodegas -->
-                    <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
-                        <div class="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-50/50 shrink-0">
-                            <div>
-                                <h3 class="font-medium text-zinc-800 tracking-tight">Reporte General de Ventas (Office + Full ML)</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Total de salidas registradas desde las bodegas Office y Full ML.</p>
+                    <hr class="border-zinc-200 my-8">
+                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
+                        <header>
+                            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-database text-emerald-600 text-3xl"></i></div>
+                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Restaurar / Importar Detalle Histórico</h2>
+                        </header>
+                        <div class="relative border-2 border-dashed border-emerald-200 rounded-lg p-10 bg-emerald-50/50 hover:bg-emerald-50 transition-all cursor-pointer group">
+                            <input type="file" id="file-upload-historico" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div class="pointer-events-none flex flex-col items-center">
+                                <i class="ph ph-file-xls text-3xl text-emerald-500 mb-3"></i>
+                                <p class="text-emerald-900 font-medium">Subir Detalle Histórico (.csv, .xlsx)</p>
                             </div>
-                            <select id="report1-month" class="p-2 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-xs shadow-sm cursor-pointer min-w-[150px]">
-                                <option value="">Todos los meses</option>
-                            </select>
-                        </div>
-                        <div class="p-6 overflow-x-auto">
-                            <table class="w-full text-sm text-left border border-zinc-200 rounded-lg overflow-hidden min-w-full">
-                                <thead class="bg-zinc-100 text-zinc-600 font-medium border-b border-zinc-200">
-                                    <tr>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap w-40">SKU</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="report-table-all" class="divide-y divide-zinc-100">
-                                    <!-- Filas generadas por JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- TABLA 2: Solo Full ML -->
-                    <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col">
-                        <div class="px-6 py-4 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-50/50 shrink-0">
-                            <div>
-                                <h3 class="font-medium text-emerald-800 tracking-tight">Reporte por SKU (Solo Full ML)</h3>
-                                <p class="text-xs text-zinc-500 mt-1">Total de salidas exclusivas registradas en la bodega Full ML.</p>
-                            </div>
-                            <div class="flex items-center gap-3 w-full sm:w-auto">
-                                <select id="report2-month" class="p-2 bg-white border border-emerald-200 text-emerald-800 rounded-md focus:bg-emerald-50 outline-none transition-all text-xs shadow-sm cursor-pointer min-w-[150px]">
-                                    <option value="">Todos los meses</option>
-                                </select>
-                                <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0 hidden sm:flex">
-                                    <i class="ph ph-shopping-bag text-emerald-600"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-6 overflow-x-auto">
-                            <table class="w-full text-sm text-left border border-emerald-200 rounded-lg overflow-hidden min-w-full">
-                                <thead class="bg-emerald-50 text-emerald-800 font-medium border-b border-emerald-200">
-                                    <tr>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider whitespace-nowrap w-40">SKU</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider">Producto</th>
-                                        <th class="px-6 py-3 uppercase text-[10px] tracking-wider text-right">Unidades Vendidas</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="report-table-fullml" class="divide-y divide-zinc-100">
-                                    <!-- Filas generadas por JS -->
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -484,14 +423,13 @@
 
     <script>
         var BODS = ['DropGO','Full ML','Office','WH Hub'];
-        var COL  = ['#fbbf24','#10b981','#a1a1aa','#38bdf8']; // Amber, Emerald, Zinc, Sky
+        var COL  = ['#fbbf24','#10b981','#a1a1aa','#38bdf8']; 
         var prods = [];
 
         function rStats() {
+          var agg = {};
           var aggGlobal = {};
-          var aggWH = {};
           
-          // Mapeo unificado para coincidir 100% con el Dashboard
           App.inventory.forEach(function(item) {
             let wh = item.warehouse || '';
             if (wh === 'WH Hub' || wh === 'Bodega 1') wh = 'WH Hub';
@@ -503,30 +441,30 @@
             const qty = parseInt(item.quantity) || 0;
             let cat = 'ventilación';
             const lowName = (item.name || '').toLowerCase();
-            if (lowName.includes('calefac') || lowName.includes('estufa') || lowName.includes('heater')) cat = 'calefacción';
-            else if (lowName.includes('segur') || lowName.includes('camara') || lowName.includes('alarma')) cat = 'seguridad';
+            const lowSku = (item.sku || '').toLowerCase();
+            
+            if (lowName.includes('calefac') || lowName.includes('estufa') || lowName.includes('heater') || lowSku.includes('c-')) cat = 'calefacción';
+            else if (lowName.includes('segur') || lowName.includes('camara') || lowName.includes('alarma') || lowSku.includes('s-')) cat = 'seguridad';
 
-            // Acumular Global por SKU (Para cuadrar con tabla Dashboard)
+            // Agrupación global
             if (!aggGlobal[item.sku]) {
                 aggGlobal[item.sku] = { sku: item.sku, nombre: item.name, categoria: cat, cantidad: 0 };
             }
             aggGlobal[item.sku].cantidad += qty;
 
-            // Acumular por Bodega Específica
+            // Agrupación por bodega
             var key = item.sku + '_' + wh;
-            if (!aggWH[key]) {
-                aggWH[key] = { sku: item.sku, nombre: item.name, bodega: wh, categoria: cat, cantidad: 0 };
+            if (!agg[key]) {
+              agg[key] = { sku: item.sku, nombre: item.name, bodega: wh, categoria: cat, cantidad: 0 };
             }
-            aggWH[key].cantidad += qty;
+            agg[key].cantidad += qty;
           });
-
-          // Extraer arrays de objetos y filtrar saldos en cero o negativos
-          var prodsGlobal = Object.keys(aggGlobal).map(k => aggGlobal[k]).filter(p => p.cantidad > 0).sort((a,b) => b.cantidad - a.cantidad);
-          prods = Object.keys(aggWH).map(k => aggWH[k]);
+          
+          prods = Object.keys(agg).map(function(k){ return agg[k]; });
+          var prodsGlobal = Object.keys(aggGlobal).map(function(k){ return aggGlobal[k]; }).filter(p => p.cantidad > 0).sort((a,b) => b.cantidad - a.cantidad);
 
           var html = '';
 
-          // 1. TARJETA GLOBAL (Stock Total por SKU)
           if (prodsGlobal.length > 0) {
               var maxGlobal = Math.max.apply(null, prodsGlobal.map(p => p.cantidad).concat([1]));
               var totalGlobal = prodsGlobal.reduce((s, p) => s + p.cantidad, 0);
@@ -544,12 +482,11 @@
               html += '</div></div>';
           }
 
-          // 2. TARJETAS POR BODEGA
           BODS.forEach(function(b, i) {
-            var bp = prods.filter(p => p.bodega === b && p.cantidad > 0).sort((a,b) => b.cantidad - a.cantidad);
+            var bp = prods.filter(function(p){ return p.bodega === b && p.cantidad > 0; }).sort((a,b) => b.cantidad - a.cantidad);
             if (!bp.length) return;
-            var totalB = bp.reduce((s,p) => s + p.cantidad, 0);
-            var max = Math.max.apply(null, bp.map(p => p.cantidad).concat([1]));
+            var totalB = bp.reduce(function(s,p){ return s + p.cantidad; }, 0);
+            var max = Math.max.apply(null, bp.map(function(p){ return p.cantidad; }).concat([1]));
             html += '<div class="sc"><h3>' + b +
               ' <span class="cnt">' + bp.length + ' SKUs &bull; ' + totalB.toLocaleString() + ' und</span></h3>' +
               bp.map(function(p) {
@@ -562,15 +499,12 @@
               }).join('') + '</div>';
           });
 
-          // 3. TARJETA POR CATEGORÍA
           var targetCats = ['ventilación', 'calefacción', 'seguridad'];
           var cb = targetCats.map(function(c) {
-            return { 
-              c: c.charAt(0).toUpperCase() + c.slice(1), 
-              t: prodsGlobal.filter(p => p.categoria === c).reduce((s,p) => s + p.cantidad, 0) 
-            };
+            return { c: c.charAt(0).toUpperCase() + c.slice(1), 
+                     t: prodsGlobal.filter(p => p.categoria === c).reduce((s,p) => s + p.cantidad, 0) };
           });
-          cb.sort((a, b) => b.t - a.t);
+          cb.sort(function(a, b){ return b.t - a.t; });
           var mc = cb.length ? Math.max.apply(null, cb.map(r => r.t).concat([1])) : 1;
           
           html += '<div class="sc"><h3>Por categoría global</h3>' +
@@ -580,7 +514,7 @@
                   Math.round(r.t / mc * 100) + '%;background:#6366f1' +
                 '"></div></div><div class="bq">' + r.t + '</div></div>';
             }).join('') + '</div>';
-            
+
           const sgEl = document.getElementById('sg');
           if (sgEl) sgEl.innerHTML = html;
         }
@@ -589,44 +523,20 @@
             inventory: [],
             currentSkuFilter: '',
             currentMonthFilter: '',
-            report1MonthFilter: '',
-            report2MonthFilter: '',
-            reportChartMonthFilter: '',
             editingId: null,
             chartInstance: null,
-            stackedChartInstance: null,
+            ventasChartInstance: null,
             
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
                 if(data) {
                     this.inventory = JSON.parse(data);
-                    this.migrateData();
+                    this.cleanDatabase(); // Limpieza profunda automática al iniciar
                 }
                 this.cacheDOM();
                 this.setDefaultDate();
                 this.bindEvents();
                 this.renderDashboard();
-            },
-
-            migrateData() {
-                let changed = false;
-                this.inventory = this.inventory.map(item => {
-                    if (!item.sortDate && item.date) {
-                        changed = true;
-                        const parts = item.date.split(' ');
-                        if (parts.length === 3) {
-                            const months = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
-                            const d = parts[0].padStart(2, '0');
-                            const m = months[parts[1].substring(0,3).toLowerCase()] || '01';
-                            const y = parts[2];
-                            item.sortDate = `${y}-${m}-${d}`;
-                        } else {
-                            item.sortDate = new Date().toISOString().split('T')[0];
-                        }
-                    }
-                    return item;
-                });
-                if (changed) this.saveAndRender();
             },
 
             cacheDOM() {
@@ -638,22 +548,25 @@
                 this.formManual = document.getElementById('form-manual');
                 this.fileInput = document.getElementById('file-upload');
                 this.fileInputHistorico = document.getElementById('file-upload-historico');
+                
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
                 this.kpi3 = document.getElementById('kpi-bodega3');
                 this.kpi4 = document.getElementById('kpi-bodega4');
                 this.tableBody = document.getElementById('table-body');
+                
                 this.skuFilterInput = document.getElementById('filter-sku');
                 this.monthFilterInput = document.getElementById('filter-month');
-                this.report1MonthSelect = document.getElementById('report1-month');
-                this.report2MonthSelect = document.getElementById('report2-month');
-                this.reportChartMonthSelect = document.getElementById('report-chart-month');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
-                this.chartYearInput = document.getElementById('chart-year');
-                this.chartWarehouseInput = document.getElementById('chart-warehouse');
-                this.chartSkuInput = document.getElementById('chart-sku');
-                this.chartSkuList = document.getElementById('chart-sku-list');
+                
+                // Visualizador Ventas
+                this.ventasSkuInput = document.getElementById('ventas-sku');
+                this.ventasSkuList = document.getElementById('ventas-sku-list');
+                this.ventasMonthSelect = document.getElementById('ventas-month');
+                this.ventasBodegaSelect = document.getElementById('ventas-bodega');
+                this.ventasKpiUnits = document.getElementById('ventas-kpi-units');
+                this.ventasKpiValue = document.getElementById('ventas-kpi-value');
                 
                 this.confirmModal = document.getElementById('confirm-modal');
                 this.confirmModalBox = document.getElementById('confirm-modal-box');
@@ -665,76 +578,32 @@
             setDefaultDate() {
                 if (!this.dateInput) return;
                 const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                this.dateInput.value = `${year}-${month}-${day}`;
+                this.dateInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             },
 
             bindEvents() {
                 this.navButtons.forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const targetId = btn.getAttribute('data-target');
-                        this.navigate(targetId, btn);
-                    });
+                    btn.addEventListener('click', () => this.navigate(btn.getAttribute('data-target'), btn));
                 });
-                if (this.formManual) {
-                    this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
-                }
+                if (this.formManual) this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
+                
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
                 this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
                 
-                this.skuFilterInput.addEventListener('input', (e) => {
-                    this.currentSkuFilter = e.target.value.trim().toUpperCase();
-                    this.renderDashboard();
-                });
-                this.monthFilterInput.addEventListener('change', (e) => {
-                    this.currentMonthFilter = e.target.value;
-                    this.renderDashboard();
-                });
+                this.skuFilterInput.addEventListener('input', (e) => { this.currentSkuFilter = e.target.value.trim().toUpperCase(); this.renderDashboard(); });
+                this.monthFilterInput.addEventListener('change', (e) => { this.currentMonthFilter = e.target.value; this.renderDashboard(); });
 
-                if(this.report1MonthSelect) {
-                    this.report1MonthSelect.addEventListener('change', (e) => {
-                        this.report1MonthFilter = e.target.value;
-                        this.renderDashboard();
-                    });
-                }
-                if(this.report2MonthSelect) {
-                    this.report2MonthSelect.addEventListener('change', (e) => {
-                        this.report2MonthFilter = e.target.value;
-                        this.renderDashboard();
-                    });
-                }
-                if(this.reportChartMonthSelect) {
-                    this.reportChartMonthSelect.addEventListener('change', (e) => {
-                        this.reportChartMonthFilter = e.target.value;
-                        this.renderDashboard();
-                    });
-                }
+                if (this.ventasSkuInput) this.ventasSkuInput.addEventListener('input', () => this.renderVentas());
+                if (this.ventasMonthSelect) this.ventasMonthSelect.addEventListener('change', () => this.renderVentas());
+                if (this.ventasBodegaSelect) this.ventasBodegaSelect.addEventListener('change', () => this.renderVentas());
 
-                if (this.chartYearInput) {
-                    this.chartYearInput.addEventListener('change', () => this.renderChart());
-                }
-                if (this.chartWarehouseInput) {
-                    this.chartWarehouseInput.addEventListener('change', () => this.renderChart());
-                }
-                if (this.chartSkuInput) {
-                    this.chartSkuInput.addEventListener('input', () => this.renderChart());
-                }
-
-                // Lógica de Registro Manual para Valor de Venta
                 const statusInput = document.getElementById('input-status');
                 const valueInput = document.getElementById('input-value');
                 const valueLabel = document.getElementById('label-value');
                 if (statusInput && valueInput) {
                     statusInput.addEventListener('change', (e) => {
-                        if (e.target.value === 'Vendido') {
-                            valueInput.required = true;
-                            if (valueLabel) valueLabel.innerText = 'Valor de Venta (Requerido)';
-                        } else {
-                            valueInput.required = false;
-                            if (valueLabel) valueLabel.innerText = 'Valor de Venta (Opcional)';
-                        }
+                        valueInput.required = (e.target.value === 'Vendido');
+                        valueLabel.innerText = valueInput.required ? 'Valor de Venta (Requerido)' : 'Valor de Venta (Opcional)';
                     });
                 }
             },
@@ -743,610 +612,292 @@
                 this.editingId = null;
                 this.views.forEach(v => v.classList.remove('active'));
                 document.getElementById(targetId).classList.add('active');
-                this.navButtons.forEach(btn => {
-                    btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent";
-                });
+                this.navButtons.forEach(btn => btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent");
                 activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
                 this.renderDashboard();
-                
-                if (targetId === 'view-graficos') {
-                    this.renderChart();
-                } else if (targetId === 'view-reportes') {
-                    let baseData = this.inventory;
-                    if (this.currentSkuFilter) {
-                        baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
-                    }
-                    this.renderReport(baseData);
-                } else if (targetId === 'view-estadisticas') {
-                    rStats();
-                }
+                if (targetId === 'view-ventas') this.renderVentas();
+                if (targetId === 'view-graficos') this.renderGraficos();
+                if (targetId === 'view-estadisticas') rStats();
             },
 
-            populateChartFilters() {
-                const years = new Set();
-                this.inventory.forEach(item => {
-                    if (item.sortDate) years.add(item.sortDate.substring(0, 4));
-                });
+            renderVentas() {
+                if (!document.getElementById('ventasChart')) return;
                 
-                const currentYear = new Date().getFullYear().toString();
-                if (years.size === 0) years.add(currentYear);
-
-                const sortedYears = [...years].sort().reverse();
-                let html = '';
-                sortedYears.forEach(y => {
-                    html += `<option value="${y}" ${y === currentYear ? 'selected' : ''}>Año ${y}</option>`;
-                });
-
-                if (this.chartYearInput && this.chartYearInput.innerHTML !== html) {
-                    this.chartYearInput.innerHTML = html;
-                }
-                
-                if (this.chartSkuList) {
+                if (this.ventasSkuList) {
                     const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
-                    const skuHtml = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
-                    if (this.chartSkuList.innerHTML !== skuHtml) {
-                        this.chartSkuList.innerHTML = skuHtml;
-                    }
+                    this.ventasSkuList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
                 }
-            },
 
-            renderChart() {
-                if (!document.getElementById('movementChart')) return;
-                this.populateChartFilters();
-
-                const selectedYear = this.chartYearInput.value;
-                const selectedWH = this.chartWarehouseInput.value;
-                const selectedSku = this.chartSkuInput.value.trim().toUpperCase();
-
-                const entries = new Array(12).fill(0);
-                const exits = new Array(12).fill(0);
-
-                this.inventory.forEach(item => {
-                    if (!item.sortDate || !item.sortDate.startsWith(selectedYear)) return;
-
-                    const whMatch = selectedWH === 'ALL' || 
-                                    item.warehouse === selectedWH || 
-                                    (selectedWH === 'Full ML' && item.warehouse.includes('3')) || 
-                                    (selectedWH === 'Office' && item.warehouse.includes('2')) || 
-                                    (selectedWH === 'WH Hub' && item.warehouse.includes('1'));
+                const selMonth = this.ventasMonthSelect.value;
+                const selSku = this.ventasSkuInput.value.trim().toUpperCase();
+                const selWh = this.ventasBodegaSelect.value;
+                
+                let salesData = this.inventory.filter(item => parseInt(item.quantity) < 0 && item.status === 'Vendido');
+                
+                if (selMonth) salesData = salesData.filter(item => item.sortDate && item.sortDate.startsWith(selMonth));
+                if (selSku) salesData = salesData.filter(item => item.sku.toUpperCase().includes(selSku));
+                if (selWh && selWh !== 'ALL') salesData = salesData.filter(item => item.warehouse === selWh);
+                
+                let totalUnits = 0;
+                let totalValue = 0;
+                const chartData = {};
+                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                
+                // Agrupacion mensual de las ventas
+                salesData.forEach(item => {
+                    const qty = Math.abs(parseInt(item.quantity) || 0);
+                    const val = parseInt(String(item.value || '0').replace(/\D/g, '')) || 0;
+                    totalUnits += qty;
+                    totalValue += val;
                     
-                    if (!whMatch) return;
-                    if (selectedSku && !item.sku.toUpperCase().includes(selectedSku)) return;
+                    let dateKey = 'Sin fecha';
+                    let label = 'Sin fecha';
+                    if (item.sortDate) {
+                        const [y, m] = item.sortDate.split('-');
+                        dateKey = `${y}-${m}`;
+                        label = `${monthNames[parseInt(m) - 1]} ${y}`;
+                    }
 
-                    const monthIdx = parseInt(item.sortDate.substring(5, 7)) - 1;
-                    const qty = parseInt(item.quantity) || 0;
-
-                    if (qty > 0) entries[monthIdx] += qty;
-                    else exits[monthIdx] += qty;
+                    if (!chartData[dateKey]) chartData[dateKey] = { label: label, units: 0, value: 0 };
+                    chartData[dateKey].units += qty;
+                    chartData[dateKey].value += val;
                 });
+                
+                this.ventasKpiUnits.innerText = totalUnits.toLocaleString('es-CL');
+                this.ventasKpiValue.innerText = '$' + totalValue.toLocaleString('es-CL');
+                
+                const sortedKeys = Object.keys(chartData).sort();
+                const labels = sortedKeys.map(k => chartData[k].label);
+                const unitsData = sortedKeys.map(k => chartData[k].units);
+                const valueData = sortedKeys.map(k => chartData[k].value);
 
-                const ctx = document.getElementById('movementChart').getContext('2d');
-                if (this.chartInstance) {
-                    this.chartInstance.destroy();
-                }
-
-                this.chartInstance = new Chart(ctx, {
-                    type: 'line',
+                const ctx = document.getElementById('ventasChart').getContext('2d');
+                if (this.ventasChartInstance) this.ventasChartInstance.destroy();
+                
+                this.ventasChartInstance = new Chart(ctx, {
+                    type: 'bar',
                     data: {
-                        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                        labels: labels,
                         datasets: [
                             {
-                                label: 'Entradas (+)',
-                                data: entries,
+                                label: 'Ingresos ($)',
+                                data: valueData,
+                                type: 'line',
                                 borderColor: '#10b981',
                                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                borderWidth: 2,
+                                borderWidth: 3,
                                 fill: true,
-                                tension: 0.4
+                                yAxisID: 'y1'
                             },
                             {
-                                label: 'Salidas (-)',
-                                data: exits,
-                                borderColor: '#ef4444',
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.4
+                                label: 'Unidades Vendidas',
+                                data: unitsData,
+                                backgroundColor: '#38bdf8',
+                                borderRadius: 4,
+                                yAxisID: 'y'
                             }
                         ]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        plugins: { legend: { position: 'top' } },
+                        responsive: true, maintainAspectRatio: false,
                         scales: {
-                            y: { grid: { color: '#f4f4f5' } },
-                            x: { grid: { display: false } }
+                            x: { grid: { display: false } },
+                            y: { type: 'linear', position: 'left', title: { display: true, text: 'Unidades' } },
+                            y1: { type: 'linear', position: 'right', title: { display: true, text: 'Ingresos ($)' }, grid: { drawOnChartArea: false } }
                         }
                     }
                 });
             },
 
+            renderGraficos() {
+                if (!document.getElementById('movementChart')) return;
+                const ctx = document.getElementById('movementChart').getContext('2d');
+                if (this.chartInstance) this.chartInstance.destroy();
+
+                const chartData = {};
+                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+                this.inventory.forEach(item => {
+                    if(!item.sortDate) return;
+                    const [y, m] = item.sortDate.split('-');
+                    const dateKey = `${y}-${m}`;
+                    if (!chartData[dateKey]) chartData[dateKey] = { label: `${monthNames[parseInt(m) - 1]} ${y}`, in: 0, out: 0 };
+                    
+                    const q = parseInt(item.quantity) || 0;
+                    if(q > 0) chartData[dateKey].in += q;
+                    else chartData[dateKey].out += Math.abs(q);
+                });
+
+                const sortedKeys = Object.keys(chartData).sort();
+
+                this.chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedKeys.map(k => chartData[k].label),
+                        datasets: [
+                            { label: 'Ingresos al Inventario (+)', data: sortedKeys.map(k => chartData[k].in), backgroundColor: '#38bdf8', borderRadius: 4 },
+                            { label: 'Salidas del Inventario (-)', data: sortedKeys.map(k => chartData[k].out), backgroundColor: '#fbbf24', borderRadius: 4 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } } } }
+                });
+            },
+
+            exportToExcel() {
+                if (!this.inventory.length) return this.showNotification('No hay datos para exportar', 'error');
+                const sum = {};
+                this.inventory.forEach(i => {
+                    if (!sum[i.sku]) sum[i.sku] = { SKU: i.sku, Producto: i.name, 'WH Hub': 0, 'Office': 0, 'Full ML': 0, 'DropGO': 0, Total: 0 };
+                    const q = parseInt(i.quantity) || 0;
+                    let wh = i.warehouse;
+                    if (wh === 'WH Hub' || wh === 'Bodega 1') sum[i.sku]['WH Hub'] += q;
+                    else if (wh === 'Office' || wh === 'Bodega 2') sum[i.sku]['Office'] += q;
+                    else if (wh === 'Full ML' || wh.includes('3')) sum[i.sku]['Full ML'] += q;
+                    else if (wh === 'DropGO') sum[i.sku]['DropGO'] += q;
+                    sum[i.sku].Total += q;
+                });
+                const ws = XLSX.utils.json_to_sheet(Object.values(sum));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Stock Actual");
+                XLSX.writeFile(wb, `Varin_Stock_${new Date().toISOString().split('T')[0]}.xlsx`);
+                this.showNotification('Reporte de Stock descargado.');
+            },
+
+            exportDetail() {
+                if (!this.inventory.length) return this.showNotification('No hay datos para exportar', 'error');
+                const exportData = this.inventory.map(i => ({
+                    Fecha: i.date,
+                    'Fecha Orden (YYYY-MM-DD)': i.sortDate,
+                    SKU: i.sku,
+                    Producto: i.name,
+                    Bodega: i.warehouse,
+                    Cantidad: i.quantity,
+                    Estado: i.status || '',
+                    Valor: i.value || '',
+                    Comentario: i.comment || '',
+                    'ID Venta ML': i.mlSaleId || ''
+                }));
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Movimientos Históricos");
+                XLSX.writeFile(wb, `Varin_Movimientos_${new Date().toISOString().split('T')[0]}.xlsx`);
+                this.showNotification('Detalle de movimientos descargado.');
+            },
+
             showNotification(msg, type = 'success') {
                 this.toastMsg.innerText = msg;
-                this.toast.classList.remove('opacity-0', 'translate-y-[-10px]', 'bg-black', 'text-white', 'bg-red-50');
-                if(type === 'success') {
-                    this.toast.classList.add('bg-black', 'text-white', 'opacity-100', 'translate-y-0');
-                    this.toastIcon.className = "ph ph-check-circle text-xl text-green-400";
-                } else {
-                    this.toast.classList.add('bg-red-50', 'text-red-900', 'border', 'border-red-200', 'opacity-100', 'translate-y-0');
-                    this.toastIcon.className = "ph ph-warning-circle text-xl text-red-500";
+                this.toast.className = `absolute top-6 right-6 z-50 px-5 py-4 rounded-md shadow-xl flex items-center gap-3 transition-all duration-300 opacity-100 translate-y-0 ${type==='success' ? 'bg-black text-white' : 'bg-red-50 text-red-900 border border-red-200'}`;
+                this.toastIcon.className = type==='success' ? "ph ph-check-circle text-xl text-green-400" : "ph ph-warning-circle text-xl text-red-500";
+                setTimeout(() => this.toast.classList.add('opacity-0', 'translate-y-[-10px]'), 4000);
+            },
+
+            cleanDatabase() {
+                let cleaned = false;
+                const uniqueMap = new Map();
+                
+                // Ordenamos del más reciente al más antiguo para conservar la versión más limpia si hay duplicados
+                const sorted = [...this.inventory].sort((a, b) => b.id - a.id);
+
+                sorted.forEach(item => {
+                    let key = item.id;
+                    // Si tiene ID de venta de ML, esa es la huella digital definitiva
+                    if (item.mlSaleId) {
+                        key = 'VENTA_' + item.mlSaleId + '_' + item.sku;
+                    } else if (item.comment === 'Importación ML' || item.comment === 'Histórico') {
+                        key = 'AUTO_' + item.sku + '_' + item.sortDate + '_' + item.quantity + '_' + item.warehouse;
+                    }
+
+                    // Purgar duplicados atrapados en fechas incorrectas
+                    if (!uniqueMap.has(key)) {
+                        uniqueMap.set(key, item);
+                    } else {
+                        cleaned = true;
+                    }
+                });
+
+                if (cleaned) {
+                    this.inventory = Array.from(uniqueMap.values());
+                    localStorage.setItem('inventory_db_varin', JSON.stringify(this.inventory));
                 }
-                setTimeout(() => {
-                    this.toast.classList.add('opacity-0', 'translate-y-[-10px]');
-                }, 4000);
             },
 
             saveAndRender() {
                 localStorage.setItem('inventory_db_varin', JSON.stringify(this.inventory));
                 this.renderDashboard();
-                if (document.getElementById('view-graficos').classList.contains('active')) {
-                    this.renderChart();
-                }
-                if (document.getElementById('view-estadisticas').classList.contains('active')) {
-                    rStats();
-                }
+                if (document.getElementById('view-ventas').classList.contains('active')) this.renderVentas();
+                if (document.getElementById('view-graficos').classList.contains('active')) this.renderGraficos();
+                if (document.getElementById('view-estadisticas').classList.contains('active')) rStats();
             },
 
-            toggleEdit(id) {
-                this.editingId = (this.editingId === id) ? null : id;
-                this.renderDashboard();
-            },
-
-            syncDescription(sku, inputElement) {
-                const match = this.inventory.find(i => i.sku.toUpperCase() === sku.toUpperCase());
-                if (match) inputElement.value = match.name;
+            toggleEdit(id) { this.editingId = (this.editingId === id) ? null : id; this.renderDashboard(); },
+            syncDescription(sku, el) { const match = this.inventory.find(i => i.sku.toUpperCase() === sku.toUpperCase()); if (match) el.value = match.name; },
+            
+            formatDisplayDate(isoString) {
+                if (!isoString || typeof isoString !== 'string') return null;
+                // Limpiar cualquier residuo de hora y separar por guiones
+                const cleanDate = isoString.split('T')[0].trim();
+                const parts = cleanDate.split('-');
+                if (parts.length !== 3) return null;
+                return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
             },
 
             saveEdit(id) {
                 const row = document.querySelector(`tr[data-id="${id}"]`);
                 if (!row) return;
-                const newSku = row.querySelector('.edit-sku').value;
-                const newName = row.querySelector('.edit-name').value;
-                const newWarehouse = row.querySelector('.edit-warehouse').value;
-                const newQty = parseInt(row.querySelector('.edit-qty').value);
-                const newSortDate = row.querySelector('.edit-date').value;
-                const newStatus = row.querySelector('.edit-status').value;
-                const newValue = row.querySelector('.edit-value').value;
-                const newComment = row.querySelector('.edit-comment').value;
-                const [y, m, d] = newSortDate.split('-');
-                const dateObj = new Date(y, m - 1, d);
-                const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+                const upd = {
+                    sku: row.querySelector('.edit-sku').value,
+                    name: row.querySelector('.edit-name').value,
+                    warehouse: row.querySelector('.edit-warehouse').value,
+                    quantity: parseInt(row.querySelector('.edit-qty').value),
+                    sortDate: row.querySelector('.edit-date').value,
+                    status: row.querySelector('.edit-status').value,
+                    value: row.querySelector('.edit-value').value,
+                    comment: row.querySelector('.edit-comment').value
+                };
+                const [y, m, d] = upd.sortDate.split('-');
+                upd.date = new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
-                this.inventory = this.inventory.map(item => {
-                    if (item.id === id) {
-                        return { ...item, sku: newSku, name: newName, warehouse: newWarehouse, quantity: newQty, sortDate: newSortDate, date: formattedDate, status: newStatus, value: newValue, comment: newComment };
-                    }
-                    return item;
-                });
+                this.inventory = this.inventory.map(item => item.id === id ? { ...item, ...upd } : item);
                 this.editingId = null;
                 this.saveAndRender();
                 this.showNotification('Registro actualizado.');
             },
 
-            showConfirmModal(title, message, onConfirm) {
+            showConfirmModal(title, msg, onConfirm) {
                 this.confirmModalTitle.innerText = title;
-                this.confirmModalMsg.innerText = message;
-                this.confirmModalBtn.onclick = () => {
-                    onConfirm();
-                    this.closeConfirmModal();
-                };
+                this.confirmModalMsg.innerText = msg;
+                this.confirmModalBtn.onclick = () => { onConfirm(); this.closeConfirmModal(); };
                 this.confirmModal.classList.remove('opacity-0', 'pointer-events-none');
                 this.confirmModalBox.classList.remove('scale-95');
-                this.confirmModalBox.classList.add('scale-100');
             },
 
             closeConfirmModal() {
                 this.confirmModal.classList.add('opacity-0', 'pointer-events-none');
-                this.confirmModalBox.classList.remove('scale-100');
                 this.confirmModalBox.classList.add('scale-95');
             },
 
             deleteItem(id) {
-                this.showConfirmModal(
-                    '¿Eliminar este movimiento?',
-                    'Esta acción eliminará este registro permanentemente. ¿Deseas continuar?',
-                    () => {
-                        this.inventory = this.inventory.filter(item => item.id !== id);
-                        this.saveAndRender();
-                        this.showNotification('Registro eliminado.');
-                    }
-                );
+                this.showConfirmModal('¿Eliminar movimiento?', 'Se eliminará permanentemente. ¿Continuar?', () => {
+                    this.inventory = this.inventory.filter(i => i.id !== id);
+                    this.saveAndRender();
+                    this.showNotification('Registro eliminado.');
+                });
             },
 
             clearAllData() {
-                this.showConfirmModal(
-                    '¿Borrar toda la base de datos?',
-                    'Esta acción eliminará permanentemente TODOS los registros del inventario. No podrás recuperarlos. ¿Deseas continuar?',
-                    () => {
-                        this.inventory = [];
-                        this.saveAndRender();
-                        this.showNotification('Toda la data ha sido eliminada exitosamente.', 'success');
-                    }
-                );
-            },
-
-            populateMonthFilter() {
-                const months = new Set();
-                this.inventory.forEach(item => {
-                    if (item.sortDate) months.add(item.sortDate.substring(0, 7));
+                this.showConfirmModal('¿Borrar toda la base de datos?', 'Se eliminarán TODOS los registros. No podrás recuperarlos. ¿Continuar?', () => {
+                    this.inventory = [];
+                    this.saveAndRender();
+                    this.showNotification('Data eliminada exitosamente.', 'success');
                 });
-                
-                const sortedMonths = [...months].sort().reverse();
-                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-                
-                let htmlGlobal = '<option value="">Todos los meses</option>';
-                let htmlR1 = '<option value="">Todos los meses</option>';
-                let htmlR2 = '<option value="">Todos los meses</option>';
-                let htmlRChart = '<option value="">Todos los meses</option>';
-                
-                sortedMonths.forEach(m => {
-                    const [year, month] = m.split('-');
-                    const monthName = monthNames[parseInt(month) - 1];
-                    htmlGlobal += `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
-                    htmlR1 += `<option value="${m}" ${this.report1MonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
-                    htmlR2 += `<option value="${m}" ${this.report2MonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
-                    htmlRChart += `<option value="${m}" ${this.reportChartMonthFilter === m ? 'selected' : ''}>${monthName} ${year}</option>`;
-                });
-                
-                if (this.monthFilterInput && this.monthFilterInput.innerHTML !== htmlGlobal) this.monthFilterInput.innerHTML = htmlGlobal;
-                if (this.report1MonthSelect && this.report1MonthSelect.innerHTML !== htmlR1) this.report1MonthSelect.innerHTML = htmlR1;
-                if (this.report2MonthSelect && this.report2MonthSelect.innerHTML !== htmlR2) this.report2MonthSelect.innerHTML = htmlR2;
-                if (this.reportChartMonthSelect && this.reportChartMonthSelect.innerHTML !== htmlRChart) this.reportChartMonthSelect.innerHTML = htmlRChart;
-            },
-
-            renderDashboard() {
-                this.populateMonthFilter();
-                
-                const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
-                this.skuDataList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
-                
-                let baseData = this.inventory;
-                if (this.currentSkuFilter) {
-                    baseData = baseData.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
-                }
-
-                let dashboardData = baseData;
-                if (this.currentMonthFilter) {
-                    dashboardData = dashboardData.filter(item => item.sortDate && item.sortDate.startsWith(this.currentMonthFilter));
-                }
-
-                const sortedDashboard = [...dashboardData].sort((a, b) => {
-                    const timeA = new Date(a.sortDate || '2000-01-01').getTime();
-                    const timeB = new Date(b.sortDate || '2000-01-01').getTime();
-                    if (timeA !== timeB) return timeB - timeA;
-                    return b.id - a.id;
-                });
-                
-                const getTot = (bodegasArray) => dashboardData.filter(i => bodegasArray.includes(i.warehouse)).reduce((acc, curr) => acc + parseInt(curr.quantity), 0);
-                this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
-                this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
-                this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
-                this.kpi4.innerText = getTot(['DropGO']);
-
-                const stockSummaryBody = document.getElementById('stock-summary-body');
-                if (stockSummaryBody) {
-                    const stockSummary = {};
-                    let stockSource = this.inventory;
-                    if (this.currentSkuFilter) {
-                        stockSource = stockSource.filter(item => item.sku.toUpperCase().includes(this.currentSkuFilter));
-                    }
-                    
-                    stockSource.forEach(item => {
-                        if (!stockSummary[item.sku]) {
-                            stockSummary[item.sku] = { name: item.name, whHub: 0, office: 0, fullML: 0, dropGO: 0 };
-                        }
-                        const qty = parseInt(item.quantity) || 0;
-                        const wh = item.warehouse;
-                        if (wh === 'WH Hub' || wh === 'Bodega 1') stockSummary[item.sku].whHub += qty;
-                        else if (wh === 'Office' || wh === 'Bodega 2') stockSummary[item.sku].office += qty;
-                        else if (wh === 'Full ML' || wh.includes('3')) stockSummary[item.sku].fullML += qty;
-                        else if (wh === 'DropGO') stockSummary[item.sku].dropGO += qty;
-                    });
-
-                    const sortedSkus = Object.keys(stockSummary).sort();
-                    if (sortedSkus.length === 0) {
-                        stockSummaryBody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin stock registrado para mostrar.</td></tr>`;
-                    } else {
-                        stockSummaryBody.innerHTML = sortedSkus.map(sku => {
-                            const data = stockSummary[sku];
-                            const total = data.whHub + data.office + data.fullML + data.dropGO;
-                            return `
-                                <tr class="hover:bg-zinc-50 transition-colors">
-                                    <td class="px-6 py-3 font-mono text-xs text-zinc-500 whitespace-nowrap">${sku}</td>
-                                    <td class="px-6 py-3 font-medium text-zinc-900">${data.name}</td>
-                                    <td class="px-6 py-3 text-center text-sky-700 font-medium">${data.whHub}</td>
-                                    <td class="px-6 py-3 text-center text-zinc-700 font-medium">${data.office}</td>
-                                    <td class="px-6 py-3 text-center text-emerald-700 font-medium">${data.fullML}</td>
-                                    <td class="px-6 py-3 text-center text-amber-700 font-medium">${data.dropGO}</td>
-                                    <td class="px-6 py-3 text-right font-bold text-zinc-900">${total}</td>
-                                </tr>
-                            `;
-                        }).join('');
-                    }
-                }
-
-                const tableBody = document.getElementById('table-body');
-                if (tableBody) {
-                    if(sortedDashboard.length === 0) {
-                        tableBody.innerHTML = `<tr><td colspan="9" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos para mostrar con los filtros actuales.</td></tr>`;
-                    } else {
-                        const rowsHtml = sortedDashboard.slice(0, 100).map(item => {
-                            const isEditing = this.editingId === item.id;
-                            const isB3 = item.warehouse === 'Full ML' || item.warehouse.includes('3');
-                            const isWH = item.warehouse === 'WH Hub' || item.warehouse.includes('1');
-                            const isDrop = item.warehouse === 'DropGO';
-                            
-                            if (isEditing) {
-                                return `
-                                    <tr class="bg-zinc-50" data-id="${item.id}">
-                                        <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${item.sku}" oninput="App.syncDescription(this.value, this.closest('tr').querySelector('.edit-name'))"></td>
-                                        <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${item.name}"></td>
-                                        <td class="px-6 py-4">
-                                            <select class="edit-warehouse p-1 border rounded text-[10px] uppercase font-semibold">
-                                                <option value="WH Hub" ${item.warehouse === 'WH Hub' ? 'selected' : ''}>WH Hub</option>
-                                                <option value="Office" ${item.warehouse === 'Office' ? 'selected' : ''}>Office</option>
-                                                <option value="Full ML" ${item.warehouse === 'Full ML' ? 'selected' : ''}>Full ML</option>
-                                                <option value="DropGO" ${item.warehouse === 'DropGO' ? 'selected' : ''}>DropGO</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${item.quantity}"></td>
-                                        <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${item.sortDate}"></td>
-                                        <td class="px-6 py-4">
-                                            <select class="edit-status p-1 border rounded text-[10px] uppercase font-semibold">
-                                                <option value="Disponible" ${item.status === 'Disponible' ? 'selected' : ''}>Disponible</option>
-                                                <option value="Reservado" ${item.status === 'Reservado' ? 'selected' : ''}>Reservado</option>
-                                                <option value="Vendido" ${item.status === 'Vendido' ? 'selected' : ''}>Vendido</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-6 py-4"><input type="number" class="edit-value w-20 p-1 border rounded text-xs" value="${item.value || ''}" placeholder="$"></td>
-                                        <td class="px-6 py-4"><input type="text" class="edit-comment w-32 p-1 border rounded text-xs" value="${item.comment || ''}" placeholder="Nota..."></td>
-                                        <td class="px-6 py-4 text-center space-x-1">
-                                            <button onclick="App.saveEdit(${item.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button>
-                                            <button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }
-
-                            let badgeClass = 'bg-white text-zinc-800 border-zinc-200';
-                            if (isB3) badgeClass = 'bg-emerald-200 text-emerald-900 border-emerald-300';
-                            else if (isWH) badgeClass = 'bg-sky-200 text-sky-900 border-sky-300';
-                            else if (isDrop) badgeClass = 'bg-amber-200 text-amber-900 border-amber-300';
-                            
-                            return `
-                                <tr class="hover:bg-zinc-50 transition-colors group">
-                                    <td class="px-6 py-4 font-mono text-xs text-zinc-500 whitespace-nowrap">${item.sku}</td>
-                                    <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                                    <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${badgeClass}">${item.warehouse}</span></td>
-                                    <td class="px-6 py-4 font-medium ${item.quantity < 0 ? 'text-red-600' : 'text-zinc-900'}">${item.quantity > 0 ? '+' : ''}${item.quantity}</td>
-                                    <td class="px-6 py-4 text-zinc-400 text-xs">${item.date}</td>
-                                    <td class="px-6 py-4 text-zinc-500 text-xs">${item.status || '-'}</td>
-                                    <td class="px-6 py-4 text-zinc-600 text-xs font-medium">${item.value ? '$' + Number(item.value).toLocaleString('es-CL') : '-'}</td>
-                                    <td class="px-6 py-4 text-zinc-500 text-[10px] truncate max-w-[120px]" title="${item.comment || ''}">${item.comment || '-'}</td>
-                                    <td class="px-6 py-4 text-center space-x-2">
-                                        <button onclick="App.toggleEdit(${item.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button>
-                                        <button onclick="App.deleteItem(${item.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('');
-                        tableBody.innerHTML = rowsHtml;
-                    }
-                }
-                
-                this.renderReport(baseData);
-            },
-            
-            renderReport(baseData) {
-                const tbodyAll = document.getElementById('report-table-all');
-                const tbodyFullML = document.getElementById('report-table-fullml');
-                if (!tbodyAll || !tbodyFullML) return;
-
-                const reportAll = {};
-                const reportFullML = {};
-                const stackedChartData = {};
-
-                const transferIds = new Set();
-                const groupedBase = {};
-                
-                baseData.forEach(item => {
-                    if(!item.sortDate) return;
-                    const key = `${item.sku}_${item.sortDate}`;
-                    if (!groupedBase[key]) groupedBase[key] = { ins: [], outs: [] };
-                    
-                    let qty = parseInt(item.quantity) || 0;
-                    if (qty > 0) groupedBase[key].ins.push({...item, parsedQty: qty});
-                    else if (qty < 0) groupedBase[key].outs.push({...item, parsedQty: Math.abs(qty)});
-                });
-
-                Object.values(groupedBase).forEach(group => {
-                    group.outs.forEach(outItem => {
-                        const inIndex = group.ins.findIndex(inItem => 
-                            !transferIds.has(inItem.id) && 
-                            inItem.parsedQty === outItem.parsedQty && 
-                            inItem.warehouse !== outItem.warehouse
-                        );
-                        if (inIndex !== -1) {
-                            transferIds.add(outItem.id);
-                            transferIds.add(group.ins[inIndex].id);
-                        }
-                    });
-                });
-
-                const dataR1 = this.report1MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report1MonthFilter)) : baseData;
-                const dataR2 = this.report2MonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.report2MonthFilter)) : baseData;
-                const dataRChart = this.reportChartMonthFilter ? baseData.filter(item => item.sortDate && item.sortDate.startsWith(this.reportChartMonthFilter)) : baseData;
-
-                dataRChart.forEach(item => {
-                    let qty = parseInt(item.quantity) || 0;
-                    if (qty < 0 && !transferIds.has(item.id)) {
-                        if (!stackedChartData[item.sku]) {
-                            stackedChartData[item.sku] = { whHub: 0, office: 0, fullML: 0, dropGO: 0, total: 0 };
-                        }
-                        const absQty = Math.abs(qty);
-                        stackedChartData[item.sku].total += absQty;
-                        
-                        if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') stackedChartData[item.sku].whHub += absQty;
-                        else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') stackedChartData[item.sku].office += absQty;
-                        else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) stackedChartData[item.sku].fullML += absQty;
-                        else if (item.warehouse === 'DropGO') stackedChartData[item.sku].dropGO += absQty;
-                    }
-                });
-
-                const sortedChartSkus = Object.keys(stackedChartData).sort((a, b) => stackedChartData[b].total - stackedChartData[a].total);
-
-                const canvasCtx = document.getElementById('stackedReportChart');
-                if (canvasCtx) {
-                    if (this.stackedChartInstance) {
-                        this.stackedChartInstance.destroy();
-                    }
-                    
-                    this.stackedChartInstance = new Chart(canvasCtx.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels: sortedChartSkus,
-                            datasets: [
-                                {
-                                    label: 'Full ML',
-                                    data: sortedChartSkus.map(sku => stackedChartData[sku].fullML),
-                                    backgroundColor: '#10b981', // emerald-500
-                                    borderRadius: 4,
-                                    borderSkipped: false,
-                                    barThickness: 12
-                                },
-                                {
-                                    label: 'Office',
-                                    data: sortedChartSkus.map(sku => stackedChartData[sku].office),
-                                    backgroundColor: '#a1a1aa', // zinc-400
-                                    borderRadius: 4,
-                                    borderSkipped: false,
-                                    barThickness: 12
-                                },
-                                {
-                                    label: 'WH Hub',
-                                    data: sortedChartSkus.map(sku => stackedChartData[sku].whHub),
-                                    backgroundColor: '#38bdf8', // sky-400
-                                    borderRadius: 4,
-                                    borderSkipped: false,
-                                    barThickness: 12
-                                },
-                                {
-                                    label: 'DropGO',
-                                    data: sortedChartSkus.map(sku => stackedChartData[sku].dropGO),
-                                    backgroundColor: '#fbbf24', // amber-400
-                                    borderRadius: 4,
-                                    borderSkipped: false,
-                                    barThickness: 12
-                                }
-                            ]
-                        },
-                        options: {
-                            indexAxis: 'y', // Convertir a gráfico horizontal
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { 
-                                    position: 'top',
-                                    labels: {
-                                        usePointStyle: true,
-                                        boxWidth: 8,
-                                        font: { family: "'Inter', sans-serif", size: 11 }
-                                    }
-                                },
-                                tooltip: {
-                                    mode: 'index',
-                                    intersect: false,
-                                    backgroundColor: 'rgba(0,0,0,0.8)',
-                                    titleFont: { family: "'Inter', sans-serif", size: 13 },
-                                    bodyFont: { family: "'Inter', sans-serif", size: 12 },
-                                    padding: 10,
-                                    cornerRadius: 8
-                                }
-                            },
-                            scales: {
-                                x: { 
-                                    stacked: true, 
-                                    grid: { display: false },
-                                    border: { display: false },
-                                    ticks: { font: { family: "'Inter', sans-serif" } }
-                                },
-                                y: { 
-                                    stacked: true, 
-                                    grid: { display: false },
-                                    border: { display: false },
-                                    ticks: { font: { family: "'Inter', sans-serif", size: 11 } }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                dataR1.forEach(item => {
-                    let qty = parseInt(item.quantity) || 0;
-                    if (qty < 0 && !transferIds.has(item.id) && (item.warehouse === 'Office' || item.warehouse === 'Bodega 2' || item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
-                        if (!reportAll[item.sku]) {
-                            reportAll[item.sku] = { name: item.name, outputs: 0 };
-                        }
-                        reportAll[item.sku].outputs += Math.abs(qty);
-                    }
-                });
-
-                dataR2.forEach(item => {
-                    let qty = parseInt(item.quantity) || 0;
-                    if (qty < 0 && !transferIds.has(item.id) && (item.warehouse === 'Full ML' || item.warehouse.includes('3'))) {
-                        if (!reportFullML[item.sku]) {
-                            reportFullML[item.sku] = { name: item.name, outputs: 0 };
-                        }
-                        reportFullML[item.sku].outputs += Math.abs(qty);
-                    }
-                });
-
-                const sortedAll = Object.keys(reportAll).map(sku => ({
-                    sku,
-                    ...reportAll[sku]
-                })).sort((a, b) => b.outputs - a.outputs);
-
-                const sortedFullML = Object.keys(reportFullML).map(sku => ({
-                    sku,
-                    ...reportFullML[sku]
-                })).sort((a, b) => b.outputs - a.outputs);
-
-                if (sortedAll.length === 0) {
-                    tbodyAll.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Office o Full ML para el período/filtros seleccionados.</td></tr>`;
-                } else {
-                    tbodyAll.innerHTML = sortedAll.map(item => `
-                        <tr class="hover:bg-zinc-50 transition-colors">
-                            <td class="px-6 py-4 font-mono text-xs text-zinc-500 whitespace-nowrap">${item.sku}</td>
-                            <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4 text-right font-bold text-sky-600">${item.outputs}</td>
-                        </tr>
-                    `).join('');
-                }
-
-                if (sortedFullML.length === 0) {
-                    tbodyFullML.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin ventas registradas en Full ML para el período/filtros seleccionados.</td></tr>`;
-                } else {
-                    tbodyFullML.innerHTML = sortedFullML.map(item => `
-                        <tr class="hover:bg-emerald-50/50 transition-colors">
-                            <td class="px-6 py-4 font-mono text-xs text-zinc-500 whitespace-nowrap">${item.sku}</td>
-                            <td class="px-6 py-4 font-medium text-zinc-900">${item.name}</td>
-                            <td class="px-6 py-4 text-right font-bold text-emerald-600">${item.outputs}</td>
-                        </tr>
-                    `).join('');
-                }
             },
 
             handleManualEntry(e) {
                 e.preventDefault();
-                const type = document.getElementById('input-type').value;
                 let qty = parseInt(document.getElementById('input-qty').value);
-                if (type === 'out') qty = -Math.abs(qty);
+                if (document.getElementById('input-type').value === 'out') qty = -Math.abs(qty);
                 const rawDate = document.getElementById('input-date').value;
                 const [y, m, d] = rawDate.split('-');
-                const dateObj = new Date(y, m - 1, d);
-                const formattedDate = dateObj.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
                 this.inventory.unshift({
                     id: Date.now(),
                     sortDate: rawDate,
@@ -1357,29 +908,51 @@
                     status: document.getElementById('input-status').value,
                     value: document.getElementById('input-value').value,
                     comment: document.getElementById('input-comment').value,
-                    date: formattedDate
+                    date: new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
                 });
                 this.saveAndRender();
-                this.showNotification(`Registrado.`);
-                document.getElementById('input-sku').value = '';
-                document.getElementById('input-name').value = '';
-                document.getElementById('input-qty').value = '1';
-                document.getElementById('input-value').value = '';
-                document.getElementById('input-comment').value = '';
+                this.showNotification('Registrado.');
+                this.formManual.reset();
                 this.setDefaultDate();
             },
 
             parseMLDate(str) {
                 if (!str) return null;
-                const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-                const parts = str.toLowerCase().split(' ');
-                const d = parts[0];
-                const mIdx = months.indexOf(parts[2]);
-                const y = parts[4];
-                if (d && mIdx !== -1 && y) {
-                    const day = d.padStart(2, '0');
-                    const month = String(mIdx + 1).padStart(2, '0');
-                    return { sort: `${y}-${month}-${day}`, display: `${day} ${months[mIdx].substring(0,3)} ${y}` };
+                str = String(str).trim().toLowerCase();
+
+                // 1. Formato YYYY-MM-DD o YYYY/MM/DD
+                let match = str.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+                if (match) {
+                    return { sort: `${match[1]}-${match[2].padStart(2,'0')}-${match[3].padStart(2,'0')}`, display: `${match[3].padStart(2,'0')}-${match[2].padStart(2,'0')}-${match[1]}` };
+                }
+
+                // 2. Formato DD-MM-YYYY o DD/MM/YYYY
+                match = str.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{4})/);
+                if (match) {
+                    return { sort: `${match[3]}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`, display: `${match[1].padStart(2,'0')}-${match[2].padStart(2,'0')}-${match[3]}` };
+                }
+
+                // 3. Formato texto ML o Excel: "2 de septiembre de 2023" o "2 sep 26"
+                const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+                const parts = str.split(/[\s,\-\/]+/);
+                
+                for (let i = 0; i < parts.length; i++) {
+                    const mIdx = months.findIndex(m => parts[i].startsWith(m));
+                    if (mIdx !== -1) {
+                        let day = parseInt(parts[i-2]) || parseInt(parts[i-1]);
+                        let year = parseInt(parts[i+1]) || parseInt(parts[i+2]);
+                        
+                        // Si Excel exportó el año a dos dígitos (ej. 26 -> 2026)
+                        if (year < 100) year += 2000;
+
+                        if (!isNaN(day) && !isNaN(year)) {
+                            const fullMonths = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+                            return {
+                                sort: `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+                                display: `${String(day).padStart(2, '0')} ${fullMonths[mIdx].substring(0,3)} ${year}`
+                            };
+                        }
+                    }
                 }
                 return null;
             },
@@ -1392,22 +965,12 @@
                     try {
                         const data = new Uint8Array(event.target.result);
                         const workbook = XLSX.read(data, {type: 'array'});
-                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''});
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1, defval: ''});
                         
-                        let headerIndex = -1;
-                        let headers = [];
-                        for (let i = 0; i < Math.min(15, rows.length); i++) {
-                            const parsedLine = rows[i].map(cell => String(cell).trim());
-                            if (parsedLine.includes('SKU') && parsedLine.includes('Unidades')) {
-                                headerIndex = i;
-                                headers = parsedLine;
-                                break;
-                            }
-                        }
-
+                        let headerIndex = rows.findIndex(r => r.includes('SKU') && r.includes('Unidades'));
                         if (headerIndex === -1) throw new Error("Falta SKU o Unidades.");
                         
+                        const headers = rows[headerIndex].map(String);
                         const idxSKU = headers.indexOf('SKU');
                         const idxUnidades = headers.indexOf('Unidades');
                         const idxTitulo = headers.indexOf('Título de la publicación');
@@ -1425,17 +988,22 @@
                                 const mlDate = this.parseMLDate(row[idxFechaVenta]);
                                 const today = new Date();
                                 const todaySort = today.toISOString().split('T')[0];
-                                const currentSortDate = mlDate ? mlDate.sort : todaySort;
+                                
+                                // Solución: No forzar a 'today' si mlDate falla, mantener fecha nula (1900) para no engrosar mes actual por error
+                                const currentSortDate = mlDate ? mlDate.sort : (row[idxFechaVenta] ? '1900-01-01' : todaySort);
                                 const currentQty = -Math.abs(parseInt(row[idxUnidades]) || 1);
 
-                                // Lógica estricta de asignación de bodega basada en la Columna AL (índice 37) o búsqueda en la fila
+                                // Limpiar el valor (columna 7/H)
+                                const rawVal = row[7] || '';
+                                const valorVenta = parseInt(rawVal.replace(/\D/g, '')) || '';
+
+                                // Lógica estricta de asignación de bodega basada en la Columna AL (índice 37)
                                 let tipoEnvio = row[37] || '';
                                 if (!tipoEnvio.includes('Full') && !tipoEnvio.includes('Correo')) {
                                     const found = row.find(val => val.includes('Mercado Envíos Full') || val.includes('Correo y puntos de despacho'));
                                     if (found) tipoEnvio = found;
                                 }
 
-                                // Asignar bodega correcta según el tipo de envío de Mercado Libre
                                 let assignedWarehouse = 'Full ML';
                                 if (tipoEnvio.includes('Correo') || tipoEnvio.includes('despacho') || !tipoEnvio.includes('Full')) {
                                     assignedWarehouse = 'Office';
@@ -1454,10 +1022,6 @@
                                     continue;
                                 }
 
-                                // Extraer valor de la venta de la Columna H (índice 7)
-                                const valorRaw = row[7] || '';
-                                const valorVenta = valorRaw.replace(/\D/g, ''); // Elimina símbolos y deja solo el número
-
                                 newDeductions.push({
                                     id: Date.now() + i,
                                     mlSaleId: saleId,
@@ -1469,21 +1033,13 @@
                                     status: 'Vendido',
                                     value: valorVenta,
                                     comment: 'Importación ML',
-                                    date: mlDate ? mlDate.display : today.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+                                    date: mlDate ? mlDate.display : (row[idxFechaVenta] || today.toLocaleDateString('es-CL'))
                                 });
                             }
                         }
-
-                        if (newDeductions.length > 0) {
-                            this.inventory = [...newDeductions, ...this.inventory];
-                            this.saveAndRender();
-                            this.showNotification(`Importación exitosa: ${newDeductions.length} registros nuevos. ${duplicatesIgnored > 0 ? `(${duplicatesIgnored} omitidos por ser duplicados)` : ''}`);
-                        } else {
-                            this.showNotification(duplicatesIgnored > 0 ? "No hay registros nuevos en este archivo." : "Sin datos válidos.", 'success');
-                        }
-                    } catch (err) {
-                        this.showNotification(err.message, 'error');
-                    }
+                        if (newDeductions.length > 0) { this.inventory = [...newDeductions, ...this.inventory]; this.saveAndRender(); }
+                        this.showNotification(`Se importaron ${newDeductions.length} ventas. ${duplicatesIgnored} omitidos por ser duplicados.`, newDeductions.length > 0 ? 'success' : 'error');
+                    } catch (err) { this.showNotification(err.message, 'error'); }
                 };
                 reader.readAsArrayBuffer(file);
                 e.target.value = null;
@@ -1495,151 +1051,156 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     try {
-                        const text = event.target.result;
-                        const lines = text.split('\n').filter(line => line.trim() !== '');
+                        const data = new Uint8Array(event.target.result);
+                        // Usamos SheetJS para soportar tanto .xlsx como .csv de manera robusta
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        // Usar raw: false fuerza a leer las celdas como texto, evitando que Excel arruine las fechas
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false, defval: '' });
                         
-                        if (lines.length <= 1) {
-                            throw new Error("El archivo está vacío o solo tiene cabeceras.");
-                        }
+                        let nuevos = [], dupes = 0;
+                        
+                        rows.forEach((row, i) => {
+                            // Mapeo dinámico leyendo los encabezados del archivo exportado
+                            const sku = row['SKU'] || row['sku'];
+                            const cantidad = parseInt(row['Cantidad'] || row['cantidad'] || row['Cant.'] || row['Unidades']);
 
-                        let newRecords = [];
-                        let parseErrors = 0;
-                        let duplicatesIgnored = 0;
+                            if (!sku || isNaN(cantidad)) return; // Saltar filas vacías o inválidas
 
-                        for (let i = 1; i < lines.length; i++) {
-                            const rowRegex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
-                            const rawMatches = lines[i].match(rowRegex);
+                            // Solución: Centralizar el parseo de fechas para evitar agrupar por defecto en el mes actual
+                            const rawDate = row['Fecha Orden (YYYY-MM-DD)'] || row['sortDate'] || row['Fecha'] || row['fecha'] || '';
+                            const parsedDate = this.parseMLDate(rawDate);
                             
-                            if (!rawMatches) continue;
+                            const sortDate = parsedDate ? parsedDate.sort : new Date().toISOString().split('T')[0];
+                            const fecha = parsedDate ? parsedDate.display : (rawDate || this.formatDisplayDate(sortDate));
 
-                            const row = rawMatches.map(val => val.replace(/^"|"$/g, '').trim());
+                            const nombre = row['Producto'] || row['Nombre'] || row['name'] || '';
+                            const bodega = row['Bodega'] || row['warehouse'] || 'WH Hub';
+                            const estado = row['Estado'] || row['status'] || '';
+                            const valor = row['Valor'] || row['value'] || '';
+                            const comentario = row['Comentario'] || row['comment'] || 'Histórico';
+                            const mlSaleId = row['ID Venta ML'] || row['mlSaleId'] || null;
 
-                            if (row.length >= 5) {
-                                const fechaStr = row[0]; 
-                                const sku = row[1];
-                                const nombre = row[2];
-                                const bodega = row[3];
-                                const cantidadStr = row[4];
-                                const estado = row.length > 5 ? row[5] : '';
+                            // Comprobar si ya existe en la base de datos
+                            const isDuplicate = this.inventory.some(it => 
+                                it.sku === sku && 
+                                it.sortDate === sortDate && 
+                                it.quantity === cantidad && 
+                                it.warehouse === bodega &&
+                                (mlSaleId ? it.mlSaleId === mlSaleId : true)
+                            );
 
-                                let sortDate = new Date().toISOString().split('T')[0];
-                                const partesFecha = fechaStr.split(' ');
-                                if (partesFecha.length === 3) {
-                                    const d = partesFecha[0].padStart(2, '0');
-                                    const meses = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
-                                    const m = meses[partesFecha[1].substring(0,3).toLowerCase()] || '01';
-                                    const y = partesFecha[2];
-                                    sortDate = `${y}-${m}-${d}`;
-                                }
-
-                                const cantidad = parseInt(cantidadStr);
-                                if (isNaN(cantidad)) {
-                                    parseErrors++;
-                                    continue;
-                                }
-
-                                const isDuplicate = this.inventory.some(item => 
-                                    item.sku === sku && 
-                                    item.sortDate === sortDate && 
-                                    item.quantity === cantidad && 
-                                    item.warehouse === bodega
-                                );
-
-                                if (isDuplicate) {
-                                    duplicatesIgnored++;
-                                    continue;
-                                }
-
-                                newRecords.push({
-                                    id: Date.now() + i, 
-                                    sortDate: sortDate,
-                                    date: fechaStr,
-                                    sku: sku,
-                                    name: nombre,
-                                    warehouse: bodega,
-                                    quantity: cantidad,
-                                    status: estado
-                                });
+                            if (isDuplicate) {
+                                dupes++;
                             } else {
-                                parseErrors++;
+                                nuevos.push({ 
+                                    id: Date.now() + i, 
+                                    sortDate: sortDate, 
+                                    date: fecha, 
+                                    sku: sku, 
+                                    name: nombre, 
+                                    warehouse: bodega, 
+                                    quantity: cantidad, 
+                                    status: estado, 
+                                    value: valor, 
+                                    comment: comentario,
+                                    mlSaleId: mlSaleId
+                                });
                             }
-                        }
+                        });
 
-                        if (newRecords.length > 0) {
-                            this.inventory = [...newRecords, ...this.inventory];
-                            this.saveAndRender();
-                            let msg = `Importación histórica exitosa: ${newRecords.length} registros agregados.`;
-                            if (duplicatesIgnored > 0) msg += ` (${duplicatesIgnored} duplicados omitidos).`;
-                            if (parseErrors > 0) msg += ` (${parseErrors} ignorados por formato).`;
-                            this.showNotification(msg);
-                        } else {
-                            this.showNotification(duplicatesIgnored > 0 ? "No hay registros nuevos, todos eran duplicados." : "No se encontraron registros válidos para importar.", duplicatesIgnored > 0 ? 'success' : 'error');
+                        if (nuevos.length > 0) { 
+                            this.inventory = [...nuevos, ...this.inventory]; 
+                            this.saveAndRender(); 
                         }
-
-                    } catch (err) {
-                        console.error(err);
-                        this.showNotification("Error procesando el archivo: " + err.message, 'error');
+                        this.showNotification(`${nuevos.length} registros históricos agregados. ${dupes} omitidos.`, nuevos.length > 0 ? 'success' : 'error');
+                    } catch (err) { 
+                        this.showNotification("Error procesando el archivo: " + err.message, 'error'); 
                     }
                 };
-                reader.readAsText(file, 'utf-8'); 
+                reader.readAsArrayBuffer(file); 
                 e.target.value = null;
             },
 
-            exportToExcel() {
-                if (this.inventory.length === 0) return this.showNotification("Sin datos.", "error");
-                const aggregated = {};
-                this.inventory.forEach(item => {
-                    if (!aggregated[item.sku]) aggregated[item.sku] = { whHub: 0, office: 0, fullML: 0, dropGO: 0 };
-                    const qty = parseInt(item.quantity) || 0;
-                    if (item.warehouse === 'WH Hub' || item.warehouse === 'Bodega 1') aggregated[item.sku].whHub += qty;
-                    else if (item.warehouse === 'Office' || item.warehouse === 'Bodega 2') aggregated[item.sku].office += qty;
-                    else if (item.warehouse === 'Full ML' || item.warehouse.includes('3')) aggregated[item.sku].fullML += qty;
-                    else if (item.warehouse === 'DropGO') aggregated[item.sku].dropGO += qty;
-                });
+            renderDashboard() {
+                const mos = new Set();
+                this.inventory.forEach(i => { if (i.sortDate) mos.add(i.sortDate.substring(0, 7)); });
+                const optMs = '<option value="">Todos los meses</option>' + [...mos].sort().reverse().map(m => {
+                    const [y, mo] = m.split('-');
+                    return `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][parseInt(mo) - 1]} ${y}</option>`;
+                }).join('');
                 
-                const headers = ['Fecha', 'SKU', 'Bodega 1 WH Hub', 'Bodega 2 Office', 'Bodega 3 FULL ML', 'DropGO', 'Total Unidades'];
-                const currentDate = new Date().toLocaleDateString('es-CL');
+                if (this.monthFilterInput) this.monthFilterInput.innerHTML = optMs;
+                if (this.ventasMonthSelect && this.ventasMonthSelect.innerHTML === '<option value="">Todos los meses</option>') this.ventasMonthSelect.innerHTML = optMs;
                 
-                const sortedSkus = Object.keys(aggregated).sort((a, b) => a.localeCompare(b));
-                const rows = sortedSkus.map(sku => {
-                    const data = aggregated[sku];
-                    const total = data.whHub + data.office + data.fullML + data.dropGO;
-                    return `"${currentDate}","${sku}",${data.whHub},${data.office},${data.fullML},${data.dropGO},${total}`;
-                });
+                this.skuDataList.innerHTML = [...new Set(this.inventory.map(i => i.sku))].sort().map(s => `<option value="${s}">`).join('');
                 
-                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
-                const link = document.createElement("a");
-                link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", `reporte_stock_${new Date().toISOString().split('T')[0]}.csv`);
-                link.click();
-            },
+                let base = this.inventory;
+                if (this.currentSkuFilter) base = base.filter(i => i.sku.toUpperCase().includes(this.currentSkuFilter));
+                let viewBase = this.currentMonthFilter ? base.filter(i => i.sortDate && i.sortDate.startsWith(this.currentMonthFilter)) : base;
 
-            exportDetail() {
-                if (this.inventory.length === 0) return this.showNotification("No hay movimientos registrados.", "error");
+                const getTot = (bods) => viewBase.filter(i => bods.includes(i.warehouse)).reduce((s, i) => s + parseInt(i.quantity), 0);
+                this.kpi1.innerText = getTot(['WH Hub', 'Bodega 1']);
+                this.kpi2.innerText = getTot(['Office', 'Bodega 2']);
+                this.kpi3.innerText = getTot(['Full ML', 'Bodega 3 (Ventas)']);
+                this.kpi4.innerText = getTot(['DropGO']);
 
-                const headers = ['Fecha', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado', 'Valor', 'Comentario'];
-                
-                const sortedDetail = [...this.inventory].sort((a, b) => {
-                    const timeA = new Date(a.sortDate || '2000-01-01').getTime();
-                    const timeB = new Date(b.sortDate || '2000-01-01').getTime();
-                    return timeB - timeA || b.id - a.id;
+                const sum = {};
+                base.forEach(i => {
+                    if (!sum[i.sku]) sum[i.sku] = { n: i.name, w: 0, o: 0, f: 0, d: 0 };
+                    const q = parseInt(i.quantity) || 0, wh = i.warehouse;
+                    if (wh === 'WH Hub' || wh === 'Bodega 1') sum[i.sku].w += q;
+                    else if (wh === 'Office' || wh === 'Bodega 2') sum[i.sku].o += q;
+                    else if (wh === 'Full ML' || wh.includes('3')) sum[i.sku].f += q;
+                    else if (wh === 'DropGO') sum[i.sku].d += q;
                 });
 
-                const rows = sortedDetail.map(item => {
-                    const cleanComment = item.comment ? item.comment.replace(/"/g, '""') : '';
-                    return `"${item.date}","${item.sku}","${item.name}","${item.warehouse}",${item.quantity},"${item.status || ''}","${item.value || ''}","${cleanComment}"`;
-                });
+                document.getElementById('stock-summary-body').innerHTML = Object.keys(sum).sort().map(s => {
+                    const d = sum[s];
+                    return `<tr class="hover:bg-zinc-50">
+                        <td class="px-6 py-3 font-mono text-xs text-zinc-500">${s}</td>
+                        <td class="px-6 py-3 font-medium text-zinc-900">${d.n}</td>
+                        <td class="px-6 py-3 text-center text-sky-700 font-medium">${d.w}</td>
+                        <td class="px-6 py-3 text-center text-zinc-700 font-medium">${d.o}</td>
+                        <td class="px-6 py-3 text-center text-emerald-700 font-medium">${d.f}</td>
+                        <td class="px-6 py-3 text-center text-amber-700 font-medium">${d.d}</td>
+                        <td class="px-6 py-3 text-right font-bold">${d.w+d.o+d.f+d.d}</td>
+                    </tr>`;
+                }).join('') || `<tr><td colspan="7" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin stock.</td></tr>`;
 
-                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows].join('\n');
-                const link = document.createElement("a");
-                link.setAttribute("href", encodeURI(csvContent));
-                link.setAttribute("download", `detalle_movimientos_${new Date().toISOString().split('T')[0]}.csv`);
-                link.click();
-                this.showNotification('Detalle de movimientos exportado.');
+                const sorted = [...viewBase].sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime() || b.id - a.id);
+                document.getElementById('table-body').innerHTML = sorted.slice(0, 100).map(i => {
+                    if (this.editingId === i.id) return `
+                        <tr class="bg-zinc-50" data-id="${i.id}">
+                            <td class="px-6 py-4"><input type="text" class="edit-sku w-24 p-1 border rounded text-xs font-mono" value="${i.sku}"></td>
+                            <td class="px-6 py-4"><input type="text" class="edit-name w-full p-1 border rounded text-xs" value="${i.name}"></td>
+                            <td class="px-6 py-4"><select class="edit-warehouse p-1 border rounded text-[10px]"><option value="WH Hub" ${i.warehouse==='WH Hub'?'selected':''}>WH Hub</option><option value="Office" ${i.warehouse==='Office'?'selected':''}>Office</option><option value="Full ML" ${i.warehouse==='Full ML'?'selected':''}>Full ML</option><option value="DropGO" ${i.warehouse==='DropGO'?'selected':''}>DropGO</option></select></td>
+                            <td class="px-6 py-4"><input type="number" class="edit-qty w-16 p-1 border rounded text-xs font-bold" value="${i.quantity}"></td>
+                            <td class="px-6 py-4"><input type="date" class="edit-date p-1 border rounded text-[10px]" value="${i.sortDate}"></td>
+                            <td class="px-6 py-4"><select class="edit-status p-1 border rounded text-[10px]"><option value="Disponible" ${i.status==='Disponible'?'selected':''}>Disponible</option><option value="Reservado" ${i.status==='Reservado'?'selected':''}>Reservado</option><option value="Vendido" ${i.status==='Vendido'?'selected':''}>Vendido</option></select></td>
+                            <td class="px-6 py-4"><input type="number" class="edit-value w-20 p-1 border rounded text-xs" value="${i.value||''}"></td>
+                            <td class="px-6 py-4"><input type="text" class="edit-comment w-32 p-1 border rounded text-xs" value="${i.comment||''}"></td>
+                            <td class="px-6 py-4 text-center space-x-1"><button onclick="App.saveEdit(${i.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button><button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button></td>
+                        </tr>`;
+                    let bc = 'bg-white text-zinc-800 border-zinc-200';
+                    if (i.warehouse === 'Full ML' || i.warehouse.includes('3')) bc = 'bg-emerald-200 text-emerald-900 border-emerald-300';
+                    else if (i.warehouse === 'WH Hub' || i.warehouse.includes('1')) bc = 'bg-sky-200 text-sky-900 border-sky-300';
+                    else if (i.warehouse === 'DropGO') bc = 'bg-amber-200 text-amber-900 border-amber-300';
+                    
+                    return `<tr class="hover:bg-zinc-50 group">
+                        <td class="px-6 py-4 font-mono text-xs text-zinc-500">${i.sku}</td>
+                        <td class="px-6 py-4 font-medium">${i.name}</td>
+                        <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-sm text-[10px] font-semibold tracking-wider uppercase border ${bc}">${i.warehouse}</span></td>
+                        <td class="px-6 py-4 font-medium ${i.quantity < 0 ? 'text-red-600' : ''}">${i.quantity > 0 ? '+' : ''}${i.quantity}</td>
+                        <td class="px-6 py-4 text-zinc-400 text-xs">${this.formatDisplayDate(i.sortDate) || i.date}</td>
+                        <td class="px-6 py-4 text-zinc-500 text-xs">${i.status || '-'}</td>
+                        <td class="px-6 py-4 text-zinc-600 text-xs font-medium">${i.value ? '$' + Number(i.value).toLocaleString('es-CL') : '-'}</td>
+                        <td class="px-6 py-4 text-zinc-500 text-[10px] truncate max-w-[120px]">${i.comment || '-'}</td>
+                        <td class="px-6 py-4 text-center space-x-2"><button onclick="App.toggleEdit(${i.id})" class="text-zinc-400 hover:text-sky-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-pencil text-lg"></i></button><button onclick="App.deleteItem(${i.id})" class="text-zinc-400 hover:text-red-600 p-1 rounded-md opacity-0 group-hover:opacity-100"><i class="ph ph-trash text-lg"></i></button></td>
+                    </tr>`;
+                }).join('') || `<tr><td colspan="9" class="px-6 py-12 text-center text-zinc-400 font-light italic">Sin movimientos.</td></tr>`;
             }
         };
 
-        // Arrancar la app
         document.addEventListener('DOMContentLoaded', () => App.init());
     </script>
 </body>
