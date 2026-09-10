@@ -118,13 +118,23 @@
                     <p class="text-zinc-500 text-sm mt-1">Gestión centralizada de existencias Varin Traaq.</p>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <div class="relative w-full sm:w-48">
+                    <div class="relative w-full sm:w-40">
                         <i class="ph ph-calendar-blank absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg z-10"></i>
                         <select id="filter-month" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer appearance-none">
                             <option value="">Todos los meses</option>
                         </select>
                     </div>
-                    <div class="relative w-full sm:w-72">
+                    <div class="relative w-full sm:w-48">
+                        <i class="ph ph-warehouse absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg z-10"></i>
+                        <select id="filter-bodega" class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm cursor-pointer appearance-none">
+                            <option value="">Todas las bodegas</option>
+                            <option value="WH Hub">WH Hub</option>
+                            <option value="Office">Office</option>
+                            <option value="Full ML">Full ML</option>
+                            <option value="DropGO">DropGO</option>
+                        </select>
+                    </div>
+                    <div class="relative w-full sm:w-64">
                         <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 text-lg"></i>
                         <input type="text" id="filter-sku" list="sku-list" placeholder="Filtrar por SKU..." class="w-full pl-10 p-2.5 bg-white border border-zinc-200 rounded-md focus:bg-zinc-50 outline-none transition-all text-sm shadow-sm font-mono placeholder:font-sans" autocomplete="off" />
                         <datalist id="sku-list"></datalist>
@@ -523,6 +533,7 @@
             inventory: [],
             currentSkuFilter: '',
             currentMonthFilter: '',
+            currentBodegaFilter: '',
             editingId: null,
             chartInstance: null,
             ventasChartInstance: null,
@@ -557,6 +568,7 @@
                 
                 this.skuFilterInput = document.getElementById('filter-sku');
                 this.monthFilterInput = document.getElementById('filter-month');
+                this.bodegaFilterInput = document.getElementById('filter-bodega');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
                 
@@ -592,6 +604,7 @@
                 
                 this.skuFilterInput.addEventListener('input', (e) => { this.currentSkuFilter = e.target.value.trim().toUpperCase(); this.renderDashboard(); });
                 this.monthFilterInput.addEventListener('change', (e) => { this.currentMonthFilter = e.target.value; this.renderDashboard(); });
+                this.bodegaFilterInput.addEventListener('change', (e) => { this.currentBodegaFilter = e.target.value; this.renderDashboard(); });
 
                 if (this.ventasSkuInput) this.ventasSkuInput.addEventListener('input', () => this.renderVentas());
                 if (this.ventasMonthSelect) this.ventasMonthSelect.addEventListener('change', () => this.renderVentas());
@@ -1257,7 +1270,18 @@
                     </tr>`;
                 }).join('') || `<tr><td colspan="7" class="px-6 py-8 text-center text-zinc-400 font-light italic">Sin stock.</td></tr>`;
 
-                const sorted = [...viewBase].sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime() || b.id - a.id);
+                let movementsBase = viewBase;
+                if (this.currentBodegaFilter) {
+                    movementsBase = movementsBase.filter(i => {
+                        let wh = i.warehouse || '';
+                        if (wh === 'Bodega 1') wh = 'WH Hub';
+                        else if (wh === 'Bodega 2') wh = 'Office';
+                        else if (wh.includes('3')) wh = 'Full ML';
+                        return wh === this.currentBodegaFilter;
+                    });
+                }
+
+                const sorted = [...movementsBase].sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime() || b.id - a.id);
                 document.getElementById('table-body').innerHTML = sorted.slice(0, 100).map(i => {
                     if (this.editingId === i.id) return `
                         <tr class="bg-zinc-50" data-id="${i.id}">
