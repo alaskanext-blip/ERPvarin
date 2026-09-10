@@ -766,18 +766,23 @@
             exportDetail() {
                 if (!this.inventory.length) return this.showNotification('No hay datos para exportar', 'error');
                 const exportData = this.inventory.map(i => ({
-                    Fecha: i.date,
-                    'Fecha Orden (YYYY-MM-DD)': i.sortDate,
-                    SKU: i.sku,
-                    Producto: i.name,
-                    Bodega: i.warehouse,
-                    Cantidad: i.quantity,
-                    Estado: i.status || '',
-                    Valor: i.value || '',
-                    Comentario: i.comment || '',
+                    'Fecha': i.date || '',
+                    'Fecha Orden (YYYY-MM-DD)': i.sortDate || '',
+                    'SKU': i.sku || '',
+                    'Producto': i.name || '',
+                    'Bodega': i.warehouse || '',
+                    'Cantidad': i.quantity || 0,
+                    'Estado': i.status || '',
+                    'Valor': (i.value !== undefined && i.value !== null && i.value !== '') ? i.value : '',
+                    'Comentario': i.comment || '',
                     'ID Venta ML': i.mlSaleId || ''
                 }));
-                const ws = XLSX.utils.json_to_sheet(exportData);
+                
+                // Forzamos los encabezados exactos para que Excel nunca omita las columnas de Valor o Comentario
+                const ws = XLSX.utils.json_to_sheet(exportData, {
+                    header: ['Fecha', 'Fecha Orden (YYYY-MM-DD)', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado', 'Valor', 'Comentario', 'ID Venta ML']
+                });
+                
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Movimientos Históricos");
                 XLSX.writeFile(wb, `Varin_Movimientos_${new Date().toISOString().split('T')[0]}.xlsx`);
