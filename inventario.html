@@ -692,7 +692,7 @@
                             {
                                 label: 'Unidades Vendidas',
                                 data: unitsData,
-                                backgroundColor: '#38bdf8',
+                                backgroundColor: '#1d4ed8',
                                 borderRadius: 4,
                                 yAxisID: 'y'
                             }
@@ -700,6 +700,22 @@
                     },
                     options: {
                         responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.dataset.yAxisID === 'y1') {
+                                            label += '$' + context.parsed.y.toLocaleString('es-CL');
+                                        } else {
+                                            label += context.parsed.y.toLocaleString('es-CL') + ' und';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
                         scales: {
                             x: { grid: { display: false } },
                             y: { type: 'linear', position: 'left', title: { display: true, text: 'Unidades' } },
