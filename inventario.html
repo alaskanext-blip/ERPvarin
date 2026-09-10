@@ -1073,41 +1073,106 @@
                 reader.onload = (event) => {
                     try {
                         const data = new Uint8Array(event.target.result);
-                        // Usamos SheetJS para soportar tanto .xlsx como .csv de manera robusta
-                        const workbook = XLSX.read(data, {type: 'array'});
-                        // Usar raw: false fuerza a leer las celdas como texto, evitando que Excel arruine las fechas
-                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false, defval: '' });
+                        let workbook;
+                        
+                        if (file.name.toLowerCase().endsWith('.csv')) {
+                            let text = new TextDecoder("utf-8").decode(data);
+                            // Detectar caracteres rotos de codificación
+                            if (text.includes('')) text = new TextDecoder("windows-1252").decode(data);
+                            
+                            // Buscar la primera línea con contenido real para detectar el delimitador
+                            const firstLine = text.split('\n').find(line => line.trim() !== '') || '';
+                            const commaCount = (firstLine.match(/,/g) || []).length;
+                            const semiCount = (firstLine.match(/;/g) || []).length;
+                            
+                            workbook = XLSX.read(text, {type: 'string', raw: true, cellDates: true, FS: semiCount > commaCount ? ';' : ','});
+                        } else {
+                            workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                        }
+
+                        // Leer el archivo como una matriz (array de arrays) en lugar de asumir que la fila 1 es el encabezado
+                        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+                        
+                        // 1. Escanear dinámicamente hacia abajo hasta encontrar la fila de los encabezados
+                        let headerIndex = -1;
+                        for (let i = 0; i < rawRows.length; i++) {
+                            const rowText = rawRows[i].map(String).join(' ').toUpperCase();
+                            if (rowText.includes('SKU') && (rowText.includes('CANTIDAD') || rowText.includes('UNIDADES') || rowText.includes('QTY'))) {
+                                headerIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (headerIndex === -1) {
+                            throw new Error("No se encontraron las columnas 'SKU' y 'Cantidad' en ninguna parte del archivo.");
+                        }
+
+                        // 2. Extraer los encabezados limpios
+                        const headers = rawRows[headerIndex].map(h => String(h).replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase());
                         
                         let nuevos = [], dupes = 0;
                         
-                        rows.forEach((row, i) => {
-                            // Mapeo dinámico leyendo los encabezados del archivo exportado
-                            const sku = row['SKU'] || row['sku'];
-                            const cantidad = parseInt(row['Cantidad'] || row['cantidad'] || row['Cant.'] || row['Unidades']);
-
-                            if (!sku || isNaN(cantidad)) return; // Saltar filas vacías o inválidas
-
-                            // Solución: Centralizar el parseo de fechas para evitar agrupar por defecto en el mes actual
-                            const rawDate = row['Fecha Orden (YYYY-MM-DD)'] || row['sortDate'] || row['Fecha'] || row['fecha'] || '';
-                            const parsedDate = this.parseMLDate(rawDate);
+                        // 3. Empezar a leer los datos desde la fila siguiente a los encabezados
+                        for (let i = headerIndex + 1; i < rawRows.length; i++) {
+                            const rowData = rawRows[i];
                             
-                            const sortDate = parsedDate ? parsedDate.sort : new Date().toISOString().split('T')[0];
-                            const fecha = parsedDate ? parsedDate.display : (rawDate || this.formatDisplayDate(sortDate));
+                            // Saltar filas completamente vacías
+                            if (!rowData || rowData.length === 0 || rowData.every(c => c === '')) continue;
 
-                            const nombre = row['Producto'] || row['Nombre'] || row['name'] || '';
-                            const bodega = row['Bodega'] || row['warehouse'] || 'WH Hub';
-                            const estado = row['Estado'] || row['status'] || '';
-                            const valor = row['Valor'] || row['value'] || '';
-                            const comentario = row['Comentario'] || row['comment'] || 'Histórico';
-                            const mlSaleId = row['ID Venta ML'] || row['mlSaleId'] || null;
+                            const normalizedRow = {};
+                            for (let j = 0; j < headers.length; j++) {
+                                if (headers[j]) {
+                                    normalizedRow[headers[j]] = rowData[j];
+                                }
+                            }
 
-                            // Comprobar si ya existe en la base de datos
+                            // Búsqueda flexible de SKU y Cantidad
+                            const sku = normalizedRow['SKU'] || normalizedRow['ID'];
+                            let rawQty = normalizedRow['CANTIDAD'] || normalizedRow['UNIDADES'] || normalizedRow['QTY'];
+                            
+                            let cantidad = 0;
+                            if (typeof rawQty === 'number') {
+                                cantidad = rawQty;
+                            } else {
+                                cantidad = parseInt(String(rawQty).replace(/[^\d-]/g, ''));
+                            }
+
+                            if (!sku || isNaN(cantidad)) continue; 
+
+                            const rawSort = normalizedRow['FECHA ORDEN (YYYY-MM-DD)'] || normalizedRow['FECHA ORDEN'];
+                            const rawDisp = normalizedRow['FECHA'];
+                            
+                            const processDate = (d) => {
+                                if (!d) return null;
+                                if (d instanceof Date) {
+                                    const y = d.getFullYear();
+                                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    return { sort: `${y}-${m}-${day}`, display: this.formatDisplayDate(`${y}-${m}-${day}`) };
+                                }
+                                return this.parseMLDate(String(d));
+                            };
+
+                            let parsedObj = processDate(rawSort) || processDate(rawDisp);
+                            const sortDate = parsedObj ? parsedObj.sort : new Date().toISOString().split('T')[0];
+                            const fecha = parsedObj ? parsedObj.display : this.formatDisplayDate(sortDate);
+
+                            const nombre = String(normalizedRow['PRODUCTO'] || normalizedRow['TITULO'] || '').trim();
+                            const bodega = String(normalizedRow['BODEGA'] || 'WH Hub').trim();
+                            const estado = String(normalizedRow['ESTADO'] || '').trim();
+                            
+                            let rawValor = normalizedRow['VALOR'] || normalizedRow['PRECIO'] || '';
+                            let valor = typeof rawValor === 'number' ? rawValor : (parseInt(String(rawValor).replace(/\D/g, '')) || '');
+                            
+                            const comentario = String(normalizedRow['COMENTARIO'] || '').trim();
+                            const mlSaleId = normalizedRow['ID VENTA ML'] || null;
+
                             const isDuplicate = this.inventory.some(it => 
                                 it.sku === sku && 
                                 it.sortDate === sortDate && 
                                 it.quantity === cantidad && 
                                 it.warehouse === bodega &&
-                                (mlSaleId ? it.mlSaleId === mlSaleId : true)
+                                (mlSaleId ? String(it.mlSaleId) === String(mlSaleId) : true)
                             );
 
                             if (isDuplicate) {
@@ -1127,13 +1192,17 @@
                                     mlSaleId: mlSaleId
                                 });
                             }
-                        });
+                        }
 
                         if (nuevos.length > 0) { 
                             this.inventory = [...nuevos, ...this.inventory]; 
                             this.saveAndRender(); 
+                            this.showNotification(`Restaurados ${nuevos.length} movimientos. ${dupes} omitidos (ya existían).`, 'success');
+                        } else if (dupes > 0) {
+                            this.showNotification(`Leído correctamente. Los ${dupes} registros ya están en tu inventario.`, 'success');
+                        } else {
+                            this.showNotification(`El archivo está vacío o los datos no son válidos.`, 'error');
                         }
-                        this.showNotification(`${nuevos.length} registros históricos agregados. ${dupes} omitidos.`, nuevos.length > 0 ? 'success' : 'error');
                     } catch (err) { 
                         this.showNotification("Error procesando el archivo: " + err.message, 'error'); 
                     }
