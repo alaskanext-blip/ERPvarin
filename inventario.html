@@ -1227,13 +1227,24 @@
             renderDashboard() {
                 const mos = new Set();
                 this.inventory.forEach(i => { if (i.sortDate) mos.add(i.sortDate.substring(0, 7)); });
-                const optMs = '<option value="">Todos los meses</option>' + [...mos].sort().reverse().map(m => {
-                    const [y, mo] = m.split('-');
-                    return `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][parseInt(mo) - 1]} ${y}</option>`;
-                }).join('');
                 
-                if (this.monthFilterInput) this.monthFilterInput.innerHTML = optMs;
-                if (this.ventasMonthSelect && this.ventasMonthSelect.innerHTML === '<option value="">Todos los meses</option>') this.ventasMonthSelect.innerHTML = optMs;
+                const monthArr = [...mos].sort().reverse();
+                const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                
+                if (this.monthFilterInput) {
+                    this.monthFilterInput.innerHTML = '<option value="">Todos los meses</option>' + monthArr.map(m => {
+                        const [y, mo] = m.split('-');
+                        return `<option value="${m}" ${this.currentMonthFilter === m ? 'selected' : ''}>${monthNames[parseInt(mo) - 1]} ${y}</option>`;
+                    }).join('');
+                }
+                
+                if (this.ventasMonthSelect) {
+                    const currentVal = this.ventasMonthSelect.value;
+                    this.ventasMonthSelect.innerHTML = '<option value="">Todos los meses</option>' + monthArr.map(m => {
+                        const [y, mo] = m.split('-');
+                        return `<option value="${m}" ${currentVal === m ? 'selected' : ''}>${monthNames[parseInt(mo) - 1]} ${y}</option>`;
+                    }).join('');
+                }
                 
                 this.skuDataList.innerHTML = [...new Set(this.inventory.map(i => i.sku))].sort().map(s => `<option value="${s}">`).join('');
                 
