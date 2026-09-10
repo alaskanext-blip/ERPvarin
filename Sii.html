@@ -243,40 +243,23 @@
         };
 
         const App = () => {
-            const loadLocalData = (key) => {
-                try {
-                    const item = window.localStorage.getItem(key);
-                    return item ? JSON.parse(item) : [];
-                } catch (error) {
-                    console.error("Error al cargar de localStorage", error);
-                    return [];
-                }
-            };
-
-            const [dataVentasResumen, setDataVentasResumen] = useState(() => loadLocalData('visor_ventas_resumen'));
-            const [dataVentasDetalle, setDataVentasDetalle] = useState(() => loadLocalData('visor_ventas_detalle'));
-            const [dataComprasDetalle, setDataComprasDetalle] = useState(() => loadLocalData('visor_compras_detalle'));
-            const [dataHonorarios, setDataHonorarios] = useState(() => loadLocalData('visor_honorarios'));
-            
+            const [dataVentasResumen, setDataVentasResumen] = useState(() => JSON.parse(localStorage.getItem('siiDataVentasResumen') || '[]'));
+            const [dataVentasDetalle, setDataVentasDetalle] = useState(() => JSON.parse(localStorage.getItem('siiDataVentasDetalle') || '[]'));
+            const [dataComprasDetalle, setDataComprasDetalle] = useState(() => JSON.parse(localStorage.getItem('siiDataComprasDetalle') || '[]'));
+            const [dataHonorarios, setDataHonorarios] = useState(() => JSON.parse(localStorage.getItem('siiDataHonorarios') || '[]'));
             const [loading, setLoading] = useState(false);
             const [selectedMonth, setSelectedMonth] = useState('Todos');
             const [isExporting, setIsExporting] = useState(false);
             const [selectedProveedor, setSelectedProveedor] = useState('Todos');
 
             useEffect(() => {
-                try {
-                    window.localStorage.setItem('visor_ventas_resumen', JSON.stringify(dataVentasResumen));
-                    window.localStorage.setItem('visor_ventas_detalle', JSON.stringify(dataVentasDetalle));
-                    window.localStorage.setItem('visor_compras_detalle', JSON.stringify(dataComprasDetalle));
-                    window.localStorage.setItem('visor_honorarios', JSON.stringify(dataHonorarios));
-                } catch (e) {
-                    console.warn("Límite de localStorage alcanzado u otro error.", e);
-                }
-            }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios]);
-
-            useEffect(() => {
                 setSelectedProveedor('Todos');
             }, [selectedMonth]);
+
+            useEffect(() => { localStorage.setItem('siiDataVentasResumen', JSON.stringify(dataVentasResumen)); }, [dataVentasResumen]);
+            useEffect(() => { localStorage.setItem('siiDataVentasDetalle', JSON.stringify(dataVentasDetalle)); }, [dataVentasDetalle]);
+            useEffect(() => { localStorage.setItem('siiDataComprasDetalle', JSON.stringify(dataComprasDetalle)); }, [dataComprasDetalle]);
+            useEffect(() => { localStorage.setItem('siiDataHonorarios', JSON.stringify(dataHonorarios)); }, [dataHonorarios]);
 
             const parseCSV = async (file) => {
                 const text = await file.text();
@@ -455,19 +438,30 @@
 
             const handleDeleteMonth = () => {
                 if (selectedMonth === 'Todos') {
-                    if (confirm("¿Borrar TODOS los datos de todos los meses?")) {
-                        setDataVentasResumen([]);
-                        setDataVentasDetalle([]);
-                        setDataComprasDetalle([]);
-                        setDataHonorarios([]);
+                    if (window.confirm("¿Borrar TODOS los datos de todos los meses?")) {
+                        handleClearAllData();
                     }
                     return;
                 }
-                if (confirm(`¿Borrar los datos registrados de ${selectedMonth}?`)) {
+                if (window.confirm(`¿Borrar los datos registrados de ${selectedMonth}?`)) {
                     setDataVentasResumen(prev => prev.filter(d => d.Mes !== selectedMonth));
                     setDataVentasDetalle(prev => prev.filter(d => d.Mes !== selectedMonth));
                     setDataComprasDetalle(prev => prev.filter(d => d.Mes !== selectedMonth));
                     setDataHonorarios(prev => prev.filter(d => d.Mes !== selectedMonth));
+                    setSelectedMonth('Todos');
+                }
+            };
+
+            const handleClearAllData = () => {
+                if (window.confirm("¿Estás seguro de que deseas borrar TODOS los datos almacenados? Esta acción no se puede deshacer.")) {
+                    setDataVentasResumen([]);
+                    setDataVentasDetalle([]);
+                    setDataComprasDetalle([]);
+                    setDataHonorarios([]);
+                    localStorage.removeItem('siiDataVentasResumen');
+                    localStorage.removeItem('siiDataVentasDetalle');
+                    localStorage.removeItem('siiDataComprasDetalle');
+                    localStorage.removeItem('siiDataHonorarios');
                     setSelectedMonth('Todos');
                 }
             };
@@ -767,6 +761,15 @@
                                                     <IconTrash />
                                                 </button>
                                             </div>
+                                            
+                                            <button 
+                                                onClick={handleClearAllData} 
+                                                className="bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-200 px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-sm text-sm"
+                                            >
+                                                <IconTrash />
+                                                Borrar Datos
+                                            </button>
+
                                             <button 
                                                 onClick={handleDownloadPDF} 
                                                 className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
