@@ -1326,6 +1326,11 @@
                             const saleIdVal = saleIdKey ? normalizedRow[saleIdKey] : rowData[0]; 
                             const saleId = String(saleIdVal || '').trim();
 
+                            // Extracción del Valor (Columna G / Índice 6)
+                            const valorKey = Object.keys(normalizedRow).find(k => k.includes('VALOR') || k.includes('PRECIO') || k.includes('MONTO') || k.includes('TOTAL'));
+                            let rawValor = valorKey ? normalizedRow[valorKey] : rowData[6];
+                            let valorDropGo = typeof rawValor === 'number' ? rawValor : (parseInt(String(rawValor).replace(/\D/g, '')) || '');
+
                             // Extracción del Comentario (Columna H / Índice 7)
                             const commentKey = Object.keys(normalizedRow).find(k => k.includes('COMENTARIO') || k.includes('OBSERVACION'));
                             const commentVal = commentKey ? normalizedRow[commentKey] : rowData[7];
@@ -1361,7 +1366,7 @@
                                     warehouse: 'DropGO',
                                     quantity: cantidad,
                                     status: 'Vendido',
-                                    value: '', 
+                                    value: valorDropGo, 
                                     comment: finalComment,
                                     mlSaleId: saleId || null
                                 });
