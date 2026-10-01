@@ -426,6 +426,22 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <hr class="border-zinc-200 my-8">
+                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
+                        <header>
+                            <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-truck text-amber-600 text-3xl"></i></div>
+                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Reporte DropGO</h2>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el reporte de entregables. Se filtrarán y omitirán automáticamente los movimientos de "Varin Meli Full".</p>
+                        </header>
+                        <div class="relative border-2 border-dashed border-amber-200 rounded-lg p-10 bg-amber-50/50 hover:bg-amber-50 transition-all cursor-pointer group">
+                            <input type="file" id="file-upload-dropgo" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div class="pointer-events-none flex flex-col items-center">
+                                <i class="ph ph-truck text-3xl text-amber-500 group-hover:text-amber-700 mb-3"></i>
+                                <p class="text-amber-900 font-medium">Subir reporte DropGO (.xlsx, .csv)</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -559,6 +575,7 @@
                 this.formManual = document.getElementById('form-manual');
                 this.fileInput = document.getElementById('file-upload');
                 this.fileInputHistorico = document.getElementById('file-upload-historico');
+                this.fileInputDropGo = document.getElementById('file-upload-dropgo'); // Nuevo input DropGO
                 
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
@@ -601,6 +618,7 @@
                 
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
                 this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
+                if (this.fileInputDropGo) this.fileInputDropGo.addEventListener('change', (e) => this.handleDropGoUpload(e));
                 
                 this.skuFilterInput.addEventListener('input', (e) => { this.currentSkuFilter = e.target.value.trim().toUpperCase(); this.renderDashboard(); });
                 this.monthFilterInput.addEventListener('change', (e) => { this.currentMonthFilter = e.target.value; this.renderDashboard(); });
@@ -1218,6 +1236,113 @@
                         }
                     } catch (err) { 
                         this.showNotification("Error procesando el archivo: " + err.message, 'error'); 
+                    }
+                };
+                reader.readAsArrayBuffer(file); 
+                e.target.value = null;
+            },
+
+            handleDropGoUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, {type: 'array', cellDates: true, raw: true});
+                        const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+
+                        let headerIndex = -1;
+                        for (let i = 0; i < rawRows.length; i++) {
+                            const rowText = rawRows[i].map(String).join(' ').toUpperCase();
+                            if (rowText.includes('SKU') || rowText.includes('TIENDA')) {
+                                headerIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (headerIndex === -1) headerIndex = 0; // Si no pilla encabezados claros, empieza desde 0
+
+                        const headers = rawRows[headerIndex].map(h => String(h).replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase());
+                        let nuevos = [], dupes = 0;
+
+                        for (let i = headerIndex + 1; i < rawRows.length; i++) {
+                            const rowData = rawRows[i];
+                            if (!rowData || rowData.every(c => c === '')) continue;
+
+                            const normalizedRow = {};
+                            for (let j = 0; j < headers.length; j++) {
+                                if (headers[j]) normalizedRow[headers[j]] = rowData[j];
+                            }
+
+                            // Filtro explícito de la columna D (índice 3) o el encabezado 'TIENDA'
+                            const tiendaColD = String(rowData[3] || '').trim().toUpperCase();
+                            const tiendaHeader = String(normalizedRow['TIENDA'] || '').trim().toUpperCase();
+                            const tienda = tiendaHeader || tiendaColD;
+
+                            // REGLA: Omitir movimientos Varin Meli Full
+                            if (tienda.includes('VARIN MELI FULL')) continue;
+
+                            const sku = normalizedRow['SKU'] || normalizedRow['ARTICULO'] || String(rowData[2] || '');
+                            let rawQty = normalizedRow['CANTIDAD'] || normalizedRow['UNIDADES'] || rowData[4] || rowData[5];
+                            
+                            let cantidad = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty).replace(/[^\d-]/g, ''));
+                            if (!sku || isNaN(cantidad) || cantidad === 0) continue;
+
+                            // Forzar cantidad negativa (despacho/venta) ya que DropGO suele exportar en positivo
+                            if (cantidad > 0) cantidad = -Math.abs(cantidad);
+
+                            const rawDate = normalizedRow['FECHA'] || rowData[0] || rowData[1];
+                            let sortDate = new Date().toISOString().split('T')[0];
+                            let fecha = this.formatDisplayDate(sortDate);
+
+                            if (rawDate) {
+                                const parsed = this.parseMLDate(String(rawDate));
+                                if (parsed) {
+                                    sortDate = parsed.sort;
+                                    fecha = parsed.display;
+                                }
+                            }
+
+                            const nombre = String(normalizedRow['PRODUCTO'] || normalizedRow['DESCRIPCION'] || 'Despacho DropGO').trim();
+                            const saleId = normalizedRow['PEDIDO'] || normalizedRow['ORDEN'] || null;
+
+                            const isDuplicate = this.inventory.some(it => 
+                                it.sku === sku && 
+                                it.sortDate === sortDate && 
+                                it.quantity === cantidad && 
+                                it.warehouse === 'DropGO' &&
+                                (saleId ? String(it.mlSaleId) === String(saleId) : true)
+                            );
+
+                            if (isDuplicate) {
+                                dupes++;
+                            } else {
+                                nuevos.push({
+                                    id: Date.now() + i,
+                                    sortDate: sortDate,
+                                    date: fecha,
+                                    sku: sku,
+                                    name: nombre,
+                                    warehouse: 'DropGO',
+                                    quantity: cantidad,
+                                    status: 'Vendido',
+                                    value: '', 
+                                    comment: saleId ? `DropGO: ${tienda} (#${saleId})` : `DropGO: ${tienda}`,
+                                    mlSaleId: saleId
+                                });
+                            }
+                        }
+
+                        if (nuevos.length > 0) { 
+                            this.inventory = [...nuevos, ...this.inventory]; 
+                            this.saveAndRender(); 
+                            this.showNotification(`Se importaron ${nuevos.length} registros DropGO. ${dupes} omitidos.`, 'success');
+                        } else {
+                            this.showNotification(dupes > 0 ? `Se omitieron ${dupes} movimientos (ya existían).` : `No hay registros válidos.`, 'error');
+                        }
+                    } catch (err) { 
+                        this.showNotification("Error procesando DropGO: " + err.message, 'error'); 
                     }
                 };
                 reader.readAsArrayBuffer(file); 
