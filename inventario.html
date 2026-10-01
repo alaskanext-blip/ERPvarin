@@ -1275,13 +1275,13 @@
                                 if (headers[j]) normalizedRow[headers[j]] = rowData[j];
                             }
 
-                            // Filtro explícito de la columna D (índice 3) o el encabezado 'TIENDA'
-                            const tiendaColD = String(rowData[3] || '').trim().toUpperCase();
-                            const tiendaHeader = String(normalizedRow['TIENDA'] || '').trim().toUpperCase();
-                            const tienda = tiendaHeader || tiendaColD;
+                            // Búsqueda inteligente de Tienda (Columna D) manteniendo mayúsculas/minúsculas originales
+                            const tiendaKey = Object.keys(normalizedRow).find(k => k.includes('TIENDA') || k.includes('CANAL'));
+                            const tiendaVal = tiendaKey ? normalizedRow[tiendaKey] : rowData[3];
+                            const tienda = String(tiendaVal || '').trim();
 
                             // REGLA: Omitir movimientos Varin Meli Full
-                            if (tienda.includes('VARIN MELI FULL')) continue;
+                            if (tienda.toUpperCase().includes('VARIN MELI FULL')) continue;
 
                             const sku = normalizedRow['SKU'] || normalizedRow['ARTICULO'] || String(rowData[2] || '');
                             
@@ -1299,20 +1299,37 @@
                             // Forzar cantidad negativa (despacho/venta) ya que DropGO suele exportar en positivo
                             if (cantidad > 0) cantidad = -Math.abs(cantidad);
 
-                            const rawDate = normalizedRow['FECHA'] || rowData[0] || rowData[1];
-                            let sortDate = new Date().toISOString().split('T')[0];
-                            let fecha = this.formatDisplayDate(sortDate);
+                            // Buscar fecha en columna 'FECHA' o por defecto en la Columna E (índice 4)
+                            const rawDate = normalizedRow['FECHA'] || rowData[4];
+                            let parsedObj = null;
 
                             if (rawDate) {
-                                const parsed = this.parseMLDate(String(rawDate));
-                                if (parsed) {
-                                    sortDate = parsed.sort;
-                                    fecha = parsed.display;
+                                if (rawDate instanceof Date) {
+                                    // Si es un objeto nativo de Excel, extraemos el día/mes/año (ignorando la hora)
+                                    const y = rawDate.getFullYear();
+                                    const m = String(rawDate.getMonth() + 1).padStart(2, '0');
+                                    const day = String(rawDate.getDate()).padStart(2, '0');
+                                    parsedObj = { sort: `${y}-${m}-${day}`, display: this.formatDisplayDate(`${y}-${m}-${day}`) };
+                                } else {
+                                    // Si es texto, cortamos en el espacio para quitar horas (ej. "2026-09-10 14:30:00" -> "2026-09-10")
+                                    parsedObj = this.parseMLDate(String(rawDate).split(' ')[0]); 
                                 }
                             }
 
+                            const sortDate = parsedObj ? parsedObj.sort : new Date().toISOString().split('T')[0];
+                            const fecha = parsedObj ? parsedObj.display : this.formatDisplayDate(sortDate);
+
                             const nombre = String(normalizedRow['PRODUCTO'] || normalizedRow['DESCRIPCION'] || 'Despacho DropGO').trim();
-                            const saleId = normalizedRow['PEDIDO'] || normalizedRow['ORDEN'] || null;
+                            
+                            // Búsqueda inteligente del ID de Orden / Pedido (Suele ser la columna A)
+                            const saleIdKey = Object.keys(normalizedRow).find(k => k.includes('ORDEN') || k.includes('PEDIDO') || k.includes('DOC'));
+                            const saleIdVal = saleIdKey ? normalizedRow[saleIdKey] : rowData[0]; 
+                            const saleId = String(saleIdVal || '').trim();
+
+                            // Extracción del Comentario (Columna H / Índice 7)
+                            const commentKey = Object.keys(normalizedRow).find(k => k.includes('COMENTARIO') || k.includes('OBSERVACION'));
+                            const commentVal = commentKey ? normalizedRow[commentKey] : rowData[7];
+                            const comentarioDropGo = String(commentVal || '').trim();
 
                             const isDuplicate = this.inventory.some(it => 
                                 it.sku === sku && 
@@ -1325,6 +1342,16 @@
                             if (isDuplicate) {
                                 dupes++;
                             } else {
+                                // Se prioriza siempre el comentario exacto de la Columna H
+                                let finalComment = comentarioDropGo;
+                                
+                                // Si la columna H viene vacía, usa la información de respaldo
+                                if (!finalComment) {
+                                    finalComment = 'DropGO';
+                                    if (tienda) finalComment += `: ${tienda}`;
+                                    if (saleId) finalComment += ` (#${saleId})`;
+                                }
+
                                 nuevos.push({
                                     id: Date.now() + i,
                                     sortDate: sortDate,
@@ -1335,8 +1362,8 @@
                                     quantity: cantidad,
                                     status: 'Vendido',
                                     value: '', 
-                                    comment: saleId ? `DropGO: ${tienda} (#${saleId})` : `DropGO: ${tienda}`,
-                                    mlSaleId: saleId
+                                    comment: finalComment,
+                                    mlSaleId: saleId || null
                                 });
                             }
                         }
