@@ -63,6 +63,23 @@
             return parseInt(parts[1]) * 100 + (monthMap[parts[0]] || 0);
         };
 
+        // --- CONSTANTES PARA FILTROS ESPECÍFICOS ---
+        const SHIPPING_PROVS = new Set([
+            "JUST LOGISTICS CHILE SPA", 
+            "AGENCIA DE ADUANAS PEDEVILA LTDA", 
+            "HAPAG-LLOYD CHILE SPA", 
+            "DP WORLD SAN ANTONIO S.A.", 
+            "AGENCIAS UNIVERSALES S.A.", 
+            "PIL CHILE SPA", 
+            "FEDEX EXPRESS CHILE SPA", 
+            "SAN ANTONIO TERMINAL INTERNACIONAL S.A.", 
+            "TERMINAL PACIFICO SUR VAP S A"
+        ]);
+
+        const SETUP_PROVS = new Set([
+            "LENOR CHILE SPA"
+        ]);
+
         // --- COMPONENTE DE GRÁFICO DE LÍNEAS MÚLTIPLES ---
         const MultiLineChart = ({ title, labels, datasets, isExporting }) => {
             const chartRef = useRef(null);
@@ -252,12 +269,22 @@
             const [isExporting, setIsExporting] = useState(false);
             const [selectedProveedor, setSelectedProveedor] = useState('Todos');
 
-            // NUEVO: Filtros para aislar "la operación"
+            // Filtros para aislar "la operación" y grupos específicos
             const [filtros, setFiltros] = useState({
                 compras: true,
                 importaciones: true,
-                honorarios: true
+                honorarios: true,
+                shipping: true,
+                setup: true
             });
+
+            // Función validadora para saber si una compra aplica según los filtros
+            const validCompra = (c) => {
+                const rs = String(c.RazonSocial || '').trim().toUpperCase();
+                if (SHIPPING_PROVS.has(rs)) return filtros.shipping;
+                if (SETUP_PROVS.has(rs)) return filtros.setup;
+                return filtros.compras;
+            };
 
             useEffect(() => {
                 setSelectedProveedor('Todos');
@@ -563,12 +590,12 @@
                     });
                     ventas.push(vNeto);
 
-                    // Ahora filtramos tanto 33 como 34 para los gastos
-                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && (d.TipoDoc === '33' || d.TipoDoc === '34'));
-                    const cNeto33 = filtros.compras ? detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
+                    // Gastos condicionados por filtros utilizando la función validadora
+                    const detComprasMes = dataComprasDetalle.filter(d => d.Mes === m && (d.TipoDoc === '33' || d.TipoDoc === '34') && validCompra(d));
+                    const cNeto33 = detComprasMes.reduce((acc, curr) => acc + curr.Neto, 0);
                     
-                    const detComprasMes61 = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '61');
-                    const cNeto61 = filtros.compras ? detComprasMes61.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
+                    const detComprasMes61 = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '61' && validCompra(d));
+                    const cNeto61 = detComprasMes61.reduce((acc, curr) => acc + curr.Neto, 0);
 
                     const honMes = dataHonorarios.filter(d => d.Mes === m);
                     const hBruto = filtros.honorarios ? honMes.reduce((acc, curr) => acc + curr.Brutos, 0) : 0;
@@ -576,11 +603,9 @@
                     const detComprasMesDIN = dataComprasDetalle.filter(d => d.Mes === m && d.TipoDoc === '914');
                     const cNetoDIN = filtros.importaciones ? detComprasMesDIN.reduce((acc, curr) => acc + curr.Neto, 0) : 0;
 
-                    // Gastos condicionados por filtros
                     const totalGastosMesConDin = cNeto33 + hBruto + cNetoDIN - cNeto61;
                     comprasYHonorarios.push(totalGastosMesConDin);
 
-                    // Utilidad condicionada por filtros
                     utilidades.push(vNeto - totalGastosMesConDin);
                 });
 
@@ -614,11 +639,15 @@
                 };
 
                 let honorarios = { docs: 0, brutos: 0, retenido: 0, pagado: 0 };
+                const detHonorariosFiltrados = [];
                 detHonorarios.forEach(h => {
-                    honorarios.docs += 1;
-                    honorarios.brutos += h.Brutos;
-                    honorarios.retenido += h.Retenido;
-                    honorarios.pagado += h.Pagado;
+                    if (filtros.honorarios) {
+                        honorarios.docs += 1;
+                        honorarios.brutos += h.Brutos;
+                        honorarios.retenido += h.Retenido;
+                        honorarios.pagado += h.Pagado;
+                        detHonorariosFiltrados.push(h);
+                    }
                 });
 
                 let compras33 = { docs: 0, neto: 0, total: 0 };
@@ -629,28 +658,34 @@
                 const detCompras61 = [];
 
                 detCompras.forEach(c => {
-                    // Agrupamos la doc tipo 33 y 34 en la misma bolsa de compras locales
+                    const vc = validCompra(c);
                     if (c.TipoDoc === '33' || c.TipoDoc === '34') {
-                        compras33.docs += 1;
-                        compras33.neto += c.Neto;
-                        compras33.total += c.Total;
-                        detCompras33.push(c);
+                        if (vc) {
+                            compras33.docs += 1;
+                            compras33.neto += c.Neto;
+                            compras33.total += c.Total;
+                            detCompras33.push(c);
+                        }
                     } else if (c.TipoDoc === '914') {
-                        comprasDIN.docs += 1;
-                        comprasDIN.neto += c.Neto;
-                        comprasDIN.total += c.Total;
-                        detComprasDIN.push(c);
+                        if (filtros.importaciones) {
+                            comprasDIN.docs += 1;
+                            comprasDIN.neto += c.Neto;
+                            comprasDIN.total += c.Total;
+                            detComprasDIN.push(c);
+                        }
                     } else if (c.TipoDoc === '61') {
-                        compras61.docs += 1;
-                        compras61.neto += c.Neto;
-                        compras61.total += c.Total;
-                        detCompras61.push(c);
+                        if (vc) {
+                            compras61.docs += 1;
+                            compras61.neto += c.Neto;
+                            compras61.total += c.Total;
+                            detCompras61.push(c);
+                        }
                     }
                 });
 
                 const totalGastos = {
-                    neto: (filtros.compras ? compras33.neto - compras61.neto : 0) + (filtros.importaciones ? comprasDIN.neto : 0) + (filtros.honorarios ? honorarios.brutos : 0),
-                    total: (filtros.compras ? compras33.total - compras61.total : 0) + (filtros.importaciones ? comprasDIN.total : 0) + (filtros.honorarios ? honorarios.pagado : 0)
+                    neto: compras33.neto - compras61.neto + comprasDIN.neto + honorarios.brutos,
+                    total: compras33.total - compras61.total + comprasDIN.total + honorarios.pagado
                 };
 
                 const utilidad = {
@@ -659,28 +694,23 @@
                 };
 
                 const gastosPorProveedorMap = {};
-                if (filtros.compras) {
-                    detCompras33.forEach(c => {
-                        const name = c.RazonSocial || 'Sin Razón Social';
-                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
-                    });
-                    detCompras61.forEach(c => {
-                        const name = c.RazonSocial || 'Sin Razón Social';
-                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) - c.Neto;
-                    });
-                }
-                if (filtros.honorarios) {
-                    detHonorarios.forEach(h => {
-                        const name = h.RazonSocial || 'Sin Razón Social';
-                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + h.Brutos;
-                    });
-                }
-                if (filtros.importaciones) {
-                    detComprasDIN.forEach(c => {
-                        const name = c.RazonSocial || 'Sin Razón Social';
-                        gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
-                    });
-                }
+                
+                detCompras33.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
+                });
+                detCompras61.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) - c.Neto;
+                });
+                detHonorariosFiltrados.forEach(h => {
+                    const name = h.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + h.Brutos;
+                });
+                detComprasDIN.forEach(c => {
+                    const name = c.RazonSocial || 'Sin Razón Social';
+                    gastosPorProveedorMap[name] = (gastosPorProveedorMap[name] || 0) + c.Neto;
+                });
                 
                 const sortedGastos = Object.entries(gastosPorProveedorMap).sort((a, b) => b[1] - a[1]);
                 const top5Gastos = sortedGastos.slice(0, 5);
@@ -696,7 +726,7 @@
                 return { 
                     facturas, boletas, notasCredito, totalIngresos, honorarios, 
                     compras33, comprasDIN, compras61, totalGastos, utilidad, 
-                    detVentas, detCompras33, detComprasDIN, detCompras61, detHonorarios,
+                    detVentas, detCompras33, detComprasDIN, detCompras61, detHonorarios: detHonorariosFiltrados,
                     gastosChartLabels, gastosChartData
                 };
 
@@ -755,18 +785,20 @@
                         
                         {/* CABECERA (No visible al exportar a PDF) */}
                         {!isExporting && (
-                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
-                                        <IconBuilding />
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col xl:flex-row justify-between items-center gap-6">
+                                <div className="flex flex-col sm:flex-row items-center gap-5">
+                                    <div className="flex items-center gap-4 bg-slate-50 p-2.5 px-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <img src="https://varin.cl/cdn/shop/files/logo-varin_524x120.svg?v=1785155789" alt="Varin" className="h-6 md:h-8 object-contain" />
+                                        <div className="h-8 w-px bg-slate-300"></div>
+                                        <img src="https://homer.sii.cl/responsive/images/logo.jpg" alt="SII" className="h-6 md:h-8 object-contain rounded-md mix-blend-multiply" />
                                     </div>
-                                    <div>
-                                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Visor Contable SII</h1>
-                                        <p className="text-sm text-slate-500 font-medium">Contabilidad Simple &bull; RCV &bull; Honorarios &bull; DIN</p>
+                                    <div className="text-center sm:text-left">
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Visor Contable</h1>
+                                        <p className="text-sm text-slate-500 font-medium mt-0.5">Contabilidad Simple &bull; RCV &bull; Honorarios &bull; DIN</p>
                                     </div>
                                 </div>
                                 
-                                <div className="flex gap-3 items-center w-full md:w-auto flex-wrap justify-center">
+                                <div className="flex gap-3 items-center w-full xl:w-auto flex-wrap justify-center">
                                     {hasData && (
                                         <>
                                             <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-1.5 px-3">
@@ -819,14 +851,22 @@
                             </div>
                         )}
 
-                        {/* NUEVO: Panel de Filtros para aislar "La Operación" */}
+                        {/* Panel de Filtros para aislar "La Operación" */}
                         {hasData && !isExporting && (
                             <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                                 <span className="text-sm font-bold text-slate-700 flex-shrink-0">Filtros de Análisis (Operación):</span>
                                 <div className="flex flex-wrap gap-4">
                                     <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
                                         <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.compras} onChange={e => setFiltros({...filtros, compras: e.target.checked})} />
-                                        Compras (Facturas)
+                                        Compras (General)
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
+                                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.shipping} onChange={e => setFiltros({...filtros, shipping: e.target.checked})} />
+                                        Shipping
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
+                                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.setup} onChange={e => setFiltros({...filtros, setup: e.target.checked})} />
+                                        Set Up
                                     </label>
                                     <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
                                         <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" checked={filtros.importaciones} onChange={e => setFiltros({...filtros, importaciones: e.target.checked})} />
@@ -845,10 +885,17 @@
                                 
                                 {/* Título de Exportación (solo visible en PDF) */}
                                 {isExporting && (
-                                    <div className="border-b-2 border-slate-800 pb-2 mb-4 flex justify-between items-end">
-                                        <div>
-                                            <h1 className="text-2xl font-black text-slate-800">Informe Contable SII</h1>
-                                            <p className="text-slate-500 font-medium text-xs mt-1">Resumen de Operaciones Comerciales</p>
+                                    <div className="border-b-2 border-slate-800 pb-3 mb-4 flex justify-between items-end">
+                                        <div className="flex flex-col gap-3">
+                                            <div className="flex items-center gap-4">
+                                                <img src="https://varin.cl/cdn/shop/files/logo-varin_524x120.svg?v=1785155789" alt="Varin" className="h-7 object-contain" />
+                                                <div className="h-5 w-px bg-slate-300"></div>
+                                                <img src="https://homer.sii.cl/responsive/images/logo.jpg" alt="SII" className="h-7 object-contain rounded mix-blend-multiply" />
+                                            </div>
+                                            <div>
+                                                <h1 className="text-2xl font-black text-slate-800 leading-tight">Informe Contable</h1>
+                                                <p className="text-slate-500 font-medium text-xs mt-0.5">Resumen de Operaciones Comerciales</p>
+                                            </div>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xs font-bold text-slate-500 uppercase">Periodo</p>
@@ -883,9 +930,9 @@
                                             <span className={`text-slate-500 font-bold uppercase tracking-wider ${isExporting ? 'text-[9px]' : 'text-xs mb-1'}`}>Documentos</span>
                                             <span className={`font-black text-slate-700 ${isExporting ? 'text-sm' : 'text-2xl'}`}>
                                                 {processedData.facturas.docs + processedData.boletas.docs + processedData.notasCredito.docs + 
-                                                (filtros.compras ? processedData.compras33.docs + processedData.compras61.docs : 0) + 
-                                                (filtros.importaciones ? processedData.comprasDIN.docs : 0) + 
-                                                (filtros.honorarios ? processedData.honorarios.docs : 0)}
+                                                processedData.compras33.docs + processedData.compras61.docs + 
+                                                processedData.comprasDIN.docs + 
+                                                processedData.honorarios.docs}
                                             </span>
                                         </div>
                                     </div>
@@ -949,9 +996,9 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {filtros.compras && (
+                                                    {(filtros.compras || filtros.shipping || filtros.setup) && (
                                                         <tr className="border-b border-slate-100 hover:bg-slate-50">
-                                                            <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras (Afectas y Exentas)</td>
+                                                            <td className={`flex items-center gap-2 font-medium text-purple-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconShoppingCart /> Compras Locales</td>
                                                             <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras33.docs} recibidos</td>
                                                             <td className={`text-right text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.neto)}</td>
                                                             <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.compras33.total)}</td>
@@ -973,7 +1020,7 @@
                                                             <td className={`text-right font-bold text-slate-800 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{formatCurrency(processedData.honorarios.pagado)}</td>
                                                         </tr>
                                                     )}
-                                                    {filtros.compras && (
+                                                    {(filtros.compras || filtros.shipping || filtros.setup) && (
                                                         <tr className="border-b border-slate-200 hover:bg-slate-50">
                                                             <td className={`flex items-center gap-2 font-medium text-red-500 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}><IconCreditNote /> Notas de Crédito (NC)</td>
                                                             <td className={`text-center text-slate-600 ${isExporting ? 'p-1.5 text-[10px]' : 'p-4'}`}>{processedData.compras61.docs} recibidos</td>
@@ -984,9 +1031,7 @@
                                                     <tr className="bg-slate-800 text-white">
                                                         <td className={`font-bold text-rose-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>TOTAL GASTOS</td>
                                                         <td className={`text-center font-bold text-slate-300 ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>
-                                                            {(filtros.compras ? processedData.compras33.docs + processedData.compras61.docs : 0) + 
-                                                             (filtros.importaciones ? processedData.comprasDIN.docs : 0) + 
-                                                             (filtros.honorarios ? processedData.honorarios.docs : 0)}
+                                                            {processedData.compras33.docs + processedData.compras61.docs + processedData.comprasDIN.docs + processedData.honorarios.docs}
                                                         </td>
                                                         <td className={`text-right font-bold ${isExporting ? 'p-1.5 text-xs' : 'p-4'}`}>{formatCurrency(processedData.totalGastos.neto)}</td>
                                                         <td className={`text-right font-black text-rose-400 ${isExporting ? 'p-1.5 text-sm' : 'p-4 text-lg'}`}>{formatCurrency(processedData.totalGastos.total)}</td>
@@ -1010,46 +1055,6 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* ---------------- SECCIÓN GRÁFICOS DE EVOLUCIÓN Y COSTOS ---------------- */}
-                                {chartData && chartData.labels.length > 0 && (
-                                    <div className="w-full space-y-4">
-                                        {!isExporting && (
-                                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                                Análisis y Evolución (Neto)
-                                            </h2>
-                                        )}
-                                        
-                                        <div className={`grid ${isExporting ? 'grid-cols-3 gap-3' : 'grid-cols-1 lg:grid-cols-2 gap-6'}`}>
-                                            <MultiLineChart 
-                                                title="Ingresos, Gastos (Total) y Utilidad" 
-                                                labels={chartData.labels} 
-                                                datasets={[
-                                                    { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "transparent", fill: false },
-                                                    { label: "Gastos Totales", data: chartData.compras, borderColor: "#f43f5e", bgColor: "transparent", fill: false },
-                                                    { label: "Utilidad", data: chartData.utilidades, borderColor: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)", fill: true }
-                                                ]}
-                                                isExporting={isExporting}
-                                            />
-
-                                            <MultiLineChart 
-                                                title="Evolución de Ventas Netas" 
-                                                labels={chartData.labels} 
-                                                datasets={[
-                                                    { label: "Ventas Netas", data: chartData.ventas, borderColor: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", fill: true }
-                                                ]}
-                                                isExporting={isExporting}
-                                            />
-
-                                            <DoughnutChart 
-                                                title="Distribución de Costos (Top 5)" 
-                                                labels={processedData.gastosChartLabels} 
-                                                data={processedData.gastosChartData} 
-                                                isExporting={isExporting} 
-                                            />
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* ---------------- SECCIÓN TABLAS DETALLE ---------------- */}
                                 <div className={`grid ${isExporting ? 'grid-cols-2 gap-4' : 'grid-cols-1 xl:grid-cols-2 gap-6'}`}>
@@ -1084,9 +1089,9 @@
                                             )}
                                     </CollapsibleTable>
 
-                                    {/* TABLA: REGISTRO DE COMPRAS */}
-                                    {filtros.compras && (
-                                        <CollapsibleTable title="4. Compras Locales (Afectas y Exentas)" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
+                                    {/* TABLA: REGISTRO DE COMPRAS (SÓLO 33) */}
+                                    {(filtros.compras || filtros.shipping || filtros.setup) && (
+                                        <CollapsibleTable title="4. Compras Locales" count={comprasLocalesAgrupadas.length} isExporting={isExporting}>
                                                 {comprasLocalesAgrupadas.length > 0 ? (
                                                     <div className="flex flex-col h-full">
                                                         {!isExporting && (
