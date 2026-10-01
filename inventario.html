@@ -1284,10 +1284,17 @@
                             if (tienda.includes('VARIN MELI FULL')) continue;
 
                             const sku = normalizedRow['SKU'] || normalizedRow['ARTICULO'] || String(rowData[2] || '');
-                            let rawQty = normalizedRow['CANTIDAD'] || normalizedRow['UNIDADES'] || rowData[4] || rowData[5];
+                            
+                            // Búsqueda inteligente de columna de cantidad
+                            const qtyKey = Object.keys(normalizedRow).find(k => k.includes('CANT') || k.includes('UNID') || k.includes('QTY'));
+                            let rawQty = qtyKey ? normalizedRow[qtyKey] : rowData[4];
                             
                             let cantidad = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty).replace(/[^\d-]/g, ''));
+                            
                             if (!sku || isNaN(cantidad) || cantidad === 0) continue;
+
+                            // Filtro de seguridad: Si la cantidad es un número gigantesco, es porque leyó accidentalmente el ID de Orden.
+                            if (Math.abs(cantidad) > 100000) cantidad = 1;
 
                             // Forzar cantidad negativa (despacho/venta) ya que DropGO suele exportar en positivo
                             if (cantidad > 0) cantidad = -Math.abs(cantidad);
