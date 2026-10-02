@@ -1036,9 +1036,25 @@
 
                         let newDeductions = [];
                         let duplicatesIgnored = 0;
+                        let canceledIgnored = 0;
                         
                         for (let i = headerIndex + 1; i < rows.length; i++) {
                             const row = rows[i].map(cell => String(cell).trim());
+                            
+                            // Filtrar estados de cancelación o devolución (Columna C / Índice 2)
+                            const estadoML = row[2] ? row[2].toLowerCase() : '';
+                            const estadosExcluidos = [
+                                "cancelada por el comprador",
+                                "devolución finalizada con reembolso al comprador",
+                                "devolución finalizada. pusimos el producto de nuevo a la venta",
+                                "devolución revisada. solicita el retiro del producto"
+                            ];
+                            
+                            if (estadosExcluidos.some(estado => estadoML.includes(estado))) {
+                                canceledIgnored++;
+                                continue;
+                            }
+
                             if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] !== '') {
                                 const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : null;
                                 
@@ -1095,7 +1111,7 @@
                             }
                         }
                         if (newDeductions.length > 0) { this.inventory = [...newDeductions, ...this.inventory]; this.saveAndRender(); }
-                        this.showNotification(`Se importaron ${newDeductions.length} ventas. ${duplicatesIgnored} omitidos por ser duplicados.`, newDeductions.length > 0 ? 'success' : 'error');
+                        this.showNotification(`Se importaron ${newDeductions.length} ventas. ${duplicatesIgnored} omitidas por duplicado, ${canceledIgnored} devueltas/canceladas.`, newDeductions.length > 0 ? 'success' : 'error');
                     } catch (err) { this.showNotification(err.message, 'error'); }
                 };
                 reader.readAsArrayBuffer(file);
