@@ -1055,7 +1055,10 @@
                                 continue;
                             }
 
-                            if (row.length > Math.max(idxSKU, idxUnidades) && row[idxSKU] !== '') {
+                            // Normalizar SKU: Elimina espacios alrededor del guión (ej. "VA - G005 B" -> "VA-G005 B")
+                            let currentSku = String(row[idxSKU] || '').replace(/\s*-\s*/g, '-').trim();
+
+                            if (row.length > Math.max(idxSKU, idxUnidades) && currentSku !== '') {
                                 const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : null;
                                 
                                 const mlDate = this.parseMLDate(row[idxFechaVenta]);
@@ -1083,8 +1086,8 @@
                                 }
 
                                 const isDuplicate = this.inventory.some(item => {
-                                    if (saleId && item.mlSaleId) return String(item.mlSaleId) === String(saleId) && item.sku === row[idxSKU];
-                                    return item.sku === row[idxSKU] && 
+                                    if (saleId && item.mlSaleId) return String(item.mlSaleId) === String(saleId) && item.sku === currentSku;
+                                    return item.sku === currentSku && 
                                            item.quantity === currentQty && 
                                            item.sortDate === currentSortDate &&
                                            item.warehouse === assignedWarehouse;
@@ -1099,7 +1102,7 @@
                                     id: Date.now() + i,
                                     mlSaleId: saleId,
                                     sortDate: currentSortDate,
-                                    sku: row[idxSKU],
+                                    sku: currentSku,
                                     name: row[idxTitulo] || 'Venta Mercado Libre',
                                     quantity: currentQty,
                                     warehouse: assignedWarehouse,
@@ -1178,8 +1181,10 @@
                                 }
                             }
 
-                            // Búsqueda flexible de SKU y Cantidad
-                            const sku = normalizedRow['SKU'] || normalizedRow['ID'];
+                            // Búsqueda flexible de SKU y Cantidad con normalización de guiones
+                            let rawSku = normalizedRow['SKU'] || normalizedRow['ID'];
+                            const sku = String(rawSku || '').replace(/\s*-\s*/g, '-').trim();
+                            
                             let rawQty = normalizedRow['CANTIDAD'] || normalizedRow['UNIDADES'] || normalizedRow['QTY'];
                             
                             let cantidad = 0;
@@ -1304,7 +1309,9 @@
                             // REGLA: Omitir movimientos Varin Meli Full
                             if (tienda.toUpperCase().includes('VARIN MELI FULL')) continue;
 
-                            const sku = normalizedRow['SKU'] || normalizedRow['ARTICULO'] || String(rowData[2] || '');
+                            // Normalizar SKU de DropGO (ej. "VA - G005 B" -> "VA-G005 B")
+                            let rawSku = normalizedRow['SKU'] || normalizedRow['ARTICULO'] || String(rowData[2] || '');
+                            const sku = String(rawSku || '').replace(/\s*-\s*/g, '-').trim();
                             
                             // Búsqueda inteligente de columna de cantidad
                             const qtyKey = Object.keys(normalizedRow).find(k => k.includes('CANT') || k.includes('UNID') || k.includes('QTY'));
