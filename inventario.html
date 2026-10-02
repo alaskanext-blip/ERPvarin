@@ -847,8 +847,12 @@
                 let cleaned = false;
                 const uniqueMap = new Map();
                 
-                // Ordenamos del más reciente al más antiguo para conservar la versión más limpia si hay duplicados
-                const sorted = [...this.inventory].sort((a, b) => b.id - a.id);
+                // Ordenamos: primero los editados a mano, luego los más recientes
+                const sorted = [...this.inventory].sort((a, b) => {
+                    if (a.isEdited && !b.isEdited) return -1;
+                    if (!a.isEdited && b.isEdited) return 1;
+                    return b.id - a.id;
+                });
 
                 sorted.forEach(item => {
                     let key = item.id;
@@ -904,7 +908,8 @@
                     sortDate: row.querySelector('.edit-date').value,
                     status: row.querySelector('.edit-status').value,
                     value: row.querySelector('.edit-value').value,
-                    comment: row.querySelector('.edit-comment').value
+                    comment: row.querySelector('.edit-comment').value,
+                    isEdited: true
                 };
                 const [y, m, d] = upd.sortDate.split('-');
                 upd.date = new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1062,7 +1067,7 @@
                                 }
 
                                 const isDuplicate = this.inventory.some(item => {
-                                    if (saleId && item.mlSaleId === saleId) return true;
+                                    if (saleId && item.mlSaleId) return String(item.mlSaleId) === String(saleId) && item.sku === row[idxSKU];
                                     return item.sku === row[idxSKU] && 
                                            item.quantity === currentQty && 
                                            item.sortDate === currentSortDate &&
@@ -1198,13 +1203,13 @@
                             const comentario = String(normalizedRow['COMENTARIO'] || '').trim();
                             const mlSaleId = normalizedRow['ID VENTA ML'] || null;
 
-                            const isDuplicate = this.inventory.some(it => 
-                                it.sku === sku && 
-                                it.sortDate === sortDate && 
-                                it.quantity === cantidad && 
-                                it.warehouse === bodega &&
-                                (mlSaleId ? String(it.mlSaleId) === String(mlSaleId) : true)
-                            );
+                            const isDuplicate = this.inventory.some(it => {
+                                if (mlSaleId && it.mlSaleId) return String(it.mlSaleId) === String(mlSaleId) && it.sku === sku;
+                                return it.sku === sku && 
+                                       it.sortDate === sortDate && 
+                                       it.quantity === cantidad && 
+                                       it.warehouse === bodega;
+                            });
 
                             if (isDuplicate) {
                                 dupes++;
@@ -1336,13 +1341,13 @@
                             const commentVal = commentKey ? normalizedRow[commentKey] : rowData[7];
                             const comentarioDropGo = String(commentVal || '').trim();
 
-                            const isDuplicate = this.inventory.some(it => 
-                                it.sku === sku && 
-                                it.sortDate === sortDate && 
-                                it.quantity === cantidad && 
-                                it.warehouse === 'DropGO' &&
-                                (saleId ? String(it.mlSaleId) === String(saleId) : true)
-                            );
+                            const isDuplicate = this.inventory.some(it => {
+                                if (saleId && it.mlSaleId) return String(it.mlSaleId) === String(saleId) && it.sku === sku;
+                                return it.sku === sku && 
+                                       it.sortDate === sortDate && 
+                                       it.quantity === cantidad && 
+                                       it.warehouse === 'DropGO';
+                            });
 
                             if (isDuplicate) {
                                 dupes++;
