@@ -1352,10 +1352,9 @@
                             let rawValor = valorKey ? normalizedRow[valorKey] : rowData[6];
                             let valorDropGo = typeof rawValor === 'number' ? rawValor : (parseInt(String(rawValor).replace(/\D/g, '')) || '');
 
-                            // Extracción del Comentario (Columna H / Índice 7)
-                            const commentKey = Object.keys(normalizedRow).find(k => k.includes('COMENTARIO') || k.includes('OBSERVACION'));
-                            const commentVal = commentKey ? normalizedRow[commentKey] : rowData[7];
-                            const comentarioDropGo = String(commentVal || '').trim();
+                            // Extracción estricta del Comentario (Columna H / Índice 7)
+                            // Se eliminó la búsqueda por nombre de encabezado para obligarlo a leer la columna H siempre
+                            const comentarioDropGo = String(rowData[7] || '').trim();
 
                             const isDuplicate = this.inventory.some(it => {
                                 if (saleId && it.mlSaleId) return String(it.mlSaleId) === String(saleId) && it.sku === sku;
