@@ -57,23 +57,20 @@
         </div>
         
         <nav class="flex-1 px-4 space-y-1" id="nav-menu">
-            <button data-target="view-dashboard" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white">
-                <i class="ph ph-squares-four text-xl"></i> <span class="font-medium text-sm tracking-wide">Dashboard</span>
+            <button data-target="view-ventas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white">
+                <i class="ph ph-currency-dollar text-xl"></i> <span class="font-medium text-sm tracking-wide">Ventas</span>
+            </button>
+            <button data-target="view-estadisticas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-chart-donut text-xl"></i> <span class="font-medium text-sm tracking-wide">Stock</span>
             </button>
             <button data-target="view-transacciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-list-dashes text-xl"></i> <span class="font-medium text-sm tracking-wide">Movimientos</span>
             </button>
-            <button data-target="view-estadisticas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
-                <i class="ph ph-chart-donut text-xl"></i> <span class="font-medium text-sm tracking-wide">Estadísticas</span>
+            <button data-target="view-dashboard" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-squares-four text-xl"></i> <span class="font-medium text-sm tracking-wide">Bodegas</span>
             </button>
             <button data-target="view-ingreso" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-arrows-left-right text-xl"></i> <span class="font-medium text-sm tracking-wide">Registro Manual</span>
-            </button>
-            <button data-target="view-graficos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
-                <i class="ph ph-chart-line-up text-xl"></i> <span class="font-medium text-sm tracking-wide">Gráficos</span>
-            </button>
-            <button data-target="view-ventas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
-                <i class="ph ph-currency-dollar text-xl"></i> <span class="font-medium text-sm tracking-wide">Ventas</span>
             </button>
             <button data-target="view-reportes" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-chart-bar text-xl"></i> <span class="font-medium text-sm tracking-wide">Reportes</span>
@@ -176,7 +173,7 @@
 
         <div class="flex-1 min-h-0 overflow-hidden relative">
             
-            <section id="view-dashboard" class="view-section active h-full pb-10">
+            <section id="view-dashboard" class="view-section h-full pb-10">
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <h3 class="font-medium text-zinc-800 italic">Stock Actualizado por SKU</h3>
@@ -303,7 +300,7 @@
                 </div>
             </section>
 
-            <section id="view-ventas" class="view-section h-full overflow-y-auto pb-10">
+            <section id="view-ventas" class="view-section active h-full overflow-y-auto pb-10">
                 <div class="max-w-6xl w-full mx-auto space-y-6">
                     <header class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                         <div>
@@ -564,6 +561,7 @@
                 this.setDefaultDate();
                 this.bindEvents();
                 this.renderDashboard();
+                this.renderVentas();
             },
 
             cacheDOM() {
