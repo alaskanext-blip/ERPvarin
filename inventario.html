@@ -1309,10 +1309,10 @@
                     return { sort: `${match[1]}-${match[2].padStart(2,'0')}-${match[3].padStart(2,'0')}`, display: `${match[3].padStart(2,'0')}-${match[2].padStart(2,'0')}-${match[1]}` };
                 }
 
-                // 2. Formato DD-MM-YYYY o DD/MM/YYYY o DD-MM-YY (Corregido para 2 dígitos)
+                // 2. Formato DD-MM-YYYY o DD/MM/YYYY o DD-MM-YY (Soporte para año de 2 dígitos ej: 26 -> 2026)
                 match = str.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
                 if (match) {
-                    let year = parseInt(match[3]);
+                    let year = parseInt(match[3], 10);
                     if (year < 100) year += 2000;
                     return { sort: `${year}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`, display: `${match[1].padStart(2,'0')}-${match[2].padStart(2,'0')}-${year}` };
                 }
@@ -1580,32 +1580,21 @@
                         const workbook = XLSX.read(data, {type: 'array', cellDates: true, raw: true});
                         const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
 
-                        if (!rawRows || rawRows.length === 0) {
-                            throw new Error("El archivo está vacío.");
-                        }
-
                         let headerIndex = -1;
-                        for (let i = 0; i < Math.min(20, rawRows.length); i++) {
-                            if (!rawRows[i]) continue;
+                        for (let i = 0; i < rawRows.length; i++) {
                             const rowText = rawRows[i].map(String).join(' ').toUpperCase();
-                            if (rowText.includes('SKU') || rowText.includes('TIENDA') || rowText.includes('ARTICULO') || rowText.includes('CANT')) {
+                            if (rowText.includes('SKU') || rowText.includes('TIENDA') || rowText.includes('ART') || rowText.includes('CANT')) {
                                 headerIndex = i;
                                 break;
                             }
                         }
 
-                        if (headerIndex === -1) {
-                            headerIndex = rawRows.findIndex(r => r && r.length > 2);
-                            if (headerIndex === -1) headerIndex = 0;
-                        }
+                        if (headerIndex === -1) headerIndex = 0; // Si no pilla encabezados claros, empieza desde 0
 
-                        if (!rawRows[headerIndex]) throw new Error("No se encontraron encabezados válidos.");
-
-                        // Normalización robusta de encabezados (Remueve tildes y caracteres ocultos)
+                        // Normalización robusta (Elimina tildes para evitar errores con "ARTÍCULO")
                         const headers = rawRows[headerIndex].map(h => 
                             String(h).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase()
                         );
-                        
                         let nuevos = [], dupes = 0;
 
                         for (let i = headerIndex + 1; i < rawRows.length; i++) {
@@ -1617,16 +1606,19 @@
                                 if (headers[j]) normalizedRow[headers[j]] = rowData[j];
                             }
 
-                            const tiendaKey = Object.keys(normalizedRow).find(k => k.includes('TIENDA') || k.includes('CANAL') || k.includes('ORIGEN'));
+                            // Búsqueda inteligente de Tienda
+                            const tiendaKey = Object.keys(normalizedRow).find(k => k.includes('TIENDA') || k.includes('CANAL'));
                             const tiendaVal = tiendaKey ? normalizedRow[tiendaKey] : rowData[3];
                             const tienda = String(tiendaVal || '').trim();
 
                             if (tienda.toUpperCase().includes('VARIN MELI FULL')) continue;
 
-                            const skuKey = Object.keys(normalizedRow).find(k => k.includes('SKU') || k.includes('ARTICULO') || k.includes('CODIGO') || k.includes('ITEM'));
+                            // Normalizar SKU de DropGO (Búsqueda por COD, ARTICULO, ITEM o SKU)
+                            const skuKey = Object.keys(normalizedRow).find(k => k.includes('SKU') || k.includes('ARTICULO') || k.includes('COD') || k.includes('ITEM'));
                             let rawSku = skuKey ? normalizedRow[skuKey] : String(rowData[2] || '');
                             const sku = String(rawSku || '').replace(/\s*-\s*/g, '-').trim();
                             
+                            // Búsqueda inteligente de columna de cantidad
                             const qtyKey = Object.keys(normalizedRow).find(k => k.includes('CANT') || k.includes('UNID') || k.includes('QTY'));
                             let rawQty = qtyKey ? normalizedRow[qtyKey] : rowData[4];
                             let cantidad = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty).replace(/[^\d-]/g, ''));
@@ -1634,11 +1626,11 @@
                             if (!sku || isNaN(cantidad) || cantidad === 0) continue;
 
                             if (Math.abs(cantidad) > 100000) cantidad = 1;
-
                             if (cantidad > 0) cantidad = -Math.abs(cantidad);
 
+                            // Buscar fecha (Columna FECHA o por posición de respaldo)
                             const dateKey = Object.keys(normalizedRow).find(k => k.includes('FECHA') || k.includes('DATE') || k.includes('CREACION'));
-                            const rawDate = dateKey ? normalizedRow[dateKey] : rowData[1];
+                            const rawDate = dateKey ? normalizedRow[dateKey] : (rowData[1] || rowData[4]);
                             let parsedObj = null;
 
                             if (rawDate) {
@@ -1656,8 +1648,9 @@
                             const fecha = parsedObj ? parsedObj.display : this.formatDisplayDate(sortDate);
 
                             const descKey = Object.keys(normalizedRow).find(k => k.includes('PRODUCTO') || k.includes('DESCRIPCION') || k.includes('NOMBRE'));
-                            const nombre = String(descKey ? normalizedRow[descKey] : 'Despacho DropGO').trim() || 'Despacho DropGO';
+                            const nombre = String(descKey ? normalizedRow[descKey] : (rowData[5] || 'Despacho DropGO')).trim();
                             
+                            // ID de Orden / Pedido (Usualmente DOC o PEDIDO)
                             const saleIdKey = Object.keys(normalizedRow).find(k => k.includes('ORDEN') || k.includes('PEDIDO') || k.includes('DOC') || k.includes('TRACK'));
                             const saleIdVal = saleIdKey ? normalizedRow[saleIdKey] : rowData[0]; 
                             const saleId = String(saleIdVal || '').trim();
@@ -1666,12 +1659,16 @@
                             let rawValor = valorKey ? normalizedRow[valorKey] : rowData[6];
                             let valorDropGo = typeof rawValor === 'number' ? rawValor : (parseInt(String(rawValor).replace(/\D/g, '')) || '');
 
-                            const commentKey = Object.keys(normalizedRow).find(k => k.includes('COMENTARIO') || k.includes('NOTAS') || k.includes('OBS'));
+                            const commentKey = Object.keys(normalizedRow).find(k => k.includes('COMENTARIO') || k.includes('NOTA') || k.includes('OBS'));
                             const comentarioDropGo = String(commentKey ? normalizedRow[commentKey] : (rowData[7] || '')).trim();
 
+                            // Deduplicación menos agresiva para no borrar ventas del mismo día sin ID de pedido
                             const isDuplicate = this.inventory.some(it => {
                                 if (saleId && it.mlSaleId) return String(it.mlSaleId) === String(saleId) && it.sku === sku;
-                                return it.sku === sku && it.sortDate === sortDate && it.quantity === cantidad && it.warehouse === 'DropGO';
+                                if (!saleId && !it.mlSaleId) {
+                                    return it.sku === sku && it.sortDate === sortDate && it.quantity === cantidad && it.warehouse === 'DropGO' && it.name === nombre;
+                                }
+                                return false;
                             });
 
                             if (isDuplicate) {
