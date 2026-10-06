@@ -60,6 +60,9 @@
             <button data-target="view-ventas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white">
                 <i class="ph ph-currency-dollar text-xl"></i> <span class="font-medium text-sm tracking-wide">Ventas</span>
             </button>
+            <button data-target="view-ventas-canal" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
+                <i class="ph ph-chart-pie-slice text-xl"></i> <span class="font-medium text-sm tracking-wide">Ventas por Canal</span>
+            </button>
             <button data-target="view-estadisticas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left text-zinc-400 hover:bg-zinc-900 hover:text-white border-l-2 border-transparent">
                 <i class="ph ph-chart-donut text-xl"></i> <span class="font-medium text-sm tracking-wide">Stock</span>
             </button>
@@ -348,6 +351,276 @@
                 </div>
             </section>
 
+            <section id="view-ventas-canal" class="view-section h-full overflow-y-auto pb-10">
+                <style>
+                    #vc-app {
+                        --bg: #f4f4f2; --surface: #fcfcfb; --line: #e4e3df; --grid: #ecebe7;
+                        --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #7a7974;
+                        --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+                        --accent: #2a78d6; --accent-soft: #e3eefb; --up: #13834f; --down: #c0392b;
+                        background: var(--bg); color: var(--ink);
+                        font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+                        min-height: 100%;
+                        text-align: left;
+                    }
+                    @media (prefers-color-scheme: dark) {
+                        #vc-app {
+                            --bg: #121211; --surface: #1a1a19; --line: #2c2c2a; --grid: #262624;
+                            --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+                            --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+                            --accent: #3987e5; --accent-soft: #1d2a3c; --up: #3ecf7b; --down: #ff7a6b;
+                        }
+                    }
+                    #vc-app * { box-sizing: border-box; }
+                    #vc-app .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 40px; }
+                    #vc-app header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 24px; margin-bottom: 16px; }
+                    #vc-app h1 { font-size: 24px; margin: 0; letter-spacing: -.01em; font-weight: bold; }
+                    #vc-app h2 { font-size: 15px; margin: 0 0 4px; font-weight: bold; }
+                    #vc-app .sub { color: var(--ink-2); font-size: 13px; }
+                    #vc-app .muted { color: var(--ink-3); font-size: 12px; }
+                    #vc-app .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+                    #vc-app .chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+                    #vc-app .chip .sw { width: 10px; height: 10px; border-radius: 3px; }
+                    #vc-app .chip[aria-pressed="false"] { opacity: .45; }
+                    #vc-app .chip[aria-pressed="false"] .sw { background: transparent !important; outline: 1.5px solid var(--ink-3); }
+                    #vc-app .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+                    #vc-app .seg button { border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+                    #vc-app .seg button.on { background: var(--accent); color: #fff; }
+                    #vc-app .grid { display: grid; gap: 16px; }
+                    #vc-app .kpis { grid-template-columns: repeat(4, 1fr); margin-bottom: 16px; }
+                    #vc-app .two { grid-template-columns: 2fr 1fr; margin-bottom: 16px; }
+                    #vc-app .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+                    #vc-app .kpi .l { color: var(--ink-2); font-size: 13px; }
+                    #vc-app .kpi .v { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; margin: 2px 0; }
+                    #vc-app .kpi .d { font-size: 12px; color: var(--ink-3); }
+                    #vc-app .up { color: var(--up); }
+                    #vc-app .down { color: var(--down); }
+                    #vc-app .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+                    #vc-app .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink-2); }
+                    #vc-app .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+                    #vc-app .chart { position: relative; }
+                    #vc-app .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+                    #vc-app .axis text { fill: var(--ink-3); font-size: 11px; }
+                    #vc-app .gridline { stroke: var(--grid); stroke-width: 1; }
+                    #vc-app .baseline { stroke: var(--line); stroke-width: 1; }
+                    #vc-app .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.12); min-width: 180px; opacity: 0; z-index: 2; }
+                    #vc-app .tip b { display: block; margin-bottom: 4px; font-size: 13px; }
+                    #vc-app .tip .r { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+                    #vc-app .tip .r span:first-child { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+                    #vc-app .tip .r i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+                    #vc-app .tip .t { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; font-weight: 600; }
+                    #vc-app .share { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+                    #vc-app .share .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 13px; }
+                    #vc-app .share .name { display: flex; align-items: center; gap: 7px; }
+                    #vc-app .share .name i { width: 10px; height: 10px; border-radius: 3px; }
+                    #vc-app .share .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+                    #vc-app .share .track { grid-column: 1/3; height: 10px; background: var(--grid); border-radius: 4px; overflow: hidden; }
+                    #vc-app .share .fill { height: 100%; border-radius: 4px; }
+                    #vc-app .table-wrap { overflow-x: auto; }
+                    #vc-app table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+                    #vc-app th, #vc-app td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+                    #vc-app th:first-child, #vc-app td:first-child { text-align: left; }
+                    #vc-app th { color: var(--ink-2); font-weight: 600; }
+                    #vc-app th .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+                    #vc-app tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--line); }
+                    #vc-app td.tot { font-weight: 600; }
+                    #vc-app tr.parcial td:first-child::after { content: " (en curso)"; color: var(--ink-3); font-weight: 400; font-size: 11px; }
+                    #vc-app footer { margin-top: 18px; color: var(--ink-3); font-size: 12px; }
+                    @media (max-width:900px) { #vc-app .kpis { grid-template-columns: repeat(2, 1fr); } #vc-app .two { grid-template-columns: 1fr; } }
+                    @media (max-width:600px) { #vc-app .chart { overflow-x: auto; } #vc-app .chart svg { min-width: 600px; } }
+                    @media (max-width:480px) { #vc-app .kpi .v { font-size: 20px; } #vc-app .card { padding: 14px; } }
+                </style>
+
+                <div id="vc-app">
+                    <div class="wrap">
+                        <header>
+                            <div>
+                                <h1>Ventas por canal</h1>
+                                <div class="sub" id="meta"></div>
+                            </div>
+                            <div class="seg" role="tablist" id="metricSeg">
+                                <button data-m="ventas" class="on">Ventas</button>
+                                <button data-m="pedidos">Pedidos</button>
+                                <button data-m="unidades">Unidades</button>
+                            </div>
+                        </header>
+                        <div class="filters" id="chips" aria-label="Canales"></div>
+                        <section class="grid kpis" id="kpis"></section>
+                        <section class="grid two">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div><h2 id="chartTitle">Ventas por mes</h2><div class="muted" id="chartSub"></div></div>
+                                    <div class="legend" id="legend"></div>
+                                </div>
+                                <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+                            </div>
+                            <div class="card">
+                                <h2 id="shareTitle">Participación por canal</h2>
+                                <div class="muted">Total del período</div>
+                                <div class="share" id="share"></div>
+                            </div>
+                        </section>
+                        <section class="card">
+                            <div class="card-head"><div><h2 id="tableTitle">Detalle mensual</h2><div class="muted">Mismos datos de la hoja Resumen</div></div></div>
+                            <div class="table-wrap"><table id="table"></table></div>
+                        </section>
+                        <footer id="foot"></footer>
+                    </div>
+                </div>
+
+                <script>
+                    (function() {
+                        const D = {"generado": "06-10-2026 13:35", "canales": ["Varin", "Falabella", "Mercado Libre", "FULL"], "meses": ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"], "mes_en_curso": "2026-10", "archivos": {"Varin": "orders_export.csv", "Falabella": "export - Falabella 2026.xlsx", "Mercado Libre / FULL": "20261005_Ventas_CL_Mercado_Libre_y_Mercado_Shops_2026-10-05_16-10hs_2967682966.xlsx"}, "ventas": {"Varin": [0.0, 0.0, 0.0, 0.0, 0.0, 219800.0, 306280.0, 1933780.0], "Falabella": [0.0, 0.0, 0.0, 416600.0, 0.0, 213800.0, 118900.0, 546500.0], "Mercado Libre": [894110.0, 88990.0, 0.0, 0.0, 0.0, 237800.0, 106900.0, 0.0], "FULL": [0.0, 616600.0, 2312390.0, 666103.0, 868200.0, 898200.0, 491655.0, 859540.0]}, "pedidos": {"Varin": [0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 10.0], "Falabella": [0.0, 0.0, 0.0, 2.0, 0.0, 2.0, 1.0, 3.0], "Mercado Libre": [10.0, 1.0, 0.0, 0.0, 0.0, 2.0, 1.0, 0.0], "FULL": [0.0, 7.0, 25.0, 7.0, 8.0, 8.0, 4.0, 8.0]}, "unidades": {"Varin": [0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 18.0], "Falabella": [0.0, 0.0, 0.0, 4.0, 0.0, 2.0, 1.0, 5.0], "Mercado Libre": [10.0, 1.0, 0.0, 0.0, 0.0, 2.0, 1.0, 0.0], "FULL": [0.0, 7.0, 25.0, 7.0, 8.0, 8.0, 4.0, 8.0]}};
+                        const COLORS = ["--s1", "--s2", "--s3", "--s4"];
+                        const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+                        const $$ = s => document.querySelector('#vc-app ' + s);
+                        const fmtN = n => Math.round(n).toLocaleString("es-CL");
+                        const fmtCLP = n => "$" + fmtN(n);
+                        const fmtShort = n => n >= 1e6 ? "$" + (n / 1e6).toLocaleString("es-CL", {maximumFractionDigits: 2}) + " M" : n >= 1e3 ? "$" + Math.round(n / 1e3) + " mil" : "$" + fmtN(n);
+                        const mesLbl = (m, largo) => { const [y, mm] = m.split("-").map(Number); return MES[mm - 1] + (largo ? " " + y : " " + String(y).slice(2)); };
+                        
+                        let metric = "ventas";
+                        const activos = new Set(D.canales);
+                        const fmt = () => metric === "ventas" ? fmtCLP : fmtN;
+                        const nombreMetrica = {ventas: "Ventas", pedidos: "Pedidos", unidades: "Unidades"};
+                        
+                        $$("#meta").textContent = `Actualizado ${D.generado} · CLP con IVA, solo productos · excluye canceladas y devueltas`;
+                        $$("#foot").textContent = "Archivos: " + Object.entries(D.archivos).map(([k, v]) => `${k}: ${v || "no encontrado"}`).join(" · ");
+                        
+                        // ---------- chips de canal
+                        $$("#chips").innerHTML = '<span class="muted" style="margin-right:4px">Canales</span>' + D.canales.map((c, i) =>  `<button class="chip" aria-pressed="true" data-c="${c}"><span class="sw" style="background:var(${COLORS[i]})"></span>${c}</button>`).join("");
+                        document.querySelectorAll("#vc-app .chip").forEach(b => b.onclick = () => {  const c = b.dataset.c;  if (activos.has(c) && activos.size === 1) return;  activos.has(c) ? activos.delete(c) : activos.add(c);  b.setAttribute("aria-pressed", activos.has(c));  render();});
+                        document.querySelectorAll("#vc-app #metricSeg button").forEach(b => b.onclick = () => {  metric = b.dataset.m;  document.querySelectorAll("#vc-app #metricSeg button").forEach(x => x.classList.toggle("on", x === b));  render();});
+                        
+                        const serie = (m, c) => D[m][c] || D.meses.map(() => 0);
+                        const totalMes = (m, i) => D.canales.filter(c => activos.has(c)).reduce((s, c) => s + serie(m, c)[i], 0);
+                        const totalCanal = (m, c) => serie(m, c).reduce((a, b) => a + b, 0);
+                        
+                        function kpis() {
+                            const canales = D.canales.filter(c => activos.has(c));
+                            const tot = m => canales.reduce((s, c) => s + totalCanal(m, c), 0);
+                            const v = tot("ventas"), p = tot("pedidos"), u = tot("unidades");
+                            const n = D.meses.length;
+                            const completos = D.meses.map((m, i) => [m, totalMes("ventas", i)]).filter(([m]) => m !== D.mes_en_curso);
+                            const mejor = completos.sort((a, b) => b[1] - a[1])[0];
+                            const ultimos = D.meses.map((m, i) => [m, totalMes("ventas", i)]).filter(([m]) => m !== D.mes_en_curso);
+                            let delta = "";
+                            if (ultimos.length >= 2) {
+                                const [a, b] = [ultimos[ultimos.length - 2][1], ultimos[ultimos.length - 1][1]];
+                                if (a > 0) { const pct = (b / a - 1) * 100; delta = `<span class="${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}%</span> ${mesLbl(ultimos[ultimos.length - 1][0], true)} vs ${mesLbl(ultimos[ultimos.length - 2][0])}`; }
+                            }
+                            const tiles = [
+                                ["Ventas", fmtCLP(v), delta || `${n} meses`],
+                                ["Pedidos", fmtN(p), `${fmtN(p / Math.max(n, 1))} al mes en promedio`],
+                                ["Ticket promedio", p ? fmtCLP(v / p) : "—", "ventas ÷ pedidos"],
+                                ["Mejor mes", mejor ? fmtShort(mejor[1]) : "—", mejor ? mesLbl(mejor[0], true) : ""],
+                            ];
+                            $$("#kpis").innerHTML = tiles.map(([l, val, d]) => `<div class="card kpi"><div class="l">${l}</div><div class="v">${val}</div><div class="d">${d}</div></div>`).join("");
+                        }
+                        
+                        function niceStep(v) {
+                            if (v <= 0) return 1;
+                            const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+                            return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+                        }
+                        
+                        function topRounded(x, y, w, h, r) {
+                            r = Math.min(r, w / 2, h);
+                            return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+                        }
+                        
+                        function chart() {
+                            const el = $$("#chart"), tip = $$("#tip");
+                            const W = 720, H = 300, ml = 64, mr = 8, mt = 10, mb = 28;
+                            const iw = W - ml - mr, ih = H - mt - mb;
+                            const canales = D.canales.filter(c => activos.has(c));
+                            const tots = D.meses.map((_, i) => totalMes(metric, i));
+                            const step = niceStep(Math.max(...tots, 1) / 4);
+                            const max = Math.max(step, Math.ceil(Math.max(...tots, 1) / step) * step);
+                            const n = D.meses.length, band = iw / n, bw = Math.min(46, band * 0.62);
+                            const y = v => mt + ih - (v / max) * ih;
+                            const ticks = []; for (let t = 0; t <= max + step / 2; t += step) ticks.push(t);
+                            const f = metric === "ventas" ? fmtShort : fmtN;
+                            
+                            let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${nombreMetrica[metric]} por mes y canal">`;
+                            s += `<g class="axis">` + ticks.map(t => `<line class="gridline" x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}"/><text x="${ml - 8}" y="${y(t) + 4}" text-anchor="end">${f(t)}</text>`).join("") + `</g>`;
+                            D.meses.forEach((m, i) => {
+                                const x = ml + band * i + (band - bw) / 2;
+                                let acc = 0;
+                                const visibles = canales.filter(c => serie(metric, c)[i] > 0);
+                                canales.forEach(c => {
+                                    const v = serie(metric, c)[i];
+                                    if (v <= 0) return;
+                                    const y0 = y(acc), y1 = y(acc + v), h = y0 - y1;
+                                    const ci = D.canales.indexOf(c);
+                                    const esTop = c === visibles[visibles.length - 1];
+                                    const gap = esTop ? 0 : 2;
+                                    s += esTop
+                                        ? `<path d="${topRounded(x, y1, bw, Math.max(h - gap, 0.5), 4)}" fill="var(${COLORS[ci]})"/>`
+                                        : `<rect x="${x}" y="${y1 + gap}" width="${bw}" height="${Math.max(h - gap, 0.5)}" fill="var(${COLORS[ci]})"/>`;
+                                    acc += v;
+                                });
+                                s += `<text class="axis" x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" style="fill:var(--ink-3);font-size:11px">${mesLbl(m)}${m === D.mes_en_curso ? "*" : ""}</text>`;
+                                s += `<rect class="hit" data-i="${i}" x="${ml + band * i}" y="${mt}" width="${band}" height="${ih}" fill="transparent"/>`;
+                            });
+                            s += `<line class="baseline" x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
+                            el.innerHTML = s;
+                            el.appendChild(tip);
+                            
+                            el.querySelectorAll(".hit").forEach(r => {
+                                r.addEventListener("mousemove", e => {
+                                    const i = +r.dataset.i, fm = fmt();
+                                    tip.innerHTML = `<b>${mesLbl(D.meses[i], true)}${D.meses[i] === D.mes_en_curso ? " (en curso)" : ""}</b>` +
+                                        canales.slice().reverse().filter(c => serie(metric, c)[i] > 0).map(c => `<div class="r"><span><i style="background:var(${COLORS[D.canales.indexOf(c)]})"></i>${c}</span><span>${fm(serie(metric, c)[i])}</span></div>`).join("") +
+                                        `<div class="r t"><span>Total</span><span>${fm(tots[i])}</span></div>`;
+                                    const box = el.getBoundingClientRect();
+                                    let left = e.clientX - box.left + 14;
+                                    if (left + 200 > box.width) left = e.clientX - box.left - 200;
+                                    tip.style.left = left + "px";
+                                    tip.style.top = Math.max(0, e.clientY - box.top - 40) + "px";
+                                    tip.style.opacity = 1;
+                                });
+                                r.addEventListener("mouseleave", () => tip.style.opacity = 0);
+                            });
+                            
+                            $$("#chartTitle").textContent = `${nombreMetrica[metric]} por mes`;
+                            $$("#chartSub").textContent = D.mes_en_curso ? `* ${mesLbl(D.mes_en_curso, true)} es el mes en curso (datos parciales)` : "";
+                            $$("#legend").innerHTML = canales.map(c => `<span><i style="background:var(${COLORS[D.canales.indexOf(c)]})"></i>${c}</span>`).join("");
+                        }
+                        
+                        function share() {
+                            const canales = D.canales.filter(c => activos.has(c));
+                            const tot = canales.reduce((s, c) => s + totalCanal(metric, c), 0) || 1;
+                            const fm = fmt();
+                            $$("#shareTitle").textContent = `Participación por canal · ${nombreMetrica[metric].toLowerCase()}`;
+                            $$("#share").innerHTML = canales.map(c => [c, totalCanal(metric, c)]).sort((a, b) => b[1] - a[1]).map(([c, v]) => `
+                                <div class="row">
+                                    <span class="name"><i style="background:var(${COLORS[D.canales.indexOf(c)]})"></i>${c}</span>
+                                    <span class="val">${fm(v)} · <b style="color:var(--ink)">${(v / tot * 100).toFixed(1)}%</b></span>
+                                    <div class="track"><div class="fill" style="width:${v / tot * 100}%;background:var(${COLORS[D.canales.indexOf(c)]})"></div></div>
+                                </div>`).join("");
+                        }
+                        
+                        function table() {
+                            const canales = D.canales.filter(c => activos.has(c));
+                            const fm = fmt();
+                            $$("#tableTitle").textContent = `${nombreMetrica[metric]} mensuales`;
+                            let h = `<thead><tr><th>Mes</th>${canales.map(c => `<th><span class="sw" style="background:var(${COLORS[D.canales.indexOf(c)]})"></span>${c}</th>`).join("")}<th>Total</th></tr></thead><tbody>`;
+                            D.meses.forEach((m, i) => {
+                                h += `<tr class="${m === D.mes_en_curso ? "parcial" : ""}"><td>${mesLbl(m, true)}</td>${canales.map(c => `<td>${serie(metric, c)[i] ? fm(serie(metric, c)[i]) : "–"}</td>`).join("")}<td class="tot">${fm(totalMes(metric, i))}</td></tr>`;
+                            });
+                            const gran = canales.reduce((s, c) => s + totalCanal(metric, c), 0);
+                            h += `</tbody><tfoot><tr><td>Total</td>${canales.map(c => `<td>${fm(totalCanal(metric, c))}</td>`).join("")}<td>${fm(gran)}</td></tr>`;
+                            h += `<tr><td class="muted" style="font-weight:400">% del total</td>${canales.map(c => `<td class="muted" style="font-weight:400">${gran ? (totalCanal(metric, c) / gran * 100).toFixed(1) + "%" : "–"}</td>`).join("")}<td class="muted" style="font-weight:400">100%</td></tr></tfoot>`;
+                            $$("#table").innerHTML = h;
+                        }
+                        
+                        function render() { kpis(); chart(); share(); table(); }
+                        render();
+                    })();
+                </script>
+            </section>
+
             <section id="view-graficos" class="view-section h-full overflow-y-auto pb-10">
                 <div class="max-w-5xl w-full mx-auto space-y-6">
                     <header>
@@ -436,6 +709,22 @@
                             <div class="pointer-events-none flex flex-col items-center">
                                 <i class="ph ph-truck text-3xl text-amber-500 group-hover:text-amber-700 mb-3"></i>
                                 <p class="text-amber-900 font-medium">Subir reporte DropGO (.xlsx, .csv)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-zinc-200 my-8">
+                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
+                        <header>
+                            <div class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-chart-pie-slice text-purple-600 text-3xl"></i></div>
+                            <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Ventas por Canal</h2>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el archivo <span class="font-mono bg-zinc-100 px-1 rounded">ventas_por_canal_y_mes_2.xlsx</span> para actualizar el dashboard.</p>
+                        </header>
+                        <div class="relative border-2 border-dashed border-purple-200 rounded-lg p-10 bg-purple-50/50 hover:bg-purple-50 transition-all cursor-pointer group">
+                            <input type="file" id="file-upload-ventas-canal" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div class="pointer-events-none flex flex-col items-center">
+                                <i class="ph ph-upload-simple text-3xl text-purple-500 group-hover:text-purple-700 mb-3"></i>
+                                <p class="text-purple-900 font-medium">Subir archivo Canales (.xlsx)</p>
                             </div>
                         </div>
                     </div>
@@ -544,18 +833,25 @@
 
         const App = {
             inventory: [],
+            ventasCanalData: [],
             currentSkuFilter: '',
             currentMonthFilter: '',
             currentBodegaFilter: '',
             editingId: null,
             chartInstance: null,
             ventasChartInstance: null,
+            ventasCanalLineChart: null,
+            ventasCanalPieChart: null,
             
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
                 if(data) {
                     this.inventory = JSON.parse(data);
                     this.cleanDatabase(); // Limpieza profunda automática al iniciar
+                }
+                const canalData = localStorage.getItem('ventas_canal_db_varin');
+                if(canalData) {
+                    this.ventasCanalData = JSON.parse(canalData);
                 }
                 this.cacheDOM();
                 this.setDefaultDate();
@@ -574,6 +870,7 @@
                 this.fileInput = document.getElementById('file-upload');
                 this.fileInputHistorico = document.getElementById('file-upload-historico');
                 this.fileInputDropGo = document.getElementById('file-upload-dropgo'); // Nuevo input DropGO
+                this.fileInputVentasCanal = document.getElementById('file-upload-ventas-canal'); // Input Canales
                 
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
@@ -617,6 +914,7 @@
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
                 this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
                 if (this.fileInputDropGo) this.fileInputDropGo.addEventListener('change', (e) => this.handleDropGoUpload(e));
+                if (this.fileInputVentasCanal) this.fileInputVentasCanal.addEventListener('change', (e) => this.handleVentasCanalUpload(e));
                 
                 this.skuFilterInput.addEventListener('input', (e) => { this.currentSkuFilter = e.target.value.trim().toUpperCase(); this.renderDashboard(); });
                 this.monthFilterInput.addEventListener('change', (e) => { this.currentMonthFilter = e.target.value; this.renderDashboard(); });
@@ -645,8 +943,101 @@
                 activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white";
                 this.renderDashboard();
                 if (targetId === 'view-ventas') this.renderVentas();
+                if (targetId === 'view-ventas-canal') this.renderVentasCanal();
                 if (targetId === 'view-graficos') this.renderGraficos();
                 if (targetId === 'view-estadisticas') rStats();
+            },
+
+            renderVentasCanal() {
+                if (!document.getElementById('ventasCanalLineChart')) return;
+                
+                const data = this.ventasCanalData;
+                if (!data || data.length === 0) {
+                    if (this.ventasCanalLineChart) this.ventasCanalLineChart.destroy();
+                    if (this.ventasCanalPieChart) this.ventasCanalPieChart.destroy();
+                    return;
+                }
+
+                const canalesSet = new Set();
+                const mesesSet = new Set();
+                data.forEach(d => {
+                    canalesSet.add(d.canal);
+                    mesesSet.add(d.mes);
+                });
+
+                // Mantenemos el orden de inserción original del Excel (cronológico)
+                const meses = Array.from(mesesSet);
+                const canales = Array.from(canalesSet);
+                const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6', '#f43f5e'];
+
+                const datasetsLine = canales.map((canal, i) => {
+                    return {
+                        label: canal,
+                        data: meses.map(mes => {
+                            const match = data.find(d => d.canal === canal && d.mes === mes);
+                            return match ? match.ventas : 0;
+                        }),
+                        borderColor: colors[i % colors.length],
+                        backgroundColor: colors[i % colors.length] + '20',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    };
+                });
+
+                const ctxLine = document.getElementById('ventasCanalLineChart').getContext('2d');
+                if (this.ventasCanalLineChart) this.ventasCanalLineChart.destroy();
+                this.ventasCanalLineChart = new Chart(ctxLine, {
+                    type: 'line',
+                    data: { labels: meses, datasets: datasetsLine },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-CL')}` } } 
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { beginAtZero: true, grid: { borderDash: [2, 2] } }
+                        }
+                    }
+                });
+
+                const totalPorCanal = canales.map(canal => {
+                    return data.filter(d => d.canal === canal).reduce((acc, curr) => acc + curr.ventas, 0);
+                });
+                
+                const granTotal = totalPorCanal.reduce((a, b) => a + b, 0);
+
+                const ctxPie = document.getElementById('ventasCanalPieChart').getContext('2d');
+                if (this.ventasCanalPieChart) this.ventasCanalPieChart.destroy();
+                this.ventasCanalPieChart = new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: {
+                        labels: canales,
+                        datasets: [{
+                            data: totalPorCanal,
+                            backgroundColor: canales.map((_, i) => colors[i % colors.length]),
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const val = ctx.raw;
+                                        const perc = granTotal > 0 ? ((val / granTotal) * 100).toFixed(1) : 0;
+                                        return ` ${ctx.label}: $${val.toLocaleString('es-CL')} (${perc}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
             },
 
             renderVentas() {
@@ -1410,6 +1801,151 @@
                     }
                 };
                 reader.readAsArrayBuffer(file); 
+                e.target.value = null;
+            },
+
+            handleVentasCanalUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, {type: 'array', cellDates: true, raw: true});
+                        
+                        // Buscar hoja "resumen" o usar la primera
+                        let sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes('resumen')) || workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        
+                        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+                        if(rows.length < 2) throw new Error("La hoja está vacía o no tiene suficientes datos.");
+
+                        let parsedData = [];
+                        
+                        // 1. ENCONTRAR LA FILA DE ENCABEZADOS DE FORMA INTELIGENTE
+                        let hIdx = -1;
+                        for (let i = 0; i < Math.min(20, rows.length); i++) {
+                            if (!rows[i]) continue;
+                            const rowText = rows[i].join(' ').toLowerCase();
+                            if (rowText.includes('canal') || rowText.includes('tienda') || rowText.includes('etiquetas') || rowText.includes('mes') || rowText.includes('fecha')) {
+                                hIdx = i;
+                                break;
+                            }
+                        }
+                        
+                        // Fallback si no hay palabras clave: buscar la primera fila con múltiples datos
+                        if (hIdx === -1) {
+                            for (let i = 0; i < Math.min(10, rows.length); i++) {
+                                if (rows[i] && rows[i].filter(c => c !== null && c !== '').length > 1) {
+                                    hIdx = i;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hIdx === -1) hIdx = 0;
+
+                        const headers = rows[hIdx].map(h => h ? String(h).trim() : '');
+                        
+                        // 2. DETERMINAR EL FORMATO (Plano vs Matriz/Dinámica)
+                        const isFlat = headers.some(h => h.toLowerCase().includes('mes')) && 
+                                       (headers.some(h => h.toLowerCase().includes('canal')) || headers.some(h => h.toLowerCase().includes('tienda')));
+
+                        if (isFlat) {
+                            // MODO TABLA PLANA
+                            const idxCanal = headers.findIndex(h => h.toLowerCase().includes('canal') || h.toLowerCase().includes('tienda'));
+                            const idxMes = headers.findIndex(h => h.toLowerCase().includes('mes'));
+                            const idxVentas = headers.findIndex(h => /total|monto|venta|suma/i.test(h)) !== -1 
+                                ? headers.findIndex(h => /total|monto|venta|suma/i.test(h)) 
+                                : headers.length - 1;
+
+                            for (let i = hIdx + 1; i < rows.length; i++) {
+                                const row = rows[i];
+                                if (!row || !row[idxCanal]) continue;
+                                
+                                const canal = String(row[idxCanal]).trim();
+                                if (/total general|grand total|^total$/i.test(canal)) continue;
+                                
+                                let mes = row[idxMes];
+                                if(mes instanceof Date) mes = `${mes.getFullYear()}-${String(mes.getMonth()+1).padStart(2,'0')}`;
+                                else mes = String(mes).trim();
+                                
+                                let rawVal = row[idxVentas];
+                                let ventas = typeof rawVal === 'number' ? rawVal : parseInt(String(rawVal).replace(/\D/g, '')) || 0;
+                                
+                                if (ventas > 0) parsedData.push({ canal, mes, ventas });
+                            }
+                        } else {
+                            // MODO MATRIZ / TABLA DINÁMICA
+                            let headerIsMonthScore = 0;
+                            const monthIndicators = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+                            
+                            // Analizar si las cabeceras parecen ser meses
+                            for (let j = 1; j < headers.length; j++) {
+                                 if (headers[j] instanceof Date) { headerIsMonthScore++; continue; }
+                                 let hStr = String(headers[j]).toLowerCase();
+                                 if (monthIndicators.some(m => hStr.startsWith(m) || hStr.includes('202') || hStr.includes('-0'))) headerIsMonthScore++;
+                            }
+
+                            // Si las cabeceras NO tienen nombres de meses, asumimos orientación invertida (Col 0 = Meses, Headers = Canales)
+                            let col0IsMonth = headerIsMonthScore === 0;
+                            
+                            // Refuerzo explícito de inversión
+                            if (String(headers[0]).toLowerCase().includes('mes') || String(headers[0]).toLowerCase().includes('fecha')) {
+                                col0IsMonth = true;
+                            }
+
+                            for (let i = hIdx + 1; i < rows.length; i++) {
+                                const row = rows[i];
+                                if (!row || row[0] === null || row[0] === undefined || String(row[0]).trim() === '') continue;
+                                
+                                const label0 = String(row[0]).trim();
+                                if (/total general|grand total|^total$/i.test(label0)) continue;
+
+                                for (let j = 1; j < headers.length; j++) {
+                                    const rawHeader = headers[j];
+                                    if(!rawHeader || String(rawHeader).toLowerCase().includes('total')) continue;
+                                    
+                                    let labelHeader = rawHeader;
+                                    if(rawHeader instanceof Date) {
+                                        labelHeader = `${rawHeader.getFullYear()}-${String(rawHeader.getMonth()+1).padStart(2,'0')}`;
+                                    } else {
+                                        labelHeader = String(rawHeader).trim();
+                                    }
+                                    
+                                    let rawVal = row[j];
+                                    let ventas = typeof rawVal === 'number' ? rawVal : parseInt(String(rawVal).replace(/\D/g, '')) || 0;
+                                    
+                                    // Guardado Inteligente con Orientación Automática
+                                    if (ventas > 0) {
+                                        if (col0IsMonth) {
+                                            parsedData.push({ canal: labelHeader, mes: label0, ventas });
+                                        } else {
+                                            parsedData.push({ canal: label0, mes: labelHeader, ventas });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (parsedData.length > 0) {
+                            this.ventasCanalData = parsedData;
+                            localStorage.setItem('ventas_canal_db_varin', JSON.stringify(parsedData));
+                            this.showNotification(`Se cargaron con éxito ${parsedData.length} registros de canales.`, 'success');
+                            
+                            if (document.getElementById('view-ventas-canal').classList.contains('active')) {
+                                this.renderVentasCanal();
+                            }
+                        } else {
+                            throw new Error("No se encontraron números válidos asociados a los cruces. Verifica tu archivo.");
+                        }
+
+                    } catch (err) {
+                        this.showNotification("Error: " + err.message, 'error');
+                        console.error("Error completo:", err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
                 e.target.value = null;
             },
 
