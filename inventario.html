@@ -4,19 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Varin Traaq Stock</title>
-    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-
     <!-- SheetJS (Para procesar Excel/CSV) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <style>
         :root {
             --s: #ffffff;
@@ -26,25 +21,28 @@
             --m: #71717a;
             --mo: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
-
         .view-section { display: none; }
         .view-section.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #d4d4d8; }
-
         /* Estilos base para el panel de Estadísticas */
-        .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.sc{background:var(--s);border:1px solid var(--br);border-radius:var(--r);padding:18px}.sc h3{font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}.sc .cnt{font-size:.75rem;color:var(--m);background:var(--s2);padding:2px 8px;border-radius:50px}.br2{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.79rem}.bl{width:110px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}.bt{flex:1;height:6px;background:var(--s2);border-radius:3px;overflow:hidden}.bf{height:100%;border-radius:3px;transition:width .6s}.bq{width:36px;text-align:right;font-family:var(--mo);color:var(--m);font-size:.74rem;flex-shrink:0}
+        .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+        .sc{background:var(--s);border:1px solid var(--br);border-radius:var(--r);padding:18px}
+        .sc h3{font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+        .sc .cnt{font-size:.75rem;color:var(--m);background:var(--s2);padding:2px 8px;border-radius:50px}
+        .br2{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.79rem}
+        .bl{width:110px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+        .bt{flex:1;height:6px;background:var(--s2);border-radius:3px;overflow:hidden}
+        .bf{height:100%;border-radius:3px;transition:width .6s}
+        .bq{width:36px;text-align:right;font-family:var(--mo);color:var(--m);font-size:.74rem;flex-shrink:0}
     </style>
 </head>
 <body class="flex h-screen bg-zinc-50 text-zinc-900 overflow-hidden">
-
     <aside class="w-72 bg-black text-white flex flex-col h-full border-r border-zinc-800 shrink-0">
         <div class="p-8">
             <h1 class="text-2xl font-bold tracking-widest flex flex-col gap-1">
@@ -55,7 +53,6 @@
             </h1>
             <p class="text-xs text-zinc-500 mt-3 font-medium uppercase tracking-widest border-t border-zinc-800 pt-3">Stock Manager</p>
         </div>
-        
         <nav class="flex-1 px-4 space-y-1" id="nav-menu">
             <button data-target="view-ventas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-md transition-all text-left bg-zinc-900 text-white border-l-2 border-white">
                 <i class="ph ph-currency-dollar text-xl"></i> <span class="font-medium text-sm tracking-wide">Ventas</span>
@@ -82,7 +79,6 @@
                 <i class="ph ph-upload-simple text-xl"></i> <span class="font-medium text-sm tracking-wide">Subir Data</span>
             </button>
         </nav>
-        
         <div class="p-6 bg-zinc-950 space-y-3">
             <button onclick="App.clearAllData()" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-md transition-colors text-sm font-semibold tracking-wide shadow-sm">
                 <i class="ph ph-trash text-lg"></i> Borrar Toda la Data
@@ -91,12 +87,10 @@
     </aside>
 
     <main class="flex-1 relative h-screen overflow-hidden flex flex-col p-10">
-        
         <div id="toast" class="absolute top-6 right-6 z-50 px-5 py-4 rounded-md shadow-xl flex items-center gap-3 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-[-10px]">
             <i id="toast-icon" class="ph text-2xl"></i>
             <span id="toast-msg" class="font-medium text-sm tracking-wide"></span>
         </div>
-
         <div id="confirm-modal" class="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
             <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="confirm-modal-box">
                 <div class="flex items-center gap-3 text-red-600 mb-4">
@@ -141,7 +135,7 @@
                     </div>
                 </div>
             </header>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div class="bg-sky-100 p-6 rounded-lg shadow-sm border border-sky-300 flex flex-col justify-between hover:border-sky-400 transition-colors">
                     <div class="flex justify-between items-start mb-4">
@@ -175,7 +169,6 @@
         </div>
 
         <div class="flex-1 min-h-0 overflow-hidden relative">
-            
             <section id="view-dashboard" class="view-section h-full pb-10">
                 <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden flex flex-col flex-1">
                     <div class="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
@@ -328,7 +321,6 @@
                             </select>
                         </div>
                     </header>
-                    
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
                         <div class="bg-emerald-50 p-6 rounded-lg border border-emerald-200 shadow-sm flex items-center justify-between">
                             <div>
@@ -430,7 +422,6 @@
                     @media (max-width:600px) { #vc-app .chart { overflow-x: auto; } #vc-app .chart svg { min-width: 600px; } }
                     @media (max-width:480px) { #vc-app .kpi .v { font-size: 20px; } #vc-app .card { padding: 14px; } }
                 </style>
-
                 <div id="vc-app">
                     <div class="wrap">
                         <header>
@@ -467,7 +458,6 @@
                         <footer id="foot"></footer>
                     </div>
                 </div>
-
                 <script>
                     (function() {
                         const D = {"generado": "06-10-2026 13:35", "canales": ["Varin", "Falabella", "Mercado Libre", "FULL"], "meses": ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"], "mes_en_curso": "2026-10", "archivos": {"Varin": "orders_export.csv", "Falabella": "export - Falabella 2026.xlsx", "Mercado Libre / FULL": "20261005_Ventas_CL_Mercado_Libre_y_Mercado_Shops_2026-10-05_16-10hs_2967682966.xlsx"}, "ventas": {"Varin": [0.0, 0.0, 0.0, 0.0, 0.0, 219800.0, 306280.0, 1933780.0], "Falabella": [0.0, 0.0, 0.0, 416600.0, 0.0, 213800.0, 118900.0, 546500.0], "Mercado Libre": [894110.0, 88990.0, 0.0, 0.0, 0.0, 237800.0, 106900.0, 0.0], "FULL": [0.0, 616600.0, 2312390.0, 666103.0, 868200.0, 898200.0, 491655.0, 859540.0]}, "pedidos": {"Varin": [0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 10.0], "Falabella": [0.0, 0.0, 0.0, 2.0, 0.0, 2.0, 1.0, 3.0], "Mercado Libre": [10.0, 1.0, 0.0, 0.0, 0.0, 2.0, 1.0, 0.0], "FULL": [0.0, 7.0, 25.0, 7.0, 8.0, 8.0, 4.0, 8.0]}, "unidades": {"Varin": [0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 18.0], "Falabella": [0.0, 0.0, 0.0, 4.0, 0.0, 2.0, 1.0, 5.0], "Mercado Libre": [10.0, 1.0, 0.0, 0.0, 0.0, 2.0, 1.0, 0.0], "FULL": [0.0, 7.0, 25.0, 7.0, 8.0, 8.0, 4.0, 8.0]}};
@@ -478,24 +468,18 @@
                         const fmtCLP = n => "$" + fmtN(n);
                         const fmtShort = n => n >= 1e6 ? "$" + (n / 1e6).toLocaleString("es-CL", {maximumFractionDigits: 2}) + " M" : n >= 1e3 ? "$" + Math.round(n / 1e3) + " mil" : "$" + fmtN(n);
                         const mesLbl = (m, largo) => { const [y, mm] = m.split("-").map(Number); return MES[mm - 1] + (largo ? " " + y : " " + String(y).slice(2)); };
-                        
                         let metric = "ventas";
                         const activos = new Set(D.canales);
                         const fmt = () => metric === "ventas" ? fmtCLP : fmtN;
                         const nombreMetrica = {ventas: "Ventas", pedidos: "Pedidos", unidades: "Unidades"};
-                        
                         $$("#meta").textContent = `Actualizado ${D.generado} · CLP con IVA, solo productos · excluye canceladas y devueltas`;
                         $$("#foot").textContent = "Archivos: " + Object.entries(D.archivos).map(([k, v]) => `${k}: ${v || "no encontrado"}`).join(" · ");
-                        
-                        // ---------- chips de canal
                         $$("#chips").innerHTML = '<span class="muted" style="margin-right:4px">Canales</span>' + D.canales.map((c, i) =>  `<button class="chip" aria-pressed="true" data-c="${c}"><span class="sw" style="background:var(${COLORS[i]})"></span>${c}</button>`).join("");
                         document.querySelectorAll("#vc-app .chip").forEach(b => b.onclick = () => {  const c = b.dataset.c;  if (activos.has(c) && activos.size === 1) return;  activos.has(c) ? activos.delete(c) : activos.add(c);  b.setAttribute("aria-pressed", activos.has(c));  render();});
                         document.querySelectorAll("#vc-app #metricSeg button").forEach(b => b.onclick = () => {  metric = b.dataset.m;  document.querySelectorAll("#vc-app #metricSeg button").forEach(x => x.classList.toggle("on", x === b));  render();});
-                        
                         const serie = (m, c) => D[m][c] || D.meses.map(() => 0);
                         const totalMes = (m, i) => D.canales.filter(c => activos.has(c)).reduce((s, c) => s + serie(m, c)[i], 0);
                         const totalCanal = (m, c) => serie(m, c).reduce((a, b) => a + b, 0);
-                        
                         function kpis() {
                             const canales = D.canales.filter(c => activos.has(c));
                             const tot = m => canales.reduce((s, c) => s + totalCanal(m, c), 0);
@@ -517,18 +501,15 @@
                             ];
                             $$("#kpis").innerHTML = tiles.map(([l, val, d]) => `<div class="card kpi"><div class="l">${l}</div><div class="v">${val}</div><div class="d">${d}</div></div>`).join("");
                         }
-                        
                         function niceStep(v) {
                             if (v <= 0) return 1;
                             const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
                             return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
                         }
-                        
                         function topRounded(x, y, w, h, r) {
                             r = Math.min(r, w / 2, h);
                             return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
                         }
-                        
                         function chart() {
                             const el = $$("#chart"), tip = $$("#tip");
                             const W = 720, H = 300, ml = 64, mr = 8, mt = 10, mb = 28;
@@ -541,7 +522,6 @@
                             const y = v => mt + ih - (v / max) * ih;
                             const ticks = []; for (let t = 0; t <= max + step / 2; t += step) ticks.push(t);
                             const f = metric === "ventas" ? fmtShort : fmtN;
-                            
                             let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${nombreMetrica[metric]} por mes y canal">`;
                             s += `<g class="axis">` + ticks.map(t => `<line class="gridline" x1="${ml}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}"/><text x="${ml - 8}" y="${y(t) + 4}" text-anchor="end">${f(t)}</text>`).join("") + `</g>`;
                             D.meses.forEach((m, i) => {
@@ -566,7 +546,6 @@
                             s += `<line class="baseline" x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
                             el.innerHTML = s;
                             el.appendChild(tip);
-                            
                             el.querySelectorAll(".hit").forEach(r => {
                                 r.addEventListener("mousemove", e => {
                                     const i = +r.dataset.i, fm = fmt();
@@ -582,12 +561,10 @@
                                 });
                                 r.addEventListener("mouseleave", () => tip.style.opacity = 0);
                             });
-                            
                             $$("#chartTitle").textContent = `${nombreMetrica[metric]} por mes`;
                             $$("#chartSub").textContent = D.mes_en_curso ? `* ${mesLbl(D.mes_en_curso, true)} es el mes en curso (datos parciales)` : "";
                             $$("#legend").innerHTML = canales.map(c => `<span><i style="background:var(${COLORS[D.canales.indexOf(c)]})"></i>${c}</span>`).join("");
                         }
-                        
                         function share() {
                             const canales = D.canales.filter(c => activos.has(c));
                             const tot = canales.reduce((s, c) => s + totalCanal(metric, c), 0) || 1;
@@ -600,7 +577,6 @@
                                     <div class="track"><div class="fill" style="width:${v / tot * 100}%;background:var(${COLORS[D.canales.indexOf(c)]})"></div></div>
                                 </div>`).join("");
                         }
-                        
                         function table() {
                             const canales = D.canales.filter(c => activos.has(c));
                             const fm = fmt();
@@ -614,7 +590,6 @@
                             h += `<tr><td class="muted" style="font-weight:400">% del total</td>${canales.map(c => `<td class="muted" style="font-weight:400">${gran ? (totalCanal(metric, c) / gran * 100).toFixed(1) + "%" : "–"}</td>`).join("")}<td class="muted" style="font-weight:400">100%</td></tr></tfoot>`;
                             $$("#table").innerHTML = h;
                         }
-                        
                         function render() { kpis(); chart(); share(); table(); }
                         render();
                     })();
@@ -639,7 +614,6 @@
                         <h2 class="text-2xl font-light text-zinc-900 tracking-tight">Reportes y Exportación</h2>
                         <p class="text-zinc-500 text-sm mt-1">Descarga la información de tu inventario en formato de hoja de cálculo.</p>
                     </header>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                         <div class="bg-white p-8 rounded-lg shadow-sm border border-zinc-200 text-center space-y-4 hover:border-zinc-300 transition-all cursor-pointer group" onclick="App.exportToExcel()">
                             <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto group-hover:bg-emerald-100 transition-colors">
@@ -651,7 +625,6 @@
                                 <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-md text-sm font-medium transition-colors w-full shadow-sm">Descargar Stock</button>
                             </div>
                         </div>
-                        
                         <div class="bg-white p-8 rounded-lg shadow-sm border border-zinc-200 text-center space-y-4 hover:border-zinc-300 transition-all cursor-pointer group" onclick="App.exportDetail()">
                             <div class="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center mx-auto group-hover:bg-sky-100 transition-colors">
                                 <i class="ph ph-list-numbers text-sky-600 text-4xl"></i>
@@ -735,13 +708,12 @@
 
     <script>
         var BODS = ['DropGO','Full ML','Office','WH Hub'];
-        var COL  = ['#fbbf24','#10b981','#a1a1aa','#38bdf8']; 
+        var COL  = ['#fbbf24','#10b981','#a1a1aa','#38bdf8'];
         var prods = [];
 
         function rStats() {
           var agg = {};
           var aggGlobal = {};
-          
           App.inventory.forEach(function(item) {
             let wh = item.warehouse || '';
             if (wh === 'WH Hub' || wh === 'Bodega 1') wh = 'WH Hub';
@@ -754,7 +726,7 @@
             let cat = 'ventilación';
             const lowName = (item.name || '').toLowerCase();
             const lowSku = (item.sku || '').toLowerCase();
-            
+
             if (lowName.includes('calefac') || lowName.includes('estufa') || lowName.includes('heater') || lowSku.includes('c-')) cat = 'calefacción';
             else if (lowName.includes('segur') || lowName.includes('camara') || lowName.includes('alarma') || lowSku.includes('s-')) cat = 'seguridad';
 
@@ -776,15 +748,12 @@
           var prodsGlobal = Object.keys(aggGlobal).map(function(k){ return aggGlobal[k]; }).filter(p => p.cantidad > 0).sort((a,b) => b.cantidad - a.cantidad);
 
           var html = '';
-
           if (prodsGlobal.length > 0) {
               var maxGlobal = Math.max.apply(null, prodsGlobal.map(p => p.cantidad).concat([1]));
               var totalGlobal = prodsGlobal.reduce((s, p) => s + p.cantidad, 0);
-              
               html += '<div class="sc" style="grid-column: 1 / -1;"><h3>Inventario Global por SKU' +
                       ' <span class="cnt">' + prodsGlobal.length + ' SKUs &bull; ' + totalGlobal.toLocaleString() + ' und</span></h3>' +
                       '<div class="sg">';
-              
               prodsGlobal.forEach(p => {
                   html += '<div class="br2">' +
                           '<div class="bl" title="' + p.nombre + '">' + p.sku + '</div>' +
@@ -813,7 +782,7 @@
 
           var targetCats = ['ventilación', 'calefacción', 'seguridad'];
           var cb = targetCats.map(function(c) {
-            return { c: c.charAt(0).toUpperCase() + c.slice(1), 
+            return { c: c.charAt(0).toUpperCase() + c.slice(1),
                      t: prodsGlobal.filter(p => p.categoria === c).reduce((s,p) => s + p.cantidad, 0) };
           });
           cb.sort(function(a, b){ return b.t - a.t; });
@@ -842,12 +811,12 @@
             ventasChartInstance: null,
             ventasCanalLineChart: null,
             ventasCanalPieChart: null,
-            
+
             init() {
                 const data = localStorage.getItem('inventory_db_varin');
                 if(data) {
                     this.inventory = JSON.parse(data);
-                    this.cleanDatabase(); // Limpieza profunda automática al iniciar
+                    this.cleanDatabase();
                 }
                 const canalData = localStorage.getItem('ventas_canal_db_varin');
                 if(canalData) {
@@ -869,29 +838,24 @@
                 this.formManual = document.getElementById('form-manual');
                 this.fileInput = document.getElementById('file-upload');
                 this.fileInputHistorico = document.getElementById('file-upload-historico');
-                this.fileInputDropGo = document.getElementById('file-upload-dropgo'); // Nuevo input DropGO
-                this.fileInputVentasCanal = document.getElementById('file-upload-ventas-canal'); // Input Canales
-                
+                this.fileInputDropGo = document.getElementById('file-upload-dropgo');
+                this.fileInputVentasCanal = document.getElementById('file-upload-ventas-canal');
                 this.kpi1 = document.getElementById('kpi-bodega1');
                 this.kpi2 = document.getElementById('kpi-bodega2');
                 this.kpi3 = document.getElementById('kpi-bodega3');
                 this.kpi4 = document.getElementById('kpi-bodega4');
                 this.tableBody = document.getElementById('table-body');
-                
                 this.skuFilterInput = document.getElementById('filter-sku');
                 this.monthFilterInput = document.getElementById('filter-month');
                 this.bodegaFilterInput = document.getElementById('filter-bodega');
                 this.skuDataList = document.getElementById('sku-list');
                 this.dateInput = document.getElementById('input-date');
-                
-                // Visualizador Ventas
                 this.ventasSkuInput = document.getElementById('ventas-sku');
                 this.ventasSkuList = document.getElementById('ventas-sku-list');
                 this.ventasMonthSelect = document.getElementById('ventas-month');
                 this.ventasBodegaSelect = document.getElementById('ventas-bodega');
                 this.ventasKpiUnits = document.getElementById('ventas-kpi-units');
                 this.ventasKpiValue = document.getElementById('ventas-kpi-value');
-                
                 this.confirmModal = document.getElementById('confirm-modal');
                 this.confirmModalBox = document.getElementById('confirm-modal-box');
                 this.confirmModalTitle = document.getElementById('confirm-modal-title');
@@ -910,16 +874,13 @@
                     btn.addEventListener('click', () => this.navigate(btn.getAttribute('data-target'), btn));
                 });
                 if (this.formManual) this.formManual.addEventListener('submit', (e) => this.handleManualEntry(e));
-                
                 this.fileInput.addEventListener('change', (e) => this.handleCSVUpload(e));
                 this.fileInputHistorico.addEventListener('change', (e) => this.handleHistoricoUpload(e));
                 if (this.fileInputDropGo) this.fileInputDropGo.addEventListener('change', (e) => this.handleDropGoUpload(e));
                 if (this.fileInputVentasCanal) this.fileInputVentasCanal.addEventListener('change', (e) => this.handleVentasCanalUpload(e));
-                
                 this.skuFilterInput.addEventListener('input', (e) => { this.currentSkuFilter = e.target.value.trim().toUpperCase(); this.renderDashboard(); });
                 this.monthFilterInput.addEventListener('change', (e) => { this.currentMonthFilter = e.target.value; this.renderDashboard(); });
                 this.bodegaFilterInput.addEventListener('change', (e) => { this.currentBodegaFilter = e.target.value; this.renderDashboard(); });
-
                 if (this.ventasSkuInput) this.ventasSkuInput.addEventListener('input', () => this.renderVentas());
                 if (this.ventasMonthSelect) this.ventasMonthSelect.addEventListener('change', () => this.renderVentas());
                 if (this.ventasBodegaSelect) this.ventasBodegaSelect.addEventListener('change', () => this.renderVentas());
@@ -950,22 +911,18 @@
 
             renderVentasCanal() {
                 if (!document.getElementById('ventasCanalLineChart')) return;
-                
                 const data = this.ventasCanalData;
                 if (!data || data.length === 0) {
                     if (this.ventasCanalLineChart) this.ventasCanalLineChart.destroy();
                     if (this.ventasCanalPieChart) this.ventasCanalPieChart.destroy();
                     return;
                 }
-
                 const canalesSet = new Set();
                 const mesesSet = new Set();
                 data.forEach(d => {
                     canalesSet.add(d.canal);
                     mesesSet.add(d.mes);
                 });
-
-                // Mantenemos el orden de inserción original del Excel (cronológico)
                 const meses = Array.from(mesesSet);
                 const canales = Array.from(canalesSet);
                 const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6', '#f43f5e'];
@@ -984,7 +941,6 @@
                         fill: true
                     };
                 });
-
                 const ctxLine = document.getElementById('ventasCanalLineChart').getContext('2d');
                 if (this.ventasCanalLineChart) this.ventasCanalLineChart.destroy();
                 this.ventasCanalLineChart = new Chart(ctxLine, {
@@ -992,20 +948,14 @@
                     data: { labels: meses, datasets: datasetsLine },
                     options: {
                         responsive: true, maintainAspectRatio: false,
-                        plugins: { 
-                            tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-CL')}` } } 
-                        },
-                        scales: {
-                            x: { grid: { display: false } },
-                            y: { beginAtZero: true, grid: { borderDash: [2, 2] } }
-                        }
+                        plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-CL')}` } } },
+                        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { borderDash: [2, 2] } } }
                     }
                 });
 
                 const totalPorCanal = canales.map(canal => {
                     return data.filter(d => d.canal === canal).reduce((acc, curr) => acc + curr.ventas, 0);
                 });
-                
                 const granTotal = totalPorCanal.reduce((a, b) => a + b, 0);
 
                 const ctxPie = document.getElementById('ventasCanalPieChart').getContext('2d');
@@ -1042,16 +992,13 @@
 
             renderVentas() {
                 if (!document.getElementById('ventasChart')) return;
-                
                 if (this.ventasSkuList) {
                     const uniqueSKUs = [...new Set(this.inventory.map(i => i.sku))].sort();
                     this.ventasSkuList.innerHTML = uniqueSKUs.map(sku => `<option value="${sku}">`).join('');
                 }
-
                 const selMonth = this.ventasMonthSelect.value;
                 const selSku = this.ventasSkuInput.value.trim().toUpperCase();
                 const selWh = this.ventasBodegaSelect.value;
-                
                 let salesData = this.inventory.filter(item => parseInt(item.quantity) < 0 && item.status === 'Vendido');
                 
                 if (selMonth) salesData = salesData.filter(item => item.sortDate && item.sortDate.startsWith(selMonth));
@@ -1063,13 +1010,11 @@
                 const chartData = {};
                 const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
                 
-                // Agrupacion mensual de las ventas
                 salesData.forEach(item => {
                     const qty = Math.abs(parseInt(item.quantity) || 0);
                     const val = parseInt(String(item.value || '0').replace(/\D/g, '')) || 0;
                     totalUnits += qty;
                     totalValue += val;
-                    
                     let dateKey = 'Sin fecha';
                     let label = 'Sin fecha';
                     if (item.sortDate) {
@@ -1077,7 +1022,6 @@
                         dateKey = `${y}-${m}`;
                         label = `${monthNames[parseInt(m) - 1]} ${y}`;
                     }
-
                     if (!chartData[dateKey]) chartData[dateKey] = { label: label, units: 0, value: 0 };
                     chartData[dateKey].units += qty;
                     chartData[dateKey].value += val;
@@ -1093,7 +1037,6 @@
 
                 const ctx = document.getElementById('ventasChart').getContext('2d');
                 if (this.ventasChartInstance) this.ventasChartInstance.destroy();
-                
                 this.ventasChartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -1214,11 +1157,9 @@
                     'ID Venta ML': i.mlSaleId || ''
                 }));
                 
-                // Forzamos los encabezados exactos para que Excel nunca omita las columnas de Valor o Comentario
                 const ws = XLSX.utils.json_to_sheet(exportData, {
                     header: ['Fecha', 'Fecha Orden (YYYY-MM-DD)', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado', 'Valor', 'Comentario', 'ID Venta ML']
                 });
-                
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Movimientos Históricos");
                 XLSX.writeFile(wb, `Varin_Movimientos_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -1236,7 +1177,6 @@
                 let cleaned = false;
                 const uniqueMap = new Map();
                 
-                // Ordenamos: primero los editados a mano, luego los más recientes
                 const sorted = [...this.inventory].sort((a, b) => {
                     if (a.isEdited && !b.isEdited) return -1;
                     if (!a.isEdited && b.isEdited) return 1;
@@ -1245,14 +1185,12 @@
 
                 sorted.forEach(item => {
                     let key = item.id;
-                    // Si tiene ID de venta de ML, esa es la huella digital definitiva
                     if (item.mlSaleId) {
                         key = 'VENTA_' + item.mlSaleId + '_' + item.sku;
                     } else if (item.comment === 'Importación ML' || item.comment === 'Histórico') {
                         key = 'AUTO_' + item.sku + '_' + item.sortDate + '_' + item.quantity + '_' + item.warehouse;
                     }
 
-                    // Purgar duplicados atrapados en fechas incorrectas
                     if (!uniqueMap.has(key)) {
                         uniqueMap.set(key, item);
                     } else {
@@ -1279,7 +1217,6 @@
             
             formatDisplayDate(isoString) {
                 if (!isoString || typeof isoString !== 'string') return null;
-                // Limpiar cualquier residuo de hora y separar por guiones
                 const cleanDate = isoString.split('T')[0].trim();
                 const parts = cleanDate.split('-');
                 if (parts.length !== 3) return null;
@@ -1372,10 +1309,12 @@
                     return { sort: `${match[1]}-${match[2].padStart(2,'0')}-${match[3].padStart(2,'0')}`, display: `${match[3].padStart(2,'0')}-${match[2].padStart(2,'0')}-${match[1]}` };
                 }
 
-                // 2. Formato DD-MM-YYYY o DD/MM/YYYY
-                match = str.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{4})/);
+                // 2. Formato DD-MM-YYYY o DD/MM/YYYY o DD-MM-YY (Corregido para 2 dígitos)
+                match = str.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
                 if (match) {
-                    return { sort: `${match[3]}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`, display: `${match[1].padStart(2,'0')}-${match[2].padStart(2,'0')}-${match[3]}` };
+                    let year = parseInt(match[3]);
+                    if (year < 100) year += 2000;
+                    return { sort: `${year}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`, display: `${match[1].padStart(2,'0')}-${match[2].padStart(2,'0')}-${year}` };
                 }
 
                 // 3. Formato texto ML o Excel: "2 de septiembre de 2023" o "2 sep 26"
@@ -1429,8 +1368,6 @@
                         
                         for (let i = headerIndex + 1; i < rows.length; i++) {
                             const row = rows[i].map(cell => String(cell).trim());
-                            
-                            // Filtrar estados de cancelación o devolución (Columna C / Índice 2)
                             const estadoML = row[2] ? row[2].toLowerCase() : '';
                             const estadosExcluidos = [
                                 "cancelada por el comprador",
@@ -1444,25 +1381,18 @@
                                 continue;
                             }
 
-                            // Normalizar SKU: Elimina espacios alrededor del guión (ej. "VA - G005 B" -> "VA-G005 B")
                             let currentSku = String(row[idxSKU] || '').replace(/\s*-\s*/g, '-').trim();
 
                             if (row.length > Math.max(idxSKU, idxUnidades) && currentSku !== '') {
                                 const saleId = idxVenta !== -1 && row[idxVenta] !== '' ? row[idxVenta] : null;
-                                
                                 const mlDate = this.parseMLDate(row[idxFechaVenta]);
                                 const today = new Date();
                                 const todaySort = today.toISOString().split('T')[0];
-                                
-                                // Solución: No forzar a 'today' si mlDate falla, mantener fecha nula (1900) para no engrosar mes actual por error
                                 const currentSortDate = mlDate ? mlDate.sort : (row[idxFechaVenta] ? '1900-01-01' : todaySort);
                                 const currentQty = -Math.abs(parseInt(row[idxUnidades]) || 1);
-
-                                // Limpiar el valor (columna 7/H)
                                 const rawVal = row[7] || '';
                                 const valorVenta = parseInt(rawVal.replace(/\D/g, '')) || '';
 
-                                // Lógica estricta de asignación de bodega basada en la Columna AL (índice 37)
                                 let tipoEnvio = row[37] || '';
                                 if (!tipoEnvio.includes('Full') && !tipoEnvio.includes('Correo')) {
                                     const found = row.find(val => val.includes('Mercado Envíos Full') || val.includes('Correo y puntos de despacho'));
@@ -1476,10 +1406,7 @@
 
                                 const isDuplicate = this.inventory.some(item => {
                                     if (saleId && item.mlSaleId) return String(item.mlSaleId) === String(saleId) && item.sku === currentSku;
-                                    return item.sku === currentSku && 
-                                           item.quantity === currentQty && 
-                                           item.sortDate === currentSortDate &&
-                                           item.warehouse === assignedWarehouse;
+                                    return item.sku === currentSku && item.quantity === currentQty && item.sortDate === currentSortDate && item.warehouse === assignedWarehouse;
                                 });
 
                                 if (isDuplicate) {
@@ -1521,10 +1448,8 @@
                         
                         if (file.name.toLowerCase().endsWith('.csv')) {
                             let text = new TextDecoder("utf-8").decode(data);
-                            // Detectar caracteres rotos de codificación
                             if (text.includes('')) text = new TextDecoder("windows-1252").decode(data);
                             
-                            // Buscar la primera línea con contenido real para detectar el delimitador
                             const firstLine = text.split('\n').find(line => line.trim() !== '') || '';
                             const commaCount = (firstLine.match(/,/g) || []).length;
                             const semiCount = (firstLine.match(/;/g) || []).length;
@@ -1534,10 +1459,8 @@
                             workbook = XLSX.read(data, {type: 'array', cellDates: true});
                         }
 
-                        // Leer el archivo como una matriz (array de arrays) en lugar de asumir que la fila 1 es el encabezado
                         const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
                         
-                        // 1. Escanear dinámicamente hacia abajo hasta encontrar la fila de los encabezados
                         let headerIndex = -1;
                         for (let i = 0; i < rawRows.length; i++) {
                             const rowText = rawRows[i].map(String).join(' ').toUpperCase();
@@ -1551,16 +1474,11 @@
                             throw new Error("No se encontraron las columnas 'SKU' y 'Cantidad' en ninguna parte del archivo.");
                         }
 
-                        // 2. Extraer los encabezados limpios
                         const headers = rawRows[headerIndex].map(h => String(h).replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase());
-                        
                         let nuevos = [], dupes = 0;
                         
-                        // 3. Empezar a leer los datos desde la fila siguiente a los encabezados
                         for (let i = headerIndex + 1; i < rawRows.length; i++) {
                             const rowData = rawRows[i];
-                            
-                            // Saltar filas completamente vacías
                             if (!rowData || rowData.length === 0 || rowData.every(c => c === '')) continue;
 
                             const normalizedRow = {};
@@ -1570,12 +1488,10 @@
                                 }
                             }
 
-                            // Búsqueda flexible de SKU y Cantidad con normalización de guiones
                             let rawSku = normalizedRow['SKU'] || normalizedRow['ID'];
                             const sku = String(rawSku || '').replace(/\s*-\s*/g, '-').trim();
                             
                             let rawQty = normalizedRow['CANTIDAD'] || normalizedRow['UNIDADES'] || normalizedRow['QTY'];
-                            
                             let cantidad = 0;
                             if (typeof rawQty === 'number') {
                                 cantidad = rawQty;
@@ -1615,43 +1531,40 @@
 
                             const isDuplicate = this.inventory.some(it => {
                                 if (mlSaleId && it.mlSaleId) return String(it.mlSaleId) === String(mlSaleId) && it.sku === sku;
-                                return it.sku === sku && 
-                                       it.sortDate === sortDate && 
-                                       it.quantity === cantidad && 
-                                       it.warehouse === bodega;
+                                return it.sku === sku && it.sortDate === sortDate && it.quantity === cantidad && it.warehouse === bodega;
                             });
 
                             if (isDuplicate) {
                                 dupes++;
                             } else {
-                                nuevos.push({ 
-                                    id: Date.now() + i, 
-                                    sortDate: sortDate, 
-                                    date: fecha, 
-                                    sku: sku, 
-                                    name: nombre, 
-                                    warehouse: bodega, 
-                                    quantity: cantidad, 
-                                    status: estado, 
-                                    value: valor, 
-                                    comment: comentario,
+                                nuevos.push({
+                                     id: Date.now() + i,
+                                     sortDate: sortDate,
+                                     date: fecha,
+                                     sku: sku,
+                                     name: nombre,
+                                     warehouse: bodega,
+                                     quantity: cantidad,
+                                     status: estado,
+                                     value: valor,
+                                     comment: comentario,
                                     mlSaleId: mlSaleId
                                 });
                             }
                         }
 
                         if (nuevos.length > 0) { 
-                            this.inventory = [...nuevos, ...this.inventory]; 
-                            this.saveAndRender(); 
-                            this.showNotification(`Restaurados ${nuevos.length} movimientos. ${dupes} omitidos (ya existían).`, 'success');
+                             this.inventory = [...nuevos, ...this.inventory]; 
+                             this.saveAndRender(); 
+                             this.showNotification(`Restaurados ${nuevos.length} movimientos. ${dupes} omitidos (ya existían).`, 'success');
                         } else if (dupes > 0) {
                             this.showNotification(`Leído correctamente. Los ${dupes} registros ya están en tu inventario.`, 'success');
                         } else {
                             this.showNotification(`El archivo está vacío o los datos no son válidos.`, 'error');
                         }
                     } catch (err) { 
-                        this.showNotification("Error procesando el archivo: " + err.message, 'error'); 
-                    }
+                         this.showNotification("Error procesando el archivo: " + err.message, 'error'); 
+                     }
                 };
                 reader.readAsArrayBuffer(file); 
                 e.target.value = null;
@@ -1667,18 +1580,32 @@
                         const workbook = XLSX.read(data, {type: 'array', cellDates: true, raw: true});
                         const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
 
+                        if (!rawRows || rawRows.length === 0) {
+                            throw new Error("El archivo está vacío.");
+                        }
+
                         let headerIndex = -1;
-                        for (let i = 0; i < rawRows.length; i++) {
+                        for (let i = 0; i < Math.min(20, rawRows.length); i++) {
+                            if (!rawRows[i]) continue;
                             const rowText = rawRows[i].map(String).join(' ').toUpperCase();
-                            if (rowText.includes('SKU') || rowText.includes('TIENDA')) {
+                            if (rowText.includes('SKU') || rowText.includes('TIENDA') || rowText.includes('ARTICULO') || rowText.includes('CANT')) {
                                 headerIndex = i;
                                 break;
                             }
                         }
 
-                        if (headerIndex === -1) headerIndex = 0; // Si no pilla encabezados claros, empieza desde 0
+                        if (headerIndex === -1) {
+                            headerIndex = rawRows.findIndex(r => r && r.length > 2);
+                            if (headerIndex === -1) headerIndex = 0;
+                        }
 
-                        const headers = rawRows[headerIndex].map(h => String(h).replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase());
+                        if (!rawRows[headerIndex]) throw new Error("No se encontraron encabezados válidos.");
+
+                        // Normalización robusta de encabezados (Remueve tildes y caracteres ocultos)
+                        const headers = rawRows[headerIndex].map(h => 
+                            String(h).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase()
+                        );
+                        
                         let nuevos = [], dupes = 0;
 
                         for (let i = headerIndex + 1; i < rawRows.length; i++) {
@@ -1690,45 +1617,37 @@
                                 if (headers[j]) normalizedRow[headers[j]] = rowData[j];
                             }
 
-                            // Búsqueda inteligente de Tienda (Columna D) manteniendo mayúsculas/minúsculas originales
-                            const tiendaKey = Object.keys(normalizedRow).find(k => k.includes('TIENDA') || k.includes('CANAL'));
+                            const tiendaKey = Object.keys(normalizedRow).find(k => k.includes('TIENDA') || k.includes('CANAL') || k.includes('ORIGEN'));
                             const tiendaVal = tiendaKey ? normalizedRow[tiendaKey] : rowData[3];
                             const tienda = String(tiendaVal || '').trim();
 
-                            // REGLA: Omitir movimientos Varin Meli Full
                             if (tienda.toUpperCase().includes('VARIN MELI FULL')) continue;
 
-                            // Normalizar SKU de DropGO (ej. "VA - G005 B" -> "VA-G005 B")
-                            let rawSku = normalizedRow['SKU'] || normalizedRow['ARTICULO'] || String(rowData[2] || '');
+                            const skuKey = Object.keys(normalizedRow).find(k => k.includes('SKU') || k.includes('ARTICULO') || k.includes('CODIGO') || k.includes('ITEM'));
+                            let rawSku = skuKey ? normalizedRow[skuKey] : String(rowData[2] || '');
                             const sku = String(rawSku || '').replace(/\s*-\s*/g, '-').trim();
                             
-                            // Búsqueda inteligente de columna de cantidad
                             const qtyKey = Object.keys(normalizedRow).find(k => k.includes('CANT') || k.includes('UNID') || k.includes('QTY'));
                             let rawQty = qtyKey ? normalizedRow[qtyKey] : rowData[4];
-                            
                             let cantidad = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty).replace(/[^\d-]/g, ''));
                             
                             if (!sku || isNaN(cantidad) || cantidad === 0) continue;
 
-                            // Filtro de seguridad: Si la cantidad es un número gigantesco, es porque leyó accidentalmente el ID de Orden.
                             if (Math.abs(cantidad) > 100000) cantidad = 1;
 
-                            // Forzar cantidad negativa (despacho/venta) ya que DropGO suele exportar en positivo
                             if (cantidad > 0) cantidad = -Math.abs(cantidad);
 
-                            // Buscar fecha en columna 'FECHA' o por defecto en la Columna E (índice 4)
-                            const rawDate = normalizedRow['FECHA'] || rowData[4];
+                            const dateKey = Object.keys(normalizedRow).find(k => k.includes('FECHA') || k.includes('DATE') || k.includes('CREACION'));
+                            const rawDate = dateKey ? normalizedRow[dateKey] : rowData[1];
                             let parsedObj = null;
 
                             if (rawDate) {
                                 if (rawDate instanceof Date) {
-                                    // Si es un objeto nativo de Excel, extraemos el día/mes/año (ignorando la hora)
                                     const y = rawDate.getFullYear();
                                     const m = String(rawDate.getMonth() + 1).padStart(2, '0');
                                     const day = String(rawDate.getDate()).padStart(2, '0');
                                     parsedObj = { sort: `${y}-${m}-${day}`, display: this.formatDisplayDate(`${y}-${m}-${day}`) };
                                 } else {
-                                    // Si es texto, cortamos en el espacio para quitar horas (ej. "2026-09-10 14:30:00" -> "2026-09-10")
                                     parsedObj = this.parseMLDate(String(rawDate).split(' ')[0]); 
                                 }
                             }
@@ -1736,37 +1655,29 @@
                             const sortDate = parsedObj ? parsedObj.sort : new Date().toISOString().split('T')[0];
                             const fecha = parsedObj ? parsedObj.display : this.formatDisplayDate(sortDate);
 
-                            const nombre = String(normalizedRow['PRODUCTO'] || normalizedRow['DESCRIPCION'] || 'Despacho DropGO').trim();
+                            const descKey = Object.keys(normalizedRow).find(k => k.includes('PRODUCTO') || k.includes('DESCRIPCION') || k.includes('NOMBRE'));
+                            const nombre = String(descKey ? normalizedRow[descKey] : 'Despacho DropGO').trim() || 'Despacho DropGO';
                             
-                            // Búsqueda inteligente del ID de Orden / Pedido (Suele ser la columna A)
-                            const saleIdKey = Object.keys(normalizedRow).find(k => k.includes('ORDEN') || k.includes('PEDIDO') || k.includes('DOC'));
+                            const saleIdKey = Object.keys(normalizedRow).find(k => k.includes('ORDEN') || k.includes('PEDIDO') || k.includes('DOC') || k.includes('TRACK'));
                             const saleIdVal = saleIdKey ? normalizedRow[saleIdKey] : rowData[0]; 
                             const saleId = String(saleIdVal || '').trim();
 
-                            // Extracción del Valor (Columna G / Índice 6)
                             const valorKey = Object.keys(normalizedRow).find(k => k.includes('VALOR') || k.includes('PRECIO') || k.includes('MONTO') || k.includes('TOTAL'));
                             let rawValor = valorKey ? normalizedRow[valorKey] : rowData[6];
                             let valorDropGo = typeof rawValor === 'number' ? rawValor : (parseInt(String(rawValor).replace(/\D/g, '')) || '');
 
-                            // Extracción estricta del Comentario (Columna H / Índice 7)
-                            // Se eliminó la búsqueda por nombre de encabezado para obligarlo a leer la columna H siempre
-                            const comentarioDropGo = String(rowData[7] || '').trim();
+                            const commentKey = Object.keys(normalizedRow).find(k => k.includes('COMENTARIO') || k.includes('NOTAS') || k.includes('OBS'));
+                            const comentarioDropGo = String(commentKey ? normalizedRow[commentKey] : (rowData[7] || '')).trim();
 
                             const isDuplicate = this.inventory.some(it => {
                                 if (saleId && it.mlSaleId) return String(it.mlSaleId) === String(saleId) && it.sku === sku;
-                                return it.sku === sku && 
-                                       it.sortDate === sortDate && 
-                                       it.quantity === cantidad && 
-                                       it.warehouse === 'DropGO';
+                                return it.sku === sku && it.sortDate === sortDate && it.quantity === cantidad && it.warehouse === 'DropGO';
                             });
 
                             if (isDuplicate) {
                                 dupes++;
                             } else {
-                                // Se prioriza siempre el comentario exacto de la Columna H
                                 let finalComment = comentarioDropGo;
-                                
-                                // Si la columna H viene vacía, usa la información de respaldo
                                 if (!finalComment) {
                                     finalComment = 'DropGO';
                                     if (tienda) finalComment += `: ${tienda}`;
@@ -1782,23 +1693,23 @@
                                     warehouse: 'DropGO',
                                     quantity: cantidad,
                                     status: 'Vendido',
-                                    value: valorDropGo, 
-                                    comment: finalComment,
+                                    value: valorDropGo,
+                                     comment: finalComment,
                                     mlSaleId: saleId || null
                                 });
                             }
                         }
 
                         if (nuevos.length > 0) { 
-                            this.inventory = [...nuevos, ...this.inventory]; 
-                            this.saveAndRender(); 
-                            this.showNotification(`Se importaron ${nuevos.length} registros DropGO. ${dupes} omitidos.`, 'success');
+                             this.inventory = [...nuevos, ...this.inventory]; 
+                             this.saveAndRender(); 
+                             this.showNotification(`Se importaron ${nuevos.length} registros DropGO. ${dupes} omitidos.`, 'success');
                         } else {
-                            this.showNotification(dupes > 0 ? `Se omitieron ${dupes} movimientos (ya existían).` : `No hay registros válidos.`, 'error');
+                            this.showNotification(dupes > 0 ? `Se omitieron ${dupes} movimientos (ya existían).` : `No hay registros válidos para importar.`, 'error');
                         }
                     } catch (err) { 
-                        this.showNotification("Error procesando DropGO: " + err.message, 'error'); 
-                    }
+                         this.showNotification("Error procesando DropGO: " + err.message, 'error'); 
+                     }
                 };
                 reader.readAsArrayBuffer(file); 
                 e.target.value = null;
@@ -1813,7 +1724,6 @@
                         const data = new Uint8Array(event.target.result);
                         const workbook = XLSX.read(data, {type: 'array', cellDates: true, raw: true});
                         
-                        // Buscar hoja "resumen" o usar la primera
                         let sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes('resumen')) || workbook.SheetNames[0];
                         const sheet = workbook.Sheets[sheetName];
                         
@@ -1821,8 +1731,6 @@
                         if(rows.length < 2) throw new Error("La hoja está vacía o no tiene suficientes datos.");
 
                         let parsedData = [];
-                        
-                        // 1. ENCONTRAR LA FILA DE ENCABEZADOS DE FORMA INTELIGENTE
                         let hIdx = -1;
                         for (let i = 0; i < Math.min(20, rows.length); i++) {
                             if (!rows[i]) continue;
@@ -1833,7 +1741,6 @@
                             }
                         }
                         
-                        // Fallback si no hay palabras clave: buscar la primera fila con múltiples datos
                         if (hIdx === -1) {
                             for (let i = 0; i < Math.min(10, rows.length); i++) {
                                 if (rows[i] && rows[i].filter(c => c !== null && c !== '').length > 1) {
@@ -1847,17 +1754,15 @@
 
                         const headers = rows[hIdx].map(h => h ? String(h).trim() : '');
                         
-                        // 2. DETERMINAR EL FORMATO (Plano vs Matriz/Dinámica)
                         const isFlat = headers.some(h => h.toLowerCase().includes('mes')) && 
-                                       (headers.some(h => h.toLowerCase().includes('canal')) || headers.some(h => h.toLowerCase().includes('tienda')));
+                                        (headers.some(h => h.toLowerCase().includes('canal')) || headers.some(h => h.toLowerCase().includes('tienda')));
 
                         if (isFlat) {
-                            // MODO TABLA PLANA
                             const idxCanal = headers.findIndex(h => h.toLowerCase().includes('canal') || h.toLowerCase().includes('tienda'));
                             const idxMes = headers.findIndex(h => h.toLowerCase().includes('mes'));
                             const idxVentas = headers.findIndex(h => /total|monto|venta|suma/i.test(h)) !== -1 
-                                ? headers.findIndex(h => /total|monto|venta|suma/i.test(h)) 
-                                : headers.length - 1;
+                                 ? headers.findIndex(h => /total|monto|venta|suma/i.test(h)) 
+                                 : headers.length - 1;
 
                             for (let i = hIdx + 1; i < rows.length; i++) {
                                 const row = rows[i];
@@ -1876,21 +1781,17 @@
                                 if (ventas > 0) parsedData.push({ canal, mes, ventas });
                             }
                         } else {
-                            // MODO MATRIZ / TABLA DINÁMICA
                             let headerIsMonthScore = 0;
                             const monthIndicators = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
                             
-                            // Analizar si las cabeceras parecen ser meses
                             for (let j = 1; j < headers.length; j++) {
                                  if (headers[j] instanceof Date) { headerIsMonthScore++; continue; }
                                  let hStr = String(headers[j]).toLowerCase();
                                  if (monthIndicators.some(m => hStr.startsWith(m) || hStr.includes('202') || hStr.includes('-0'))) headerIsMonthScore++;
                             }
 
-                            // Si las cabeceras NO tienen nombres de meses, asumimos orientación invertida (Col 0 = Meses, Headers = Canales)
                             let col0IsMonth = headerIsMonthScore === 0;
                             
-                            // Refuerzo explícito de inversión
                             if (String(headers[0]).toLowerCase().includes('mes') || String(headers[0]).toLowerCase().includes('fecha')) {
                                 col0IsMonth = true;
                             }
@@ -1916,7 +1817,6 @@
                                     let rawVal = row[j];
                                     let ventas = typeof rawVal === 'number' ? rawVal : parseInt(String(rawVal).replace(/\D/g, '')) || 0;
                                     
-                                    // Guardado Inteligente con Orientación Automática
                                     if (ventas > 0) {
                                         if (col0IsMonth) {
                                             parsedData.push({ canal: labelHeader, mes: label0, ventas });
