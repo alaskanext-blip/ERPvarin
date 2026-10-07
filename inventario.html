@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- LocalForage (Base de datos avanzada sin límite de 5MB) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <style>
         :root {
             --s: #ffffff;
@@ -810,16 +812,38 @@
             ventasCanalLineChart: null,
             ventasCanalPieChart: null,
 
-            init() {
-                const data = localStorage.getItem('inventory_db_varin');
-                if(data) {
-                    this.inventory = JSON.parse(data);
+            async init() {
+                try {
+                    localforage.config({ name: 'VarinTraaq', storeName: 'inventory_store' });
+                    
+                    const data = await localforage.getItem('inventory_db_varin');
+                    if(data) {
+                        this.inventory = data;
+                    } else {
+                        // Migración desde LocalStorage antiguo
+                        const legacyData = localStorage.getItem('inventory_db_varin');
+                        if (legacyData) {
+                            this.inventory = JSON.parse(legacyData);
+                            await localforage.setItem('inventory_db_varin', this.inventory);
+                        }
+                    }
+                    
+                    const canalData = await localforage.getItem('ventas_canal_db_varin');
+                    if(canalData) {
+                        this.ventasCanalData = canalData;
+                    } else {
+                        const legacyCanal = localStorage.getItem('ventas_canal_db_varin');
+                        if (legacyCanal) {
+                            this.ventasCanalData = JSON.parse(legacyCanal);
+                            await localforage.setItem('ventas_canal_db_varin', this.ventasCanalData);
+                        }
+                    }
+                    
                     this.cleanDatabase();
+                } catch (e) {
+                    console.error("Error cargando base de datos", e);
                 }
-                const canalData = localStorage.getItem('ventas_canal_db_varin');
-                if(canalData) {
-                    this.ventasCanalData = JSON.parse(canalData);
-                }
+                
                 this.cacheDOM();
                 this.setDefaultDate();
                 this.bindEvents();
@@ -1208,10 +1232,9 @@
 
                 sorted.forEach(item => {
                     let key = item.id;
+                    // Solo agrupar y deduplicar automáticamente si existe un ID de venta único real
                     if (item.mlSaleId) {
                         key = 'VENTA_' + item.mlSaleId + '_' + item.sku;
-                    } else if (item.comment === 'Importación ML' || item.comment === 'Histórico') {
-                        key = 'AUTO_' + item.sku + '_' + item.sortDate + '_' + item.quantity + '_' + item.warehouse;
                     }
 
                     if (!uniqueMap.has(key)) {
@@ -1223,12 +1246,12 @@
 
                 if (cleaned) {
                     this.inventory = Array.from(uniqueMap.values());
-                    localStorage.setItem('inventory_db_varin', JSON.stringify(this.inventory));
+                    localforage.setItem('inventory_db_varin', this.inventory);
                 }
             },
 
             saveAndRender() {
-                localStorage.setItem('inventory_db_varin', JSON.stringify(this.inventory));
+                localforage.setItem('inventory_db_varin', this.inventory).catch(err => console.error('Storage Error:', err));
                 this.renderDashboard();
                 if (document.getElementById('view-ventas').classList.contains('active')) this.renderVentas();
                 if (document.getElementById('view-graficos').classList.contains('active')) this.renderGraficos();
@@ -1854,7 +1877,7 @@
 
                         if (parsedData.length > 0) {
                             this.ventasCanalData = parsedData;
-                            localStorage.setItem('ventas_canal_db_varin', JSON.stringify(parsedData));
+                            localforage.setItem('ventas_canal_db_varin', parsedData);
                             this.showNotification(`Se cargaron con éxito ${parsedData.length} registros de canales.`, 'success');
                             
                             if (document.getElementById('view-ventas-canal').classList.contains('active')) {
