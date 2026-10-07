@@ -1142,22 +1142,47 @@
 
             exportDetail() {
                 if (!this.inventory.length) return this.showNotification('No hay datos para exportar', 'error');
-                const exportData = this.inventory.map(i => ({
-                    'Fecha': i.date || '',
-                    'Fecha Orden (YYYY-MM-DD)': i.sortDate || '',
-                    'SKU': i.sku || '',
-                    'Producto': i.name || '',
-                    'Bodega': i.warehouse || '',
-                    'Cantidad': i.quantity || 0,
-                    'Estado': i.status || '',
-                    'Valor': (i.value !== undefined && i.value !== null && i.value !== '') ? i.value : '',
-                    'Comentario': i.comment || '',
-                    'ID Venta ML': i.mlSaleId || ''
-                }));
+                const exportData = this.inventory.map(i => {
+                    // Convertir la fecha a un objeto nativo Date para que Excel la reconozca como tal
+                    let dateObj = i.sortDate;
+                    if (i.sortDate) {
+                        const [y, m, d] = i.sortDate.split('-');
+                        // Se define a las 12:00PM para evitar desfases causados por la zona horaria
+                        dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
+                    }
+
+                    return {
+                        'Fecha': dateObj || i.date || '',
+                        'Fecha Orden (YYYY-MM-DD)': dateObj || '',
+                        'SKU': i.sku || '',
+                        'Producto': i.name || '',
+                        'Bodega': i.warehouse || '',
+                        'Cantidad': i.quantity || 0,
+                        'Estado': i.status || '',
+                        'Valor': (i.value !== undefined && i.value !== null && i.value !== '') ? i.value : '',
+                        'Comentario': i.comment || '',
+                        'ID Venta ML': i.mlSaleId || ''
+                    };
+                });
                 
                 const ws = XLSX.utils.json_to_sheet(exportData, {
                     header: ['Fecha', 'Fecha Orden (YYYY-MM-DD)', 'SKU', 'Producto', 'Bodega', 'Cantidad', 'Estado', 'Valor', 'Comentario', 'ID Venta ML']
                 });
+
+                // Forzar el formato visual de las celdas con fechas en Excel
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                    const cellFecha = ws[XLSX.utils.encode_cell({r: R, c: 0})]; // Columna A
+                    const cellFechaOrden = ws[XLSX.utils.encode_cell({r: R, c: 1})]; // Columna B
+                    
+                    if (cellFecha && cellFecha.t === 'd') {
+                        cellFecha.z = 'dd/mm/yyyy'; 
+                    }
+                    if (cellFechaOrden && cellFechaOrden.t === 'd') {
+                        cellFechaOrden.z = 'yyyy-mm-dd';
+                    }
+                }
+
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Movimientos Históricos");
                 XLSX.writeFile(wb, `Varin_Movimientos_${new Date().toISOString().split('T')[0]}.xlsx`);
