@@ -292,7 +292,7 @@ td .acts{display:flex;gap:6px}
       <h2>Subir archivos</h2>
       <div class="drop" id="drop">
         <b>Arrastra aquí los Excel o haz clic</b>
-        <span class="muted">Movimientos · Movimientos DropGO · Ventas Mercado Libre · Ventas por canal y mes<br>El tipo se detecta automáticamente. Solo se agregan filas nuevas.</span>
+        <span class="muted">Movimientos · DropGO (reporte de ventas + reporte de picking) · Ventas Mercado Libre · Shopify (orders_export.csv) · Ventas por canal y mes<br>El tipo se detecta automáticamente. Solo se agregan filas nuevas.</span>
         <input type="file" id="fileIn" accept=".xlsx,.xls,.csv" multiple hidden>
       </div>
       <div id="loadResult" style="margin-top:12px"></div>
@@ -308,6 +308,13 @@ td .acts{display:flex;gap:6px}
         <button class="btn danger" id="clrBtn">Borrar todo</button>
       </div>
     </div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <h2>DropGO · movimientos generados
+      <button class="btn sm" id="dgDl" style="margin-left:auto">Descargar movimientos DropGO (Excel)</button></h2>
+    <div class="muted sub" style="margin-top:0">Se generan solos al subir el <b>reporte de ventas</b> y el <b>reporte de picking</b> de DropGO: una salida "Vendido" en DropGO por orden y SKU, con el total de la orden como valor. Las órdenes canceladas no se registran.</div>
+    <div class="kpis" id="dgKpis" style="margin-bottom:12px"></div>
+    <div class="tblwrap" style="max-height:360px"><table id="dgTbl"></table></div>
   </div>
   <div class="grid g2">
     <div class="card">
@@ -336,9 +343,9 @@ td .acts{display:flex;gap:6px}
    Almacenamiento
    ============================================================ */
 const STORE_KEY = 'varin_dashboard_v1';
-const emptyDB = () => ({version:1, movs:[], sales:{}, aliases:{}, autoAliases:{}, log:[], deleted:[]});
+const emptyDB = () => ({version:1, movs:[], sales:{}, aliases:{}, autoAliases:{}, log:[], deleted:[], dg:{sales:{}, picks:{}}});
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
-function ensureIds(){ for(const r of DB.movs){ if(!r.id) r.id=newId(); if(!r.src) r.src='file'; } if(!DB.deleted) DB.deleted=[]; }
+function ensureIds(){ for(const r of DB.movs){ if(!r.id) r.id=newId(); if(!r.src) r.src='file'; } if(!DB.deleted) DB.deleted=[]; if(!DB.dg) DB.dg={sales:{},picks:{}}; DB.dg.sales ||= {}; DB.dg.picks ||= {}; }
 let DB = emptyDB();
 function loadDB(){
   try{ const s = localStorage.getItem(STORE_KEY); if(s){ DB = Object.assign(emptyDB(), JSON.parse(s)); ensureIds(); return true; } }catch(e){}
@@ -394,9 +401,12 @@ function rebuildKnownSkus(){
   knownSkuUpper = {};
   for(const r of DB.movs) if(r.sku) knownSkuUpper[r.sku.toUpperCase()] = r.sku;
 }
+// Equivalencias base conocidas (códigos de Shopify/Falabella -> SKU interno); las manuales y aprendidas tienen prioridad
+const DEFAULT_ALIASES = {'8720828286210':'VA-E001 N','CFYF08248':'VA-E002 L BNa','EAJZ93442':'VA-E002 BB','GFQU66747':'VA-E001 B',
+  'JYVU08156':'VA-E002 BWa','RTTV93016':'VA-E002 BNa','TFBV08538':'VA-E002 L WNa','USPF68947':'VA-E002'};
 function canonSku(raw){
   const b = normBasic(raw); const U = b.toUpperCase();
-  return DB.aliases[U] || DB.autoAliases[U] || knownSkuUpper[U] || b;
+  return DB.aliases[U] || DB.autoAliases[U] || DEFAULT_ALIASES[U] || knownSkuUpper[U] || b;
 }
 const modelOf = sku => (str(sku).split(' ')[0] || sku);
 
@@ -426,6 +436,20 @@ function detectAndParse(wb, fname){
     const rows = rowsOf(wb.Sheets[sn]);
     const h = findHeader(rows, ['# de venta','Fecha de venta','SKU']);
     if(h>=0) return {type:'ml', label:'Ventas Mercado Libre', recs: parseML(rows,h,fname)};
+  }
+  // Shopify (tienda Varin): orders_export.csv
+  for(const sn of wb.SheetNames){
+    const rows = rowsOf(wb.Sheets[sn]);
+    const h = findHeader(rows, ['Name','Lineitem quantity','Lineitem sku'], 5);
+    if(h>=0) return {type:'shopify', label:'Ventas Shopify (Varin)', recs: parseShopify(rows,h)};
+  }
+  // DropGO: reporte de picking y reporte de ventas
+  for(const sn of wb.SheetNames){
+    const rows = rowsOf(wb.Sheets[sn]);
+    let h = findHeader(rows, ['Orden','SKU','Cantidad','Picking','Inventariado']);
+    if(h>=0) return {type:'dgpick', label:'DropGO · picking', recs: parseDgPick(rows,h)};
+    h = findHeader(rows, ['Orden','Orden tienda','Tienda','Total','Estado']);
+    if(h>=0) return {type:'dgsales', label:'DropGO · ventas', recs: parseDgSales(rows,h)};
   }
   // 3) Movimientos (general o DropGO)
   for(const sn of wb.SheetNames){
@@ -480,6 +504,35 @@ function parseML(rows,h){
   return out;
 }
 
+// Shopify: una fila por producto; los datos del pedido vienen solo en la primera fila de cada pedido.
+// Monto = precio x cantidad − descuento del producto. Excluye reembolsados, anulados, cancelados o no pagados.
+function parseShopify(rows,h){
+  const H=rows[h], c=n=>colIdx(H,n);
+  const iN=c('Name'), iFS=c('Financial Status'), iFu=c('Fulfillment Status'), iC=c('Created at'), iPa=c('Paid at'), iCa=c('Cancelled at'),
+        iQ=c('Lineitem quantity'), iLN=c('Lineitem name'), iLP=c('Lineitem price'), iLS=c('Lineitem sku'), iLD=c('Lineitem discount');
+  const out=[], occ={}, ordInfo={};
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i]; const ord=str(r[iN]); if(!ord) continue;
+    const info = ordInfo[ord] ||= {};
+    if(iFS>=0 && str(r[iFS])) info.fs=str(r[iFS]).toLowerCase();
+    if(iFu>=0 && str(r[iFu])) info.fu=str(r[iFu]).toLowerCase();
+    if(iC>=0 && str(r[iC])) info.created=r[iC];
+    if(iPa>=0 && str(r[iPa])) info.paid=r[iPa];
+    if(iCa>=0 && str(r[iCa])) info.cancel=str(r[iCa]);
+    const q=num(r[iQ]); if(!q) continue;
+    const sku=str(r[iLS]); const pd=parseDate(info.created||info.paid); if(!pd) continue;
+    const m = num(r[iLP])*q - (iLD>=0?num(r[iLD]):0);
+    const base='Varin|'+ord+'|'+normBasic(sku).toUpperCase(); occ[base]=(occ[base]||0)+1;
+    const fs=info.fs||'', fu=info.fu||'unfulfilled';
+    let inc=true, mot='';
+    if(info.cancel){ inc=false; mot='Cancelado'; }
+    else if(/^(refunded|voided)$/.test(fs)){ inc=false; mot = fs==='refunded'?'Reembolsado':'Anulado'; }
+    else if(/^(pending|authorized|expired|unpaid)$/.test(fs) || !fs){ inc=false; mot='No pagado ('+(fs||'sin estado')+')'; }
+    out.push({k:base+'|'+occ[base], src:'shopify', canal:'Varin', f:pd.d, t:pd.t, ord, skuRaw:sku, prod:str(r[iLN]), u:q, m,
+              est:`${fs} · ${fu}`, inc, mot});
+  }
+  return out;
+}
 function parseCanal(rows,h){
   const H = rows[h], c = n => colIdx(H,n);
   const iC=c('Canal'), iF=c('Fecha'), iO=c('Orden'), iS=c('SKU'), iP=c('Producto'), iU=c('Unidades'), iM=c('Monto (CLP)'),
@@ -510,7 +563,7 @@ function exportBackupXlsx(){
   const wsM = XLSX.utils.aoa_to_sheet([BK_MOV, ...movs.map(r=>[r.f, r.sku, r.prod, r.bod, r.qty, r.est, r.val||'', r.com, r.ml, srcLabel(r), r.id, r.k])]);
   const wsD = XLSX.utils.aoa_to_sheet([['ID','Clave','Eliminado el'], ...(DB.deleted||[]).map(d=>[d.id, d.k, d.ts?new Date(d.ts).toLocaleString('es-CL'):''])]);
   const sales = Object.values(DB.sales).sort((a,b)=>(a.f+a.t)<(b.f+b.t)?1:-1);
-  const wsS = XLSX.utils.aoa_to_sheet([BK_SAL, ...sales.map(s=>[s.k, s.src==='ml'?'Reporte ML':'Ventas por canal', s.canal, s.f, s.t||'', s.ord, s.skuRaw, s.prod, s.u, s.m, s.net==null?'':s.net, s.est, s.inc?'Sí':'No', s.mot||''])]);
+  const wsS = XLSX.utils.aoa_to_sheet([BK_SAL, ...sales.map(s=>[s.k, s.src==='ml'?'Reporte ML':s.src==='shopify'?'Shopify':'Ventas por canal', s.canal, s.f, s.t||'', s.ord, s.skuRaw, s.prod, s.u, s.m, s.net==null?'':s.net, s.est, s.inc?'Sí':'No', s.mot||''])]);
   const wsA = XLSX.utils.aoa_to_sheet([['SKU en canal','SKU interno','Tipo'],
     ...Object.entries(DB.aliases).map(([f,t])=>[f,t,'Manual']),
     ...Object.entries(DB.autoAliases).filter(([f])=>!DB.aliases[f]).map(([f,t])=>[f,t,'Automática'])]);
@@ -524,6 +577,11 @@ function exportBackupXlsx(){
   XLSX.utils.book_append_sheet(wb, wsA, 'Equivalencias SKU');
   XLSX.utils.book_append_sheet(wb, wsL, 'Historial');
   XLSX.utils.book_append_sheet(wb, wsD, 'Eliminados');
+  const dgS=Object.values(DB.dg.sales), dgP=Object.values(DB.dg.picks);
+  if(dgS.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Fecha','Estado','Orden','Orden tienda','Tienda','Total','Envio'],
+    ...dgS.map(r=>[r.f+(r.t?' '+r.t:''), r.est, r.ord, r.ordTienda||'', r.tienda, r.total, r.envio||''])]), 'DropGO Ventas');
+  if(dgP.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Fecha','Estado','Orden','Tienda','Total','Status PK','Producto','Cantidad','SKU','Precio','Picking','Inventariado'],
+    ...dgP.flatMap(o=>o.lines.map(l=>[o.f, o.est, o.ord, o.tienda, o.total, l.spk||'', l.prod, l.q, l.sku, l.price, l.pk, l.inv]))]), 'DropGO Picking');
   XLSX.writeFile(wb, `varin_respaldo_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Respaldo exportado');
 }
@@ -540,7 +598,7 @@ function parseBackupWb(wb){
     const r=sr[i]; const k=str(r[c('Clave')]); if(!k) continue;
     const pd=parseDate(r[c('Fecha')]); if(!pd) continue;
     const net=str(r[c('Neto ML (CLP)')]);
-    sales.push({k, src: /ML/.test(str(r[c('Fuente')])) ? 'ml' : 'canal', canal:str(r[c('Canal')]), f:pd.d, t:str(r[c('Hora')]),
+    sales.push({k, src: /ML/.test(str(r[c('Fuente')])) ? 'ml' : /shopify/i.test(str(r[c('Fuente')])) ? 'shopify' : 'canal', canal:str(r[c('Canal')]), f:pd.d, t:str(r[c('Hora')]),
       ord:str(r[c('Orden')]), skuRaw:str(r[c('SKU')]), prod:str(r[c('Producto')]), u:num(r[c('Unidades')]), m:num(r[c('Monto (CLP)')]),
       net: net===''?null:num(net), est:str(r[c('Estado')]), inc:!/^no$/i.test(str(r[c('Incluida')])), mot:str(r[c('Motivo exclusión')])});
   }
@@ -549,9 +607,11 @@ function parseBackupWb(wb){
     const ar=rowsOf(wb.Sheets['Equivalencias SKU']);
     for(const r of ar.slice(1)) if(str(r[0]) && str(r[1]) && /manual/i.test(str(r[2]))) aliases[normBasic(r[0]).toUpperCase()]=normBasic(r[1]);
   }
+  const dgSales = wb.Sheets['DropGO Ventas'] ? (()=>{ const r=rowsOf(wb.Sheets['DropGO Ventas']); return r.length?parseDgSales(r,0):[]; })() : [];
+  const dgPicks = wb.Sheets['DropGO Picking'] ? (()=>{ const r=rowsOf(wb.Sheets['DropGO Picking']); return r.length?parseDgPick(r,0):[]; })() : [];
   const deleted=[];
   if(wb.Sheets['Eliminados']) for(const r of rowsOf(wb.Sheets['Eliminados']).slice(1)) if(str(r[0])||str(r[1])) deleted.push({id:str(r[0]), k:str(r[1])});
-  return {movs, sales, aliases, deleted};
+  return {movs, sales, aliases, deleted, dgSales, dgPicks};
 }
 const srcLabel = r => r.src==='manual' ? 'Manual' : (r.edited ? 'Archivo (editado)' : 'Archivo');
 // Respaldo: actualiza por ID (conserva ediciones), aplica eliminaciones y agrega lo nuevo
@@ -611,6 +671,109 @@ function mergeSales(recs){
 }
 
 // Aprende equivalencias cruzando órdenes de venta con movimientos "Vendido"
+/* ============================================================
+   DropGO: reporte de ventas + reporte de picking -> movimientos
+   ============================================================ */
+function parseDgSales(rows,h){
+  const H=rows[h], c=n=>colIdx(H,n); const out=[];
+  for(let i=h+1;i<rows.length;i++){ const r=rows[i]; const ord=str(r[c('Orden')]); if(!ord) continue;
+    const pd=parseDate(r[c('Fecha')]);
+    out.push({ord, f:pd?pd.d:'', t:pd?pd.t:'', est:str(r[c('Estado')]).toUpperCase(), tienda:str(r[c('Tienda')]), total:num(r[c('Total')]),
+      envio: c('Envio')>=0?str(r[c('Envio')]):'', ordTienda: c('Orden tienda')>=0?str(r[c('Orden tienda')]):''}); }
+  return out;
+}
+function parseDgPick(rows,h){
+  const H=rows[h], c=n=>colIdx(H,n); const byOrd={};
+  for(let i=h+1;i<rows.length;i++){ const r=rows[i]; const ord=str(r[c('Orden')]); const sku=str(r[c('SKU')]); if(!ord||!sku) continue;
+    const pd=parseDate(r[c('Fecha')]);
+    (byOrd[ord] ||= {ord, f:pd?pd.d:'', est:str(r[c('Estado')]).toUpperCase(), tienda:str(r[c('Tienda')]), total:num(r[c('Total')]), lines:[]})
+      .lines.push({sku, prod:str(r[c('Producto')]), q:num(r[c('Cantidad')]), price:num(r[c('Precio')]),
+        pk:str(r[c('Picking')]).toUpperCase(), inv:str(r[c('Inventariado')]).toUpperCase(), spk: c('Status PK')>=0?str(r[c('Status PK')]).toUpperCase():''}); }
+  return Object.values(byOrd);
+}
+function mergeDg(kind, recs){
+  const store = DB.dg[kind==='dgpick'?'picks':'sales']; let nuevos=0, act=0, iguales=0;
+  for(const r of recs){ const old=store[r.ord];
+    if(!old){ store[r.ord]=r; nuevos++; }
+    else if(JSON.stringify(old)!==JSON.stringify(r)){ store[r.ord]=r; act++; } else iguales++; }
+  return {nuevos, act, iguales};
+}
+// Construye las filas de movimiento a partir de ventas+picking; devuelve también lo que hay que revisar
+function buildDropgo(){
+  const rows=[], review=[];
+  for(const pk of Object.values(DB.dg.picks)){
+    const sale=DB.dg.sales[pk.ord]||{};
+    const est=(sale.est||pk.est||'').toUpperCase(), f=sale.f||pk.f, total=sale.total||pk.total||0;
+    if(/CANCEL/.test(est)){ review.push({ord:pk.ord, f, sku:pk.lines.map(l=>l.sku).join(', '), q:pk.lines.reduce((a,l)=>a+l.q,0), tipo:'cancel', obs:'Orden CANCELADA: no se registra'}); continue; }
+    // agrupar por SKU interno
+    const g={};
+    for(const l of pk.lines){
+      const sku=canonSku(l.sku); const known=!!knownSkuUpper[sku.toUpperCase()];
+      const key=known?sku:'?'+l.sku;
+      (g[key] ||= {sku, raw:l.sku, known, q:0, w:0, prod:l.prod, flags:new Set()});
+      g[key].q+=l.q; g[key].w+=l.price*l.q;
+      if(l.pk==='NO'||l.inv==='NO') g[key].flags.add('Picking/Inventariado = NO: incluida, verificar');
+    }
+    const groups=Object.values(g); const useW=groups.every(x=>x.w>0); const totW=groups.reduce((a,x)=>a+(useW?x.w:x.q),0);
+    let assigned=0;
+    groups.forEach((x,i)=>{
+      const val = i===groups.length-1 ? total-assigned : Math.round(total*(useW?x.w:x.q)/(totW||1)); assigned+=val;
+      if(!x.known){ review.push({ord:pk.ord, f, sku:x.raw, q:x.q, tipo:'sku', obs:'SKU sin equivalencia: pendiente (no se registra hasta mapearlo)'}); return; }
+      for(const fl of x.flags) review.push({ord:pk.ord, f, sku:x.raw, q:x.q, tipo:'ver', obs:fl});
+      const rec={f, sku:x.sku, prod:pname(x.sku)||x.prod, bod:'DropGO', qty:-x.q, est:'Vendido', val, com:pk.ord, ml:x.sku, src:'file', dg:true};
+      rec.k=[rec.f, rec.sku.toUpperCase(), rec.bod, rec.qty, rec.est, rec.val, rec.com].join('|');
+      rows.push(rec);
+    });
+  }
+  return {rows, review};
+}
+function applyDropgo(){
+  if(!Object.keys(DB.dg.picks).length) return null;
+  rebuildKnownSkus(); rebuildProdCache();
+  const {rows}=buildDropgo();
+  const st=mergeMovs(rows);
+  // órdenes canceladas que ya estaban registradas: se eliminan
+  let removed=0;
+  for(const pk of Object.values(DB.dg.picks)){
+    const est=((DB.dg.sales[pk.ord]||{}).est||pk.est||'').toUpperCase(); if(!/CANCEL/.test(est)) continue;
+    for(let i=DB.movs.length-1;i>=0;i--){ const m=DB.movs[i];
+      if(m.com===pk.ord && m.bod==='DropGO' && /vendido/i.test(m.est) && !m.edited && m.src!=='manual'){ DB.movs.splice(i,1); DB.deleted.push({id:m.id,k:m.k,ts:new Date().toISOString()}); removed++; } }
+  }
+  return {nuevos:st.nuevos, act:removed, iguales:st.iguales};
+}
+function exportDropgoXlsx(){
+  const ords=new Set(Object.keys(DB.dg.picks));
+  const movs=DB.movs.filter(m=>m.bod==='DropGO' && ords.has(m.com)).sort((a,b)=>a.f<b.f?1:a.f>b.f?-1:0);
+  if(!movs.length){ toast('No hay movimientos DropGO generados'); return; }
+  const dmy=d=>`${d.slice(8,10)}-${d.slice(5,7)}-${d.slice(0,4)}`;
+  const ws=XLSX.utils.aoa_to_sheet([['Fecha','Fecha Orden (YYYY-MM-DD)','SKU','Producto','Bodega','Cantidad','Estado','Valor','Comentario','ID Venta ML'],
+    ...movs.map(m=>[dmy(m.f), m.f, m.sku, m.prod, m.bod, m.qty, m.est, m.val, m.com, m.ml||m.sku])]);
+  ws['!cols']=[{wch:11},{wch:12},{wch:14},{wch:50},{wch:9},{wch:9},{wch:9},{wch:10},{wch:18},{wch:14}];
+  const {review}=buildDropgo();
+  const wr=XLSX.utils.aoa_to_sheet([['Orden','SKU picking','Cantidad','Observación'], ...review.map(r=>[r.ord, r.sku, r.q, r.obs])]);
+  wr['!cols']=[{wch:18},{wch:16},{wch:9},{wch:55}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Movimientos Históricos'); XLSX.utils.book_append_sheet(wb, wr, 'Revisar');
+  const d=movs.map(m=>m.f).sort();
+  XLSX.writeFile(wb, `Varin_Movimientos_DropGO_${d[0]}_al_${d[d.length-1]}.xlsx`);
+}
+function renderDropgo(){
+  const nP=Object.keys(DB.dg.picks).length, nS=Object.keys(DB.dg.sales).length;
+  if(!nP && !nS){ $('#dgKpis').innerHTML=''; $('#dgTbl').innerHTML='<tbody><tr><td class="muted">Aún no se han subido reportes de DropGO.</td></tr></tbody>'; return; }
+  const {rows, review}=buildDropgo();
+  const ords=new Set(Object.keys(DB.dg.picks)); const reg=DB.movs.filter(m=>m.bod==='DropGO' && ords.has(m.com));
+  const pend=review.filter(r=>r.tipo==='sku').length;
+  $('#dgKpis').innerHTML=[
+    ['Órdenes con picking', fmtInt(nP), nS?`${fmtInt(nS)} en reporte de ventas`:'falta reporte de ventas (se usa total del picking)'],
+    ['Movimientos registrados', fmtInt(reg.length), `${fmtInt(-reg.reduce((a,m)=>a+m.qty,0))} u · ${fmtMoney(reg.reduce((a,m)=>a+m.val,0))}`],
+    ['Por revisar', fmtInt(review.length), pend?`${pend} con SKU sin equivalencia`:'sin pendientes de SKU']
+  ].map(([l,v,s2])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join('');
+  const lab={cancel:'<span class="pill w">Cancelada</span>', ver:'<span class="pill">Verificar</span>', sku:'<span class="pill w">SKU pendiente</span>'};
+  $('#dgTbl').innerHTML = review.length ? '<thead><tr><th>Fecha</th><th>Orden</th><th>SKU picking</th><th class="n">Cant.</th><th>Observación</th><th></th></tr></thead><tbody>'+
+    review.sort((a,b)=>a.f<b.f?1:-1).map(r=>`<tr><td>${esc(r.f)}</td><td>${esc(r.ord)}</td><td>${esc(r.sku)}</td><td class="n">${fmtInt(r.q)}</td><td>${lab[r.tipo]} ${esc(r.obs)}</td><td class="n">${r.tipo==='sku'?`<button class="btn sm" data-map="${esc(r.sku)}">Mapear SKU</button>`:''}</td></tr>`).join('')+'</tbody>'
+    : '<tbody><tr><td class="muted">Nada por revisar.</td></tr></tbody>';
+  $$('#dgTbl [data-map]').forEach(b=>b.onclick=()=>{ $('#alFrom').value=b.dataset.map; $('#alTo').focus(); $('#alTo').scrollIntoView({behavior:'smooth',block:'center'}); });
+}
+
 function learnAliases(){
   const auto={};
   const byOrder={};
@@ -634,6 +797,16 @@ function learnAliases(){
       if(!auto[U]) auto[U]=mv.sku;
     }
   }
+  // picking DropGO: orden con un solo SKU vs. movimiento DropGO de la misma orden
+  const movByOrd={};
+  for(const mv of DB.movs){ if(mv.bod==='DropGO' && /^AB\d+-/i.test(mv.com) && !mv.dg) (movByOrd[mv.com] ||= new Set()).add(mv.sku); }
+  for(const pk of Object.values((DB.dg||{}).picks||{})){
+    const raws=new Set(pk.lines.map(l=>normBasic(l.sku))); const ms=movByOrd[pk.ord];
+    if(raws.size!==1 || !ms || ms.size!==1) continue;
+    const raw=[...raws][0], U=raw.toUpperCase(), to=[...ms][0];
+    if(U===to.toUpperCase() || knownSkuUpper[U]) continue;
+    if(!auto[U]) auto[U]=to;
+  }
   DB.autoAliases=auto;
 }
 
@@ -641,23 +814,28 @@ async function handleFiles(files){
   const res=[];
   for(const file of files){
     try{
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf,{type:'array'});
+      const wb = /\.csv$/i.test(file.name)
+        ? XLSX.read(await file.text(), {type:'string', raw:true})
+        : XLSX.read(await file.arrayBuffer(), {type:'array'});
       const p = detectAndParse(wb, file.name);
       if(!p){ res.push({file:file.name, err:'No se reconoció el formato'}); continue; }
       let st, filas = p.recs.length;
       if(p.type==='backup'){
-        const a=mergeBackupMovs(p.bk.movs, p.bk.deleted), b=mergeSales(p.bk.sales); Object.assign(DB.aliases, p.bk.aliases);
+        const a=mergeBackupMovs(p.bk.movs, p.bk.deleted), b=mergeSales(p.bk.sales); Object.assign(DB.aliases, p.bk.aliases); mergeDg('dgsales', p.bk.dgSales||[]); mergeDg('dgpick', p.bk.dgPicks||[]);
         st={nuevos:a.nuevos+b.nuevos, act:a.act+b.act, iguales:a.iguales+b.iguales}; filas=p.bk.movs.length+p.bk.sales.length;
-      } else st = p.type==='mov' ? mergeMovs(p.recs) : mergeSales(p.recs);
+      } else if(p.type==='dgpick' || p.type==='dgsales'){ st = mergeDg(p.type, p.recs); }
+      else st = p.type==='mov' ? mergeMovs(p.recs) : mergeSales(p.recs);
       const entry = {ts:new Date().toISOString(), file:file.name, type:p.label, filas, ...st};
       DB.log.unshift(entry); res.push(entry);
     }catch(e){ res.push({file:file.name, err:e.message}); }
   }
-  rebuildKnownSkus(); learnAliases(); saveDB();
+  rebuildKnownSkus(); learnAliases();
+  const g = applyDropgo();
+  if(g){ const e={ts:new Date().toISOString(), file:'Movimientos DropGO (desde ventas + picking)', type:'DropGO · generado', filas:g.nuevos+g.iguales, ...g}; DB.log.unshift(e); res.push(e); rebuildKnownSkus(); learnAliases(); }
+  saveDB();
   $('#loadResult').innerHTML = res.map(r => r.err
     ? `<div class="log row"><span class="pill w">Error</span> <b>${esc(r.file)}</b> <span class="muted">${esc(r.err)}</span></div>`
-    : `<div class="log row"><span class="pill">${esc(r.type)}</span> <b>${esc(r.file)}</b> <span>${fmtInt(r.nuevos)} nuevas${r.act?` · ${fmtInt(r.act)} actualizadas`:''} · ${fmtInt(r.iguales)} ya existían</span></div>`).join('');
+    : `<div class="log row"><span class="pill">${esc(r.type)}</span> <b>${esc(r.file)}</b> <span>${fmtInt(r.nuevos)} nuevas${r.act?` · ${fmtInt(r.act)} ${r.type==='DropGO · generado'?'eliminadas por cancelación':'actualizadas'}`:''} · ${fmtInt(r.iguales)} ya existían</span></div>`).join('');
   const tot = res.reduce((a,r)=>a+(r.nuevos||0),0);
   toast(`${fmtInt(tot)} filas nuevas incorporadas`);
   refreshAll();
@@ -1069,6 +1247,7 @@ $('#mvMore').onclick=()=>{ MV.limit+=300; renderMovs(); };
    DATOS
    ============================================================ */
 function renderDatos(){
+  renderDropgo();
   const sales=Object.values(DB.sales);
   const sd=sales.map(s=>s.f).sort(), md=DB.movs.map(m=>m.f).sort();
   $('#dataKpis').innerHTML=[
@@ -1140,10 +1319,11 @@ fileIn.onchange=()=>{ if(fileIn.files.length) handleFiles([...fileIn.files]); fi
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault(); drop.classList.remove('over');}));
 drop.addEventListener('drop',e=>{ const f=[...e.dataTransfer.files]; if(f.length) handleFiles(f); });
 
+$('#dgDl').onclick=exportDropgoXlsx;
 $('#alAdd').onclick=()=>{
   const f=normBasic($('#alFrom').value).toUpperCase(), t=normBasic($('#alTo').value);
   if(!f||!t){ toast('Completa ambos SKU'); return; }
-  DB.aliases[f]=t; saveDB(); $('#alFrom').value=''; $('#alTo').value=''; refreshAll(); toast('Equivalencia guardada');
+  DB.aliases[f]=t; rebuildKnownSkus(); learnAliases(); const g=applyDropgo(); if(g&&g.nuevos) DB.log.unshift({ts:new Date().toISOString(), file:'Movimientos DropGO (tras equivalencia '+f+')', type:'DropGO · generado', filas:g.nuevos, ...g}); saveDB(); $('#alFrom').value=''; $('#alTo').value=''; refreshAll(); toast('Equivalencia guardada');
 };
 
 function download(name, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
@@ -1186,7 +1366,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',refreshAl
     // Si el repositorio tiene un data.xlsx (respaldo exportado), se carga como base.
     try{
       const r=await fetch('data.xlsx',{cache:'no-store'});
-      if(r.ok){ const wb=XLSX.read(await r.arrayBuffer(),{type:'array'}); if(isBackupWb(wb)){ const bk=parseBackupWb(wb); mergeBackupMovs(bk.movs, bk.deleted); mergeSales(bk.sales); Object.assign(DB.aliases,bk.aliases); saveDB(); } }
+      if(r.ok){ const wb=XLSX.read(await r.arrayBuffer(),{type:'array'}); if(isBackupWb(wb)){ const bk=parseBackupWb(wb); mergeBackupMovs(bk.movs, bk.deleted); mergeDg('dgsales', bk.dgSales||[]); mergeDg('dgpick', bk.dgPicks||[]); mergeSales(bk.sales); Object.assign(DB.aliases,bk.aliases); saveDB(); } }
     }catch(e){}
     if(!DB.movs.length && !Object.keys(DB.sales).length){
       try{ const r=await fetch('data.json',{cache:'no-store'}); if(r.ok){ const j=await r.json(); DB=Object.assign(emptyDB(), j); ensureIds(); saveDB(); } }catch(e){}
