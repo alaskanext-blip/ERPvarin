@@ -675,7 +675,7 @@
                         <header>
                             <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-truck text-amber-600 text-3xl"></i></div>
                             <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Reporte DropGO</h2>
-                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el reporte de entregables (<span class="font-mono bg-zinc-100 px-1 rounded">reporte_entregable_DropGO3.xlsx</span>). Se filtrarán y omitirán automáticamente los movimientos de "Varin Meli Full".</p>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el reporte (<span class="font-mono bg-zinc-100 px-1 rounded">Varin_Movimientos_DropGO_2026-10-06.xlsx</span>). Los movimientos se incorporarán y asignarán a la bodega DropGO de forma automática.</p>
                         </header>
                         <div class="relative border-2 border-dashed border-amber-200 rounded-lg p-10 bg-amber-50/50 hover:bg-amber-50 transition-all cursor-pointer group">
                             <input type="file" id="file-upload-dropgo" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -1592,6 +1592,8 @@
                         const headers = rawRows[headerIndex].map(h => 
                             String(h).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase()
                         );
+                        
+                        const isStandardExport = headers.some(h => h.includes('FECHA ORDEN') || h.includes('ID VENTA ML'));
                         let nuevos = [], dupes = 0;
 
                         for (let i = headerIndex + 1; i < rawRows.length; i++) {
@@ -1622,8 +1624,11 @@
                             
                             if (!sku || isNaN(cantidad) || cantidad === 0) continue;
 
-                            if (Math.abs(cantidad) > 100000) cantidad = 1;
-                            if (cantidad > 0) cantidad = -Math.abs(cantidad);
+                            // Si no es un formato de exportación del sistema, asumimos que son ventas y forzamos a número negativo
+                            if (!isStandardExport) {
+                                if (Math.abs(cantidad) > 100000) cantidad = 1;
+                                if (cantidad > 0) cantidad = -Math.abs(cantidad);
+                            }
 
                             // Buscar fecha (Columna FECHA o por posición de respaldo)
                             const dateKey = Object.keys(normalizedRow).find(k => k.includes('FECHA') || k.includes('DATE') || k.includes('CREACION'));
@@ -1648,7 +1653,7 @@
                             const nombre = String(descKey ? normalizedRow[descKey] : (rowData[5] || 'Despacho DropGO')).trim();
                             
                             // ID de Orden / Pedido (Usualmente DOC o PEDIDO)
-                            const saleIdKey = Object.keys(normalizedRow).find(k => k.includes('ORDEN') || k.includes('PEDIDO') || k.includes('DOC') || k.includes('TRACK'));
+                            const saleIdKey = Object.keys(normalizedRow).find(k => k.includes('ORDEN') || k.includes('PEDIDO') || k.includes('DOC') || k.includes('TRACK') || k.includes('ID VENTA'));
                             const saleIdVal = saleIdKey ? normalizedRow[saleIdKey] : rowData[0]; 
                             const saleId = String(saleIdVal || '').trim();
 
@@ -1672,7 +1677,7 @@
                                 dupes++;
                             } else {
                                 let finalComment = comentarioDropGo;
-                                if (!finalComment) {
+                                if (!finalComment && !isStandardExport) {
                                     finalComment = 'DropGO';
                                     if (tienda) finalComment += `: ${tienda}`;
                                     if (saleId) finalComment += ` (#${saleId})`;
@@ -1686,7 +1691,7 @@
                                     name: nombre,
                                     warehouse: 'DropGO',
                                     quantity: cantidad,
-                                    status: 'Vendido',
+                                    status: isStandardExport && normalizedRow['ESTADO'] ? normalizedRow['ESTADO'] : 'Vendido',
                                     value: valorDropGo,
                                     comment: finalComment,
                                     mlSaleId: saleId || null
