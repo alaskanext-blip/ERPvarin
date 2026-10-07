@@ -101,6 +101,15 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .effect b{color:var(--ink)}
 .editing{outline:2px solid var(--warn);outline-offset:-2px}
 tr.hl td{background:var(--accent-soft)}
+#cTbl{font-size:12px;table-layout:fixed;min-width:980px} #cTbl td{vertical-align:top}
+#cTbl th,#cTbl td{padding:7px 6px;overflow:hidden;text-overflow:ellipsis}
+#cTbl td.wrap{white-space:normal}
+#cTbl .acts{flex-direction:column;align-items:flex-end;gap:4px}
+#cTbl select{width:100%}
+#cKpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+#cTbl .st{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.st.ok{background:var(--accent-soft);color:var(--accent)} .st.warn{background:var(--warn-soft);color:var(--warn)} .st.bad{background:#fde8e6;color:var(--neg)} .st.rev{background:var(--line);color:var(--muted)}
+#cTbl select{font-size:11px;padding:3px 4px}
 .sub{font-size:13px;margin:-6px 0 14px}
 .share{display:flex;flex-direction:column;gap:14px}
 .share .it .shtop{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:14px}
@@ -141,6 +150,7 @@ td .acts{display:flex;gap:6px}
     <button data-tab="ventas" class="on">Ventas</button>
     <button data-tab="stock">Stock</button>
     <button data-tab="movs">Movimientos</button>
+    <button data-tab="conc">Conciliación</button>
     <button data-tab="datos">Cargar datos</button>
   </nav>
 </div></header>
@@ -153,8 +163,8 @@ td .acts{display:flex;gap:6px}
     <div class="filters">
       <div class="f"><label>Fuente</label>
         <div class="seg" id="srcSeg">
-          <button data-v="canal" class="on" title="Mercado Libre + reporte Ventas por canal">Canales de venta</button>
-          <button data-v="mov" title="Filas 'Vendido' del archivo de movimientos">Movimientos (por bodega)</button>
+          <button data-v="mov" class="on" title="Salidas 'Vendido' de los movimientos por bodega: fuente oficial">Movimientos por bodega (oficial)</button>
+          <button data-v="canal" title="Reportes de Mercado Libre, Shopify, Falabella y Ventas por canal (referencia)">Reportes de canales</button>
         </div></div>
       <div class="f"><label>Desde</label><input type="date" id="dFrom"></div>
       <div class="f"><label>Hasta</label><input type="date" id="dTo"></div>
@@ -165,7 +175,7 @@ td .acts{display:flex;gap:6px}
       <div class="f"><label>Agrupar por</label>
         <div class="seg" id="granSeg"><button data-v="day">Día</button><button data-v="week">Semana</button><button data-v="month" class="on">Mes</button></div></div>
       <div class="f"><label>Desglosar por</label>
-        <div class="seg" id="splitSeg"><button data-v="canal" class="on">Canal</button><button data-v="model">Modelo</button><button data-v="sku">SKU</button></div></div>
+        <div class="seg" id="splitSeg"><button data-v="canal" class="on">Canal</button><button data-v="bod">Bodega</button><button data-v="model">Modelo</button><button data-v="sku">SKU</button></div></div>
       <div class="f"><label>Producto</label><select id="skuSel"><option value="">Todos</option></select></div>
       <div class="f"><label><input type="checkbox" id="incExcl"> Incluir canceladas / reembolsadas</label></div>
     </div>
@@ -213,7 +223,7 @@ td .acts{display:flex;gap:6px}
       <div class="f"><label>Stock al día</label><input type="date" id="stockDate"></div>
       <div class="f"><label>Agrupar</label><div class="seg" id="stockGroupSeg"><button data-v="sku" class="on">SKU</button><button data-v="model">Modelo</button></div></div>
       <div class="f"><label><input type="checkbox" id="hideZero" checked> Ocultar SKUs sin stock</label></div>
-      <div class="f" style="flex:1;min-width:180px"><label>Buscar</label><input id="stockSearch" placeholder="SKU o producto…"></div>
+      <div class="f" style="flex:1;min-width:180px"><label>Buscar</label><input id="stockSearch" placeholder="SKU, producto, EAN o código DropGO…"></div>
     </div>
     <div class="muted" style="font-size:12px;margin-top:10px">Haz clic en una bodega para mostrarla u ocultarla. Stock = suma de todas las cantidades del archivo de movimientos (entradas, salidas, ventas y reservas) hasta la fecha elegida.</div>
   </div>
@@ -225,7 +235,7 @@ td .acts{display:flex;gap:6px}
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <h2 style="margin:0">Stock por bodega</h2>
-      <span class="muted" style="font-size:12px">Venta 30d = unidades vendidas en los últimos 30 días (canales de venta). Cobertura = stock ÷ venta diaria.</span>
+      <span class="muted" style="font-size:12px">Venta 30d = unidades vendidas en los últimos 30 días (salidas "Vendido" de los movimientos). Cobertura = stock ÷ venta diaria.</span>
       <button class="btn sm" id="stockCsv" style="margin-left:auto">Exportar CSV</button>
     </div>
     <div class="tblwrap"><table id="stockTbl"></table></div>
@@ -285,6 +295,27 @@ td .acts{display:flex;gap:6px}
   </div>
 </section>
 
+<!-- ================= CONCILIACIÓN ================= -->
+<section class="tab" id="tab-conc">
+  <div class="card" style="margin-bottom:16px">
+    <h2>Conciliación ventas vs. movimientos</h2>
+    <div class="muted sub" style="margin-top:0">Los <b>movimientos por bodega son la fuente oficial</b>. Esta vista revisa, orden por orden, qué tan completos y correctos están los reportes de canales (Mercado Libre, FULL, Shopify/Varin, Falabella) frente a las salidas "Vendido". Las órdenes se reconocen por el ID de Mercado Libre y por los códigos DropGO (AB59-#### = Varin, AB61-########## = Falabella).</div>
+    <div class="filters">
+      <div class="f"><label>Desde</label><input type="date" id="cFrom"></div>
+      <div class="f"><label>Hasta</label><input type="date" id="cTo"></div>
+      <div class="f"><label>Estado</label><select id="cEst"><option value="">Todos</option><option value="dif">Con diferencias (sin revisar)</option><option value="ok">Cuadra</option><option value="monto">Diferencia de monto</option><option value="unid">Diferencia de unidades</option><option value="mov">Falta en reportes</option><option value="sales">Sin salida en movimientos</option><option value="excl">Venta excluida con salida</option><option value="rev">Revisado</option></select></div>
+      <div class="f"><label>Canal / bodega</label><select id="cCh"></select></div>
+      <div class="f" style="flex:1;min-width:180px"><label>Buscar</label><input id="cQ" placeholder="Orden, SKU, comentario…"></div>
+      <div class="f"><label>&nbsp;</label><button class="btn sm" id="cCsv">Exportar CSV</button></div>
+    </div>
+  </div>
+  <div class="kpis" id="cKpis" style="margin-bottom:16px"></div>
+  <div class="card">
+    <div class="tblwrap" style="max-height:680px"><table id="cTbl"></table></div>
+    <div class="muted" id="cNote" style="font-size:12px;margin-top:8px"></div>
+  </div>
+</section>
+
 <!-- ================= DATOS ================= -->
 <section class="tab" id="tab-datos">
   <div class="grid g2" style="margin-bottom:16px">
@@ -310,11 +341,17 @@ td .acts{display:flex;gap:6px}
     </div>
   </div>
   <div class="card" style="margin-bottom:16px">
-    <h2>DropGO · movimientos generados
+    <h2>Movimientos generados automáticamente
       <button class="btn sm" id="dgDl" style="margin-left:auto">Descargar movimientos DropGO (Excel)</button></h2>
-    <div class="muted sub" style="margin-top:0">Se generan solos al subir el <b>reporte de ventas</b> y el <b>reporte de picking</b> de DropGO: una salida "Vendido" en DropGO por orden y SKU, con el total de la orden como valor. Las órdenes canceladas no se registran.</div>
+    <div class="muted sub" style="margin-top:0">Se generan solos al subir el <b>reporte de ventas</b> y el <b>reporte de picking</b> de DropGO: una salida "Vendido" en DropGO por orden y SKU, con el total de la orden como valor. Las órdenes canceladas no se registran. Además, cada venta <b>FULL</b> de Mercado Libre que aún no tenga su salida genera un "Vendido" en <b>Full ML</b>.</div>
     <div class="kpis" id="dgKpis" style="margin-bottom:12px"></div>
     <div class="tblwrap" style="max-height:360px"><table id="dgTbl"></table></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <h2>Catálogo de productos <span class="muted" style="font-size:12px;font-weight:500">SKU · nombre · EAN · SKU DropGO</span></h2>
+    <div class="muted sub" style="margin-top:0">Traduce automáticamente los códigos de Shopify, DropGO y EAN al SKU interno, y da el nombre oficial de cada producto en todos los reportes. Para actualizarlo, sube de nuevo la tabla <b>codigos_y_SKU.xlsx</b> (columnas SKU, Nombre Producto, EAN Code, SKU DropGO).</div>
+    <div id="catIssues"></div>
+    <div class="tblwrap" style="max-height:420px"><table id="catTbl"></table></div>
   </div>
   <div class="grid g2">
     <div class="card">
@@ -343,9 +380,9 @@ td .acts{display:flex;gap:6px}
    Almacenamiento
    ============================================================ */
 const STORE_KEY = 'varin_dashboard_v1';
-const emptyDB = () => ({version:1, movs:[], sales:{}, aliases:{}, autoAliases:{}, log:[], deleted:[], dg:{sales:{}, picks:{}}});
+const emptyDB = () => ({version:1, movs:[], sales:{}, aliases:{}, autoAliases:{}, log:[], deleted:[], dg:{sales:{}, picks:{}}, links:{}, reconOk:{}});
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
-function ensureIds(){ for(const r of DB.movs){ if(!r.id) r.id=newId(); if(!r.src) r.src='file'; } if(!DB.deleted) DB.deleted=[]; if(!DB.dg) DB.dg={sales:{},picks:{}}; DB.dg.sales ||= {}; DB.dg.picks ||= {}; }
+function ensureIds(){ for(const r of DB.movs){ if(!r.id) r.id=newId(); if(!r.src) r.src='file'; } if(!DB.deleted) DB.deleted=[]; if(!DB.dg) DB.dg={sales:{},picks:{}}; DB.dg.sales ||= {}; DB.dg.picks ||= {}; DB.links ||= {}; DB.reconOk ||= {}; }
 let DB = emptyDB();
 function loadDB(){
   try{ const s = localStorage.getItem(STORE_KEY); if(s){ DB = Object.assign(emptyDB(), JSON.parse(s)); ensureIds(); return true; } }catch(e){}
@@ -394,19 +431,61 @@ function normBasic(s){
   s = str(s).replace(/\s*-\s*/g,'-').replace(/\s+/g,' ');
   const m = s.match(/^(VA-[A-Za-z]\d{3})-(.+)$/i);
   if(m) s = m[1] + ' ' + m[2];
+  s = s.replace(/^(VA-[A-Za-z]\d{3}) L([BW][A-Za-z]+)$/, '$1 L $2'); // "VA-E002 LBWa" -> "VA-E002 L BWa"
   return s;
 }
-let knownSkuUpper = {};
+/* ============================================================
+   Catálogo de productos (SKU, nombre, EAN, SKU DropGO)
+   ============================================================ */
+const DEFAULT_CATALOG = [
+  ['VA-E001 B','Lampara Ventilador De Techo Varin® Tuya® Wifi Blanco','8720828286203','GFQU66747'],
+  ['VA-E001 N','Lampara Ventilador De Techo Varin® Tuya® Wifi Negro','8720828286210','EOAX08572'],
+  ['VA-E001 M','Lampara Ventilador De Techo Varin® Tuya® Wifi Negro Nogal','8720828286562','NQYB10486'],
+  ['VA-E002','Ventilador Smart Traditional con luz - Negro','8720828286326','USPF68947'],
+  ['VA-E002 L BWa','Ventilador Smart Traditional con luz - Negro Nogal','8720828286388','UDLR08207'],
+  ['VA-E002 L WNa','Ventilador Smart Traditional con luz - Blanco Natural','8720828286401','TFBV08538'],
+  ['VA-E002 L WW','Ventilador Smart Traditional con luz - Blanco Blanco','8720828286319','CTQD08564'],
+  ['VA-E002 L Bna','Ventilador Smart Traditional con luz - Negro Natural','8720828286395','CFYF08248'],
+  ['VA-E002 BWa','Ventilador Smart Traditional - Negro Nogal','8720828286432','JYVU08156'],
+  ['VA-E002 BB','Ventilador Smart Traditional - Negro Negro','8720828286418','EAJZ93442'],
+  ['VA-E002 WW','Ventilador Smart Traditional - Blanco Blanco','8720828286425','SWGD08102'],
+  ['VA-E002 Wna','Ventilador Smart Traditional - Blanco Natural','8720828286456','REAB93823'],
+  ['VA-E002 BNa','Ventilador Smart Traditional - Negro Natural','8720828286449','RTTV93016'],
+  ['VA-E004 Black','Ventilador Smart Bambu - Negro','8720828286357','JDRB67356'],
+  ['VA-G005 N','Estufa Calefactor Panel Eléctrico Radiador Wifi 2000w Negro','8720828286654','8720828286654'],
+  ['VA-G005 B','Estufa Calefactor Panel Eléctrico Radiador Wifi 2000w Blanco','8720828286661','8720828286661'],
+  ['VA-F001','Caja Seguridad Inteligente Llaves Wifi','8720828286258','CYQM86309'],
+  ['VA-F002','Caja Seguridad Inteligente Llaves Bt','8720828286258','RNWJ86252']
+].map(([sku,name,ean,dg])=>({sku,name,ean,dg}));
+const catalog = () => (DB.catalog && DB.catalog.length) ? DB.catalog : DEFAULT_CATALOG;
+let knownSkuUpper = {}, CAT = {bySku:{}, alias:{}, issues:[]};
 function rebuildKnownSkus(){
   knownSkuUpper = {};
   for(const r of DB.movs) if(r.sku) knownSkuUpper[r.sku.toUpperCase()] = r.sku;
+  // SKU del catálogo -> SKU usado en movimientos (manda el movimiento); si no existe, el del catálogo
+  const byModel={}; for(const k of Object.values(knownSkuUpper)) (byModel[modelOf(k).toUpperCase()] ||= []).push(k);
+  CAT={bySku:{}, alias:{}, issues:[]};
+  const eanCount={}; for(const c of catalog()) if(c.ean) eanCount[c.ean]=(eanCount[c.ean]||0)+1;
+  for(const c of catalog()){
+    const cu=normBasic(c.sku).toUpperCase();
+    let target = knownSkuUpper[cu];
+    if(!target){ const same=byModel[modelOf(cu)]; target = (same && same.length===1 && !catalog().some(o=>o!==c && modelOf(normBasic(o.sku)).toUpperCase()===modelOf(cu))) ? same[0] : normBasic(c.sku);
+      if(target!==normBasic(c.sku)) CAT.issues.push(`${c.sku} del catálogo se asocia a ${target} (código usado en movimientos)`); }
+    CAT.bySku[target.toUpperCase()] = {...c, target};
+    if(cu!==target.toUpperCase()) CAT.alias[cu]=target;
+    if(c.dg) CAT.alias[normBasic(c.dg).toUpperCase()] = target;
+    if(c.ean){ if(eanCount[c.ean]===1) CAT.alias[String(c.ean)] = target; }
+  }
+  for(const [e,n] of Object.entries(eanCount)) if(n>1) CAT.issues.push(`EAN ${e} está repetido en: ${catalog().filter(c=>c.ean===e).map(c=>c.sku).join(', ')} (no se usa para traducir)`);
+  for(const k of Object.values(knownSkuUpper)) if(!CAT.bySku[k.toUpperCase()] && k!=='Ajuste') CAT.issues.push(`${k} está en movimientos pero no en el catálogo`);
+  for(const t of Object.values(CAT.bySku)) if(!knownSkuUpper[t.target.toUpperCase()]) knownSkuUpper[t.target.toUpperCase()] = t.target; // SKUs del catálogo sin movimientos también son válidos
 }
 // Equivalencias base conocidas (códigos de Shopify/Falabella -> SKU interno); las manuales y aprendidas tienen prioridad
 const DEFAULT_ALIASES = {'8720828286210':'VA-E001 N','CFYF08248':'VA-E002 L BNa','EAJZ93442':'VA-E002 BB','GFQU66747':'VA-E001 B',
   'JYVU08156':'VA-E002 BWa','RTTV93016':'VA-E002 BNa','TFBV08538':'VA-E002 L WNa','USPF68947':'VA-E002'};
 function canonSku(raw){
   const b = normBasic(raw); const U = b.toUpperCase();
-  return DB.aliases[U] || DB.autoAliases[U] || DEFAULT_ALIASES[U] || knownSkuUpper[U] || b;
+  return DB.aliases[U] || CAT.alias[U] || DB.autoAliases[U] || DEFAULT_ALIASES[U] || knownSkuUpper[U] || b;
 }
 const modelOf = sku => (str(sku).split(' ')[0] || sku);
 
@@ -436,6 +515,12 @@ function detectAndParse(wb, fname){
     const rows = rowsOf(wb.Sheets[sn]);
     const h = findHeader(rows, ['# de venta','Fecha de venta','SKU']);
     if(h>=0) return {type:'ml', label:'Ventas Mercado Libre', recs: parseML(rows,h,fname)};
+  }
+  // Catálogo de productos / tabla de equivalencias
+  for(const sn of wb.SheetNames){
+    const rows = rowsOf(wb.Sheets[sn]);
+    const h = findHeader(rows, ['SKU','Nombre Producto'], 5);
+    if(h>=0 && (rows[h].map(str).includes('EAN Code') || rows[h].map(str).includes('SKU DropGO'))) return {type:'catalog', label:'Catálogo de SKU', recs: parseCatalog(rows,h)};
   }
   // Shopify (tienda Varin): orders_export.csv
   for(const sn of wb.SheetNames){
@@ -506,6 +591,12 @@ function parseML(rows,h){
 
 // Shopify: una fila por producto; los datos del pedido vienen solo en la primera fila de cada pedido.
 // Monto = precio x cantidad − descuento del producto. Excluye reembolsados, anulados, cancelados o no pagados.
+function parseCatalog(rows,h){
+  const H=rows[h], c=n=>colIdx(H,n); const out=[];
+  for(let i=h+1;i<rows.length;i++){ const r=rows[i]; const sku=str(r[c('SKU')]); if(!sku) continue;
+    out.push({sku, name:str(r[c('Nombre Producto')]), ean: c('EAN Code')>=0?str(r[c('EAN Code')]).replace(/\.0+$/,''):'', dg: c('SKU DropGO')>=0?str(r[c('SKU DropGO')]).replace(/\.0+$/,''):''}); }
+  return out;
+}
 function parseShopify(rows,h){
   const H=rows[h], c=n=>colIdx(H,n);
   const iN=c('Name'), iFS=c('Financial Status'), iFu=c('Fulfillment Status'), iC=c('Created at'), iPa=c('Paid at'), iCa=c('Cancelled at'),
@@ -577,6 +668,9 @@ function exportBackupXlsx(){
   XLSX.utils.book_append_sheet(wb, wsA, 'Equivalencias SKU');
   XLSX.utils.book_append_sheet(wb, wsL, 'Historial');
   XLSX.utils.book_append_sheet(wb, wsD, 'Eliminados');
+  const cr=[...Object.entries(DB.links||{}).map(([a,b])=>['Vínculo',a,b]), ...Object.keys(DB.reconOk||{}).map(k=>['Revisado',k,''])];
+  if(cr.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Tipo','Clave','Venta vinculada'], ...cr]), 'Conciliación');
+  if(DB.catalog && DB.catalog.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['SKU','Nombre Producto','EAN Code','SKU DropGO'], ...DB.catalog.map(c=>[c.sku,c.name,c.ean,c.dg])]), 'Catálogo');
   const dgS=Object.values(DB.dg.sales), dgP=Object.values(DB.dg.picks);
   if(dgS.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Fecha','Estado','Orden','Orden tienda','Tienda','Total','Envio'],
     ...dgS.map(r=>[r.f+(r.t?' '+r.t:''), r.est, r.ord, r.ordTienda||'', r.tienda, r.total, r.envio||''])]), 'DropGO Ventas');
@@ -611,7 +705,10 @@ function parseBackupWb(wb){
   const dgPicks = wb.Sheets['DropGO Picking'] ? (()=>{ const r=rowsOf(wb.Sheets['DropGO Picking']); return r.length?parseDgPick(r,0):[]; })() : [];
   const deleted=[];
   if(wb.Sheets['Eliminados']) for(const r of rowsOf(wb.Sheets['Eliminados']).slice(1)) if(str(r[0])||str(r[1])) deleted.push({id:str(r[0]), k:str(r[1])});
-  return {movs, sales, aliases, deleted, dgSales, dgPicks};
+  const links={}, reconOk={};
+  if(wb.Sheets['Conciliación']) for(const r of rowsOf(wb.Sheets['Conciliación']).slice(1)){ if(/v[ií]nculo/i.test(str(r[0]))) links[str(r[1])]=str(r[2]); else if(/revisado/i.test(str(r[0]))) reconOk[str(r[1])]=true; }
+  const cat = wb.Sheets['Catálogo'] ? (()=>{ const r=rowsOf(wb.Sheets['Catálogo']); return r.length?parseCatalog(r,0):[]; })() : [];
+  return {movs, sales, aliases, deleted, dgSales, dgPicks, links, reconOk, cat};
 }
 const srcLabel = r => r.src==='manual' ? 'Manual' : (r.edited ? 'Archivo (editado)' : 'Archivo');
 // Respaldo: actualiza por ID (conserva ediciones), aplica eliminaciones y agrega lo nuevo
@@ -727,6 +824,41 @@ function buildDropgo(){
   }
   return {rows, review};
 }
+/* ============================================================
+   Full ML: salidas automáticas desde las ventas FULL de Mercado Libre
+   ============================================================ */
+function buildFull(){
+  const have=new Set(DB.movs.filter(m=>/^\d{10,}$/.test(m.ml)).map(m=>m.ml+'|'+m.sku.toUpperCase()));
+  const haveOrd=new Set(DB.movs.filter(m=>/^\d{10,}$/.test(m.ml)).map(m=>m.ml));
+  const rows=[], review=[];
+  for(const s of Object.values(DB.sales)){
+    if(s.canal!=='FULL' || !s.inc || !s.u) continue;
+    const sku=canonSku(s.skuRaw);
+    if(have.has(s.ord+'|'+sku.toUpperCase())) continue;
+    if(!knownSkuUpper[sku.toUpperCase()]){ if(!haveOrd.has(s.ord)) review.push({ord:s.ord, f:s.f, sku:s.skuRaw, q:s.u, tipo:'sku', src:'Full ML', obs:'Full ML · SKU sin equivalencia: pendiente (no se registra hasta mapearlo)'}); continue; }
+    const rec={f:s.f, sku, prod:pname(sku)||s.prod, bod:'Full ML', qty:-s.u, est:'Vendido', val:s.m, com:'Importación ML', ml:s.ord, src:'file', mlgen:true};
+    rec.k=[rec.f, rec.sku.toUpperCase(), rec.bod, rec.qty, rec.est, rec.val, rec.com].join('|');
+    rows.push(rec);
+  }
+  return {rows, review};
+}
+function applyFull(){
+  rebuildKnownSkus(); rebuildProdCache();
+  const {rows}=buildFull(); const st=mergeMovs(rows);
+  // si una venta FULL se cancela o reembolsa después, se elimina la salida generada
+  let removed=0; const inc={}; for(const s of Object.values(DB.sales)) if(s.canal==='FULL') inc[s.ord]=(inc[s.ord]||false)||s.inc;
+  for(let i=DB.movs.length-1;i>=0;i--){ const m=DB.movs[i];
+    if(m.mlgen && !m.edited && inc[m.ml]===false){ DB.movs.splice(i,1); DB.deleted.push({id:m.id,k:m.k,ts:new Date().toISOString()}); removed++; } }
+  if(!st.nuevos && !removed) return null;
+  return {nuevos:st.nuevos, act:removed, iguales:st.iguales};
+}
+function applyAuto(res){
+  const g=applyDropgo();
+  if(g){ const e={ts:new Date().toISOString(), file:'Movimientos DropGO (desde ventas + picking)', type:'DropGO · generado', filas:g.nuevos+g.iguales, ...g}; DB.log.unshift(e); res&&res.push(e); }
+  const f=applyFull();
+  if(f){ const e={ts:new Date().toISOString(), file:'Salidas Full ML (desde ventas FULL de Mercado Libre)', type:'Full ML · generado', filas:f.nuevos+f.iguales, ...f}; DB.log.unshift(e); res&&res.push(e); }
+  rebuildKnownSkus(); learnAliases();
+}
 function applyDropgo(){
   if(!Object.keys(DB.dg.picks).length) return null;
   rebuildKnownSkus(); rebuildProdCache();
@@ -758,8 +890,8 @@ function exportDropgoXlsx(){
 }
 function renderDropgo(){
   const nP=Object.keys(DB.dg.picks).length, nS=Object.keys(DB.dg.sales).length;
-  if(!nP && !nS){ $('#dgKpis').innerHTML=''; $('#dgTbl').innerHTML='<tbody><tr><td class="muted">Aún no se han subido reportes de DropGO.</td></tr></tbody>'; return; }
-  const {rows, review}=buildDropgo();
+  if(!nP && !nS && !buildFull().review.length){ $('#dgKpis').innerHTML=''; $('#dgTbl').innerHTML='<tbody><tr><td class="muted">Aún no se han subido reportes de DropGO.</td></tr></tbody>'; return; }
+  const {rows, review:rv0}=buildDropgo(); const review=[...rv0, ...buildFull().review];
   const ords=new Set(Object.keys(DB.dg.picks)); const reg=DB.movs.filter(m=>m.bod==='DropGO' && ords.has(m.com));
   const pend=review.filter(r=>r.tipo==='sku').length;
   $('#dgKpis').innerHTML=[
@@ -821,21 +953,25 @@ async function handleFiles(files){
       if(!p){ res.push({file:file.name, err:'No se reconoció el formato'}); continue; }
       let st, filas = p.recs.length;
       if(p.type==='backup'){
-        const a=mergeBackupMovs(p.bk.movs, p.bk.deleted), b=mergeSales(p.bk.sales); Object.assign(DB.aliases, p.bk.aliases); mergeDg('dgsales', p.bk.dgSales||[]); mergeDg('dgpick', p.bk.dgPicks||[]);
+        const a=mergeBackupMovs(p.bk.movs, p.bk.deleted), b=mergeSales(p.bk.sales); Object.assign(DB.aliases, p.bk.aliases); mergeDg('dgsales', p.bk.dgSales||[]); mergeDg('dgpick', p.bk.dgPicks||[]); Object.assign(DB.links, p.bk.links||{}); Object.assign(DB.reconOk, p.bk.reconOk||{}); if(p.bk.cat&&p.bk.cat.length) DB.catalog=p.bk.cat;
         st={nuevos:a.nuevos+b.nuevos, act:a.act+b.act, iguales:a.iguales+b.iguales}; filas=p.bk.movs.length+p.bk.sales.length;
       } else if(p.type==='dgpick' || p.type==='dgsales'){ st = mergeDg(p.type, p.recs); }
+      else if(p.type==='catalog'){
+        const old=Object.fromEntries(catalog().map(c=>[normBasic(c.sku).toUpperCase(), JSON.stringify(c)]));
+        let nuevos=0, act=0, iguales=0; for(const c of p.recs){ const o=old[normBasic(c.sku).toUpperCase()]; if(!o) nuevos++; else if(o!==JSON.stringify(c)) act++; else iguales++; }
+        DB.catalog=p.recs; st={nuevos, act, iguales};
+      }
       else st = p.type==='mov' ? mergeMovs(p.recs) : mergeSales(p.recs);
       const entry = {ts:new Date().toISOString(), file:file.name, type:p.label, filas, ...st};
       DB.log.unshift(entry); res.push(entry);
     }catch(e){ res.push({file:file.name, err:e.message}); }
   }
   rebuildKnownSkus(); learnAliases();
-  const g = applyDropgo();
-  if(g){ const e={ts:new Date().toISOString(), file:'Movimientos DropGO (desde ventas + picking)', type:'DropGO · generado', filas:g.nuevos+g.iguales, ...g}; DB.log.unshift(e); res.push(e); rebuildKnownSkus(); learnAliases(); }
+  applyAuto(res);
   saveDB();
   $('#loadResult').innerHTML = res.map(r => r.err
     ? `<div class="log row"><span class="pill w">Error</span> <b>${esc(r.file)}</b> <span class="muted">${esc(r.err)}</span></div>`
-    : `<div class="log row"><span class="pill">${esc(r.type)}</span> <b>${esc(r.file)}</b> <span>${fmtInt(r.nuevos)} nuevas${r.act?` · ${fmtInt(r.act)} ${r.type==='DropGO · generado'?'eliminadas por cancelación':'actualizadas'}`:''} · ${fmtInt(r.iguales)} ya existían</span></div>`).join('');
+    : `<div class="log row"><span class="pill">${esc(r.type)}</span> <b>${esc(r.file)}</b> <span>${fmtInt(r.nuevos)} nuevas${r.act?` · ${fmtInt(r.act)} ${/generado/.test(r.type)?'eliminadas por cancelación':'actualizadas'}`:''} · ${fmtInt(r.iguales)} ya existían</span></div>`).join('');
   const tot = res.reduce((a,r)=>a+(r.nuevos||0),0);
   toast(`${fmtInt(tot)} filas nuevas incorporadas`);
   refreshAll();
@@ -844,7 +980,8 @@ async function handleFiles(files){
 /* ============================================================
    Colores
    ============================================================ */
-const PALETTE = ['#1f77b4','#e8743b','#945ecf','#ed4a7b','#13a4b4','#bf9b30','#525df4','#6c8893','#d4526e','#19a979','#a05195','#7f6a3a'];
+// Colores para SKU/modelos: no repiten los reservados de canales y bodegas
+const PALETTE = ['#d4526e','#13a4b4','#7f6a3a','#525df4','#c2185b','#00897b','#8d6e63','#5c6bc0','#ad1457','#558b2f','#6d4c41','#3949ab'];
 // Bodegas: WH Hub celeste, DropGO amarillo, Full verde, Office blanco (con borde gris para que se vea sobre fondo claro)
 const FIXED = {'WH Hub':'#5bc8f5','DropGO':'#f5c518','Full ML':'#2e9e5b','FULL':'#2e9e5b','Office':'#ffffff',
                'Varin':'#1f77b4','Falabella':'#945ecf','Mercado Libre':'#e8743b'};
@@ -856,8 +993,14 @@ const legendLabels = () => ({boxWidth:10, boxHeight:10,
     String(l.fillStyle).toLowerCase()==='#ffffff' || String(l.strokeStyle).toLowerCase()==='#ffffff' ? {...l, fillStyle:'#ffffff', strokeStyle:EDGE, lineWidth:1} : l)});
 const dot = k => `<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colorOf(k)};${isWhite(k)?'box-shadow:inset 0 0 0 1px '+EDGE+';':''}margin-right:6px;vertical-align:baseline"></i>`;
 const barStyle = k => ({backgroundColor:colorOf(k), borderColor: isWhite(k)?EDGE:colorOf(k), borderWidth: isWhite(k)?1:0});
-const colorMap = {}; let colorI=0;
-function colorOf(k){ if(FIXED[k]) return FIXED[k]; if(!colorMap[k]) colorMap[k]=PALETTE[(colorI++)%PALETTE.length]; return colorMap[k]; }
+// Color fijo por nombre: el mismo canal, bodega, modelo o SKU tiene siempre el mismo color en todos los reportes
+const FIXED_CI = {}; Object.entries(FIXED).forEach(([k,v])=>FIXED_CI[k.toLowerCase()]=v);
+Object.assign(FIXED_CI, {'otros':'#9a9a9a','shopify':'#1f77b4','varin shopify':'#1f77b4','varin falabella':'#945ecf','varin meli':'#e8743b','full':'#2e9e5b'});
+function colorOf(k){
+  const key=String(k??'').trim(); const f=FIXED[key] || FIXED_CI[key.toLowerCase()]; if(f) return f;
+  let h=0; for(const ch of key.toUpperCase()) h=(h*31 + ch.charCodeAt(0))>>>0;
+  return PALETTE[h % PALETTE.length];
+}
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function chartDefaults(){
   Chart.defaults.color = cssVar('--muted');
@@ -870,13 +1013,27 @@ function drawChart(id, cfg){ if(charts[id]) charts[id].destroy(); charts[id]=new
 /* ============================================================
    VENTAS
    ============================================================ */
-const VS = {src:'canal', gran:'month', split:'canal', top:'m', share:'m', month:'m', channels:null, from:'', to:'', sort:{k:'f',d:-1}};
+const VS = {src:'mov', gran:'month', split:'canal', top:'m', share:'m', month:'m', channels:null, from:'', to:'', sort:{k:'f',d:-1}};
 
 function salesRecords(){
   if(VS.src==='canal'){
-    return Object.values(DB.sales).map(s => ({f:s.f, t:s.t, canal:s.canal, ord:s.ord, sku:canonSku(s.skuRaw), skuRaw:s.skuRaw, prod:s.prod, u:s.u, m:s.m, est:s.est, inc:s.inc, mot:s.mot}));
+    return Object.values(DB.sales).map(s => ({f:s.f, t:s.t, canal:s.canal, ord:s.ord, sku:canonSku(s.skuRaw), skuRaw:s.skuRaw, prod:pname(canonSku(s.skuRaw))||s.prod, u:s.u, m:s.m, est:s.est, inc:s.inc, mot:s.mot}));
   }
-  return DB.movs.filter(r=>/vendido/i.test(r.est)).map(r => ({f:r.f, t:'', canal:r.bod, ord:(/^\d{10,}$/.test(r.ml) ? r.ml : (r.com || r.ml)), sku:r.sku, skuRaw:r.sku, prod:r.prod, u:-r.qty, m:r.val, est:r.est, inc:true, mot:''}));
+  const chOf = movChannelResolver();
+  return DB.movs.filter(r=>/vendido/i.test(r.est)).map(r => ({f:r.f, t:'', canal:chOf(r), bod:r.bod, ord:(/^\d{10,}$/.test(r.ml) ? r.ml : (r.com || r.ml)), sku:r.sku, skuRaw:r.sku, prod:pname(r.sku)||r.prod, u:-r.qty, m:r.val, est:r.est, inc:true, mot:''}));
+}
+// Canal de venta de una salida "Vendido": por ID de Mercado Libre, código DropGO, boleta Falabella o vínculo manual
+function movChannelResolver(){
+  const mlCanal={}; for(const x of Object.values(DB.sales)) if(x.canal==='FULL'||x.canal==='Mercado Libre') mlCanal[x.ord]=x.canal;
+  const linkCanal={}; for(const [mk,sk] of Object.entries(DB.links||{})){ const c=sk.split('|')[0]; linkCanal[mk]= c==='ML' ? (mlCanal[sk.slice(3)]||'Mercado Libre') : c; }
+  return m => {
+    const lk=linkCanal['MOV|'+m.f+'|'+(m.com||m.ml||'(sin comentario)')]; if(lk) return lk;
+    if(/^\d{10,}$/.test(m.ml)) return mlCanal[m.ml] || (m.bod==='Full ML' ? 'FULL' : 'Mercado Libre');
+    const mm=str(m.com).match(/^AB(\d+)-(\d+)(?:-([A-Z]+))?$/i);
+    if(mm){ if(mm[3] || mm[1]==='68') return 'Mercado Libre'; return mm[2].length<=6 ? 'Varin' : 'Falabella'; }
+    if(/FLBL/i.test(m.com)) return 'Falabella';
+    return 'Otros';
+  };
 }
 function prodName(sku){
   let best=null;
@@ -889,7 +1046,7 @@ function rebuildProdCache(){
   const sorted=[...DB.movs].sort((a,b)=>a.f<b.f?-1:1);
   for(const r of sorted) if(r.prod) prodCache[r.sku]=r.prod;
 }
-const pname = sku => prodCache[sku] || '';
+const pname = sku => (CAT.bySku[String(sku).toUpperCase()]||{}).name || prodCache[sku] || '';
 
 function bucket(d){
   if(VS.gran==='day') return d;
@@ -914,7 +1071,7 @@ function renderVentas(){
   // canales disponibles
   const chans = [...new Set(all.map(r=>r.canal))].sort();
   if(!VS.channels || VS.channels._src!==VS.src){ VS.channels=new Set(chans); VS.channels._src=VS.src; }
-  $('#chLabel').textContent = VS.src==='canal' ? 'Canales' : 'Bodegas';
+  $('#chLabel').textContent = 'Canales';
   $('#chChips').innerHTML = chans.map(c=>`<button class="chip ${VS.channels.has(c)?'on':''}" data-c="${esc(c)}"><i style="background:${colorOf(c)};${isWhite(c)?'box-shadow:inset 0 0 0 1px '+EDGE:''}"></i>${esc(c)}</button>`).join('') || '<span class="muted">Sin datos</span>';
   $$('#chChips .chip').forEach(b=>b.onclick=()=>{ const c=b.dataset.c; VS.channels.has(c)?VS.channels.delete(c):VS.channels.add(c); renderVentas(); });
 
@@ -951,7 +1108,8 @@ function renderVentas(){
   ].map(([l,v,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
 
   // series
-  const splitKey = r => VS.split==='canal' ? r.canal : VS.split==='model' ? modelOf(r.sku) : r.sku;
+  const grpKey = r => VS.split==='bod' ? (r.bod||r.canal) : r.canal;
+  const splitKey = r => VS.split==='canal' ? r.canal : VS.split==='bod' ? (r.bod||r.canal) : VS.split==='model' ? modelOf(r.sku) : r.sku;
   const buckets = bucketRange(VS.from, VS.to);
   const groups = {};
   for(const r of valid){ const g=splitKey(r); const b=bucket(r.f); (groups[g] ||= {}); (groups[g][b] ||= {m:0,u:0}); groups[g][b].m+=r.m; groups[g][b].u+=r.u; }
@@ -971,16 +1129,16 @@ function renderVentas(){
   drawChart('cUnits',{type:'bar', data:{labels, datasets:mkDs('u')}, options:stackedOpts(false)});
 
   // participación por canal ($ y unidades)
-  const byCh={}; for(const r of valid){ (byCh[r.canal] ||= {m:0,u:0}); byCh[r.canal].m+=r.m; byCh[r.canal].u+=r.u; }
+  const byCh={}; for(const r of valid){ const g=grpKey(r); (byCh[g] ||= {m:0,u:0}); byCh[g].m+=r.m; byCh[g].u+=r.u; }
   const chk = Object.keys(byCh).sort((a,b)=>byCh[b].m-byCh[a].m);
-  $('#shareTitle').textContent = VS.src==='canal' ? 'Participación por canal · ventas' : 'Participación por bodega · ventas';
+  $('#shareTitle').textContent = VS.split==='bod' ? 'Participación por bodega · ventas' : 'Participación por canal · ventas';
   renderShare(byCh, totM, totU);
-  renderMonthly(valid);
+  renderMonthly(valid.map(r=>({...r, canal:grpKey(r)})));
 
   // top productos
   const byS={}; for(const r of valid){ const k=VS.split==='model'?modelOf(r.sku):r.sku; (byS[k] ||= {m:0,u:0}); byS[k].m+=r.m; byS[k].u+=r.u; }
   const topK = Object.keys(byS).sort((a,b)=>byS[b][VS.top]-byS[a][VS.top]).slice(0,12);
-  drawChart('cTop',{type:'bar', data:{labels:topK, datasets:[{label:VS.top==='m'?'$':'Unidades', data:topK.map(k=>byS[k][VS.top]), backgroundColor:cssVar('--accent'), borderRadius:3, maxBarThickness:22}]},
+  drawChart('cTop',{type:'bar', data:{labels:topK, datasets:[{label:VS.top==='m'?'$':'Unidades', data:topK.map(k=>byS[k][VS.top]), backgroundColor:topK.map(k=>colorOf(k)), borderRadius:3, maxBarThickness:22}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{title:i=>i[0].label+(pname(i[0].label)?' · '+pname(i[0].label):''), label:c=>' '+fmtMoney(byS[c.label].m)+' · '+fmtInt(byS[c.label].u)+' u'}}},
       scales:{x:{ticks:{callback:v=>VS.top==='m'?fmtMoneyShort(v):fmtInt(v)}},y:{grid:{display:false}}}}});
@@ -1013,7 +1171,7 @@ function renderMonthly(valid){
   const get = key => k==='o' ? (orders[key]?orders[key].size:0) : (cell[key]||0);
   const fmt = v => v ? (k==='m'?fmtMoney(v):fmtInt(v)) : '–';
   const curMonth = todayISO().slice(0,7);
-  const sub = {m:'Montos en CLP con IVA, solo productos', u:'Unidades vendidas', o:'Pedidos (órdenes distintas)'}[k];
+  const sub = {m: VS.src==='mov' ? 'Montos según movimientos por bodega (fuente oficial)' : 'Montos de los reportes de canales (CLP con IVA, solo productos)', u:'Unidades vendidas', o:'Pedidos (órdenes distintas)'}[k];
   $('#monthSub').textContent = sub + ' · según los filtros aplicados';
   const grand=get('*|*');
   $('#monthTbl').innerHTML = '<thead><tr><th>Mes</th>'+chs.map(c=>`<th class="n"><span class="sw" style="${swStyle(c)}"></span>${esc(c)}</th>`).join('')+'<th class="n">Total</th></tr></thead><tbody>'+
@@ -1038,7 +1196,7 @@ function renderSalesTable(rows){
   const shown=list.slice(0,500);
   const sumU=list.filter(r=>r.inc).reduce((a,r)=>a+r.u,0), sumM=list.filter(r=>r.inc).reduce((a,r)=>a+r.m,0);
   $('#salesTbl').innerHTML = '<colgroup>'+cols.map(([key])=>`<col class="c-${key}">`).join('')+'</colgroup><thead><tr>'+cols.map(([key,l,c])=>`<th class="${c||''}" data-k="${key}">${l}${VS.sort.k===key?(VS.sort.d>0?' ▲':' ▼'):''}</th>`).join('')+'</tr></thead><tbody>'+
-    shown.map(r=>`<tr${r.inc?'':' style="opacity:.5"'}><td title="${r.f}${r.t?' '+r.t:''}">${r.f.slice(8,10)}-${r.f.slice(5,7)}-${r.f.slice(2,4)}</td><td title="${esc(r.canal)}">${dot(r.canal)}${esc(r.canal)}</td><td title="${esc(r.ord)}">${esc(r.ord)}</td><td title="${r.skuRaw&&normBasic(r.skuRaw)!==r.sku?'SKU original: '+esc(r.skuRaw):esc(r.sku)}">${esc(r.sku)}${r.skuRaw&&normBasic(r.skuRaw)!==r.sku?'<span class="muted"> *</span>':''}</td><td title="${esc(r.prod)}">${esc(r.prod)}</td><td class="n">${fmtInt(r.u)}</td><td class="n">${fmtMoney(r.m)}</td><td title="${esc(r.est)}${r.mot?' · '+esc(r.mot):''}">${r.inc?'':'<span class="pill w">Excluida</span> '}${esc(r.est)}</td></tr>`).join('')+
+    shown.map(r=>`<tr${r.inc?'':' style="opacity:.5"'}><td title="${r.f}${r.t?' '+r.t:''}">${r.f.slice(8,10)}-${r.f.slice(5,7)}-${r.f.slice(2,4)}</td><td title="${esc(r.canal)}${r.bod?' · '+esc(r.bod):''}">${dot(r.canal)}${esc(r.canal)}${r.bod?' <span class="muted">· '+esc(r.bod)+'</span>':''}</td><td title="${esc(r.ord)}">${esc(r.ord)}</td><td title="${r.skuRaw&&normBasic(r.skuRaw)!==r.sku?'SKU original: '+esc(r.skuRaw):esc(r.sku)}">${esc(r.sku)}${r.skuRaw&&normBasic(r.skuRaw)!==r.sku?'<span class="muted"> *</span>':''}</td><td title="${esc(r.prod)}">${esc(r.prod)}</td><td class="n">${fmtInt(r.u)}</td><td class="n">${fmtMoney(r.m)}</td><td title="${esc(r.est)}${r.mot?' · '+esc(r.mot):''}">${r.inc?'':'<span class="pill w">Excluida</span> '}${esc(r.est)}</td></tr>`).join('')+
     `<tr class="tot"><td colspan="5">Total válido (${fmtInt(list.length)} filas)</td><td class="n">${fmtInt(sumU)}</td><td class="n">${fmtMoney(sumM)}</td><td></td></tr></tbody>`;
   $('#salesTblNote').textContent = list.length>500 ? `Mostrando 500 de ${fmtInt(list.length)} filas. Usa el buscador o exporta a CSV.` : '';
   $$('#salesTbl th').forEach(th=>th.onclick=()=>{ const kk=th.dataset.k; VS.sort = {k:kk, d: VS.sort.k===kk ? -VS.sort.d : (kk==='f'||kk==='u'||kk==='m'?-1:1)}; renderSalesTable(rows); });
@@ -1057,6 +1215,7 @@ function renderStock(){
   const keyOf = s => SS.group==='model' ? modelOf(s) : s;
   const bods=[...new Set(movs.map(r=>r.bod))].sort();
   const st={}; const tb={};
+  for(const c of Object.values(CAT.bySku)) st[keyOf(c.target)] ||= {};
   for(const r of movs){ if(r.f>SS.date) continue; const k=keyOf(r.sku); (st[k] ||= {}); st[k][r.bod]=(st[k][r.bod]||0)+r.qty; tb[r.bod]=(tb[r.bod]||0)+r.qty; }
 
   // tarjetas de bodega
@@ -1072,11 +1231,12 @@ function renderStock(){
   // venta 30 días (canales de venta, SKU canónico)
   const d30 = new Date(new Date(SS.date+'T00:00:00Z').getTime()-29*864e5).toISOString().slice(0,10);
   const sold30={};
-  for(const s of Object.values(DB.sales)){ if(!s.inc || s.f<d30 || s.f>SS.date) continue; const k=keyOf(canonSku(s.skuRaw)); sold30[k]=(sold30[k]||0)+s.u; }
+  for(const m of DB.movs){ if(!/vendido/i.test(m.est) || m.f<d30 || m.f>SS.date) continue; const k=keyOf(m.sku); sold30[k]=(sold30[k]||0)-m.qty; }
   let keys = Object.keys(st).filter(k=>{
     const t=vis.reduce((a,b)=>a+(st[k][b]||0),0);
     if($('#hideZero').checked && t===0 && !vis.some(b=>(st[k][b]||0)!==0)) return false;
-    if(q && !(k.toLowerCase().includes(q) || pname(k).toLowerCase().includes(q))) return false;
+    const cc=CAT.bySku[k.toUpperCase()]||{};
+    if(q && ![k, pname(k), cc.ean, cc.dg].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
   const tot = k => vis.reduce((a,b)=>a+(st[k][b]||0),0);
@@ -1244,10 +1404,126 @@ $('#mCancel').onclick=()=>{ resetForm(); renderMovs(); };
 $('#mvMore').onclick=()=>{ MV.limit+=300; renderMovs(); };
 
 /* ============================================================
+   CONCILIACIÓN
+   ============================================================ */
+const saleKeyOf = s => (s.canal==='Varin'||s.canal==='Falabella' ? s.canal : 'ML') + '|' + s.ord;
+function buildConc(){
+  const sales={};
+  for(const s of Object.values(DB.sales)){
+    const k=saleKeyOf(s); const o=sales[k] ||= {k, canal:s.canal, f:s.f, ord:s.ord, u:0, m:0, uEx:0, mEx:0, anyInc:false, skus:new Set(), est:s.est};
+    if(s.f<o.f) o.f=s.f; o.skus.add(canonSku(s.skuRaw));
+    if(s.inc){ o.u+=s.u; o.m+=s.m; o.anyInc=true; if(s.canal==='FULL') o.canal='FULL'; } else { o.uEx+=s.u; o.mEx+=s.m; }
+  }
+  const mlBySuffix={}; for(const o of Object.values(sales)) if(o.k.startsWith('ML|')) mlBySuffix[o.ord.slice(-10)]=o.k;
+  const movs={};
+  for(const m of DB.movs){
+    if(!/vendido/i.test(m.est)) continue;
+    let k=null;
+    if(/^\d{10,}$/.test(m.ml)) k='ML|'+m.ml;
+    else { const mm=str(m.com).match(/^AB(\d+)-(\d+)(?:-([A-Z]+))?$/i);
+      if(mm){ const n=mm[2];
+        if(mm[3] || mm[1]==='68') k = mlBySuffix[n.slice(-10)] || ('ML?|'+m.com);
+        else k = n.length<=6 ? 'Varin|#'+n : 'Falabella|'+n; } }
+    if(!k) k='MOV|'+m.f+'|'+(m.com||m.ml||'(sin comentario)');
+    const g = movs[k] ||= {k, f:m.f, u:0, m:0, bods:new Set(), skus:new Set(), coms:new Set(), ids:[]};
+    if(m.f<g.f) g.f=m.f; g.u+=-m.qty; g.m+=m.val; g.bods.add(m.bod); g.skus.add(m.sku); g.coms.add(m.com||m.ml); g.ids.push(m.id);
+  }
+  // vínculos manuales: grupo de movimientos -> orden de venta
+  for(const [mk,sk] of Object.entries(DB.links||{})){
+    const g=movs[mk]; if(!g || !sales[sk]) continue; const t=movs[sk];
+    if(t){ t.u+=g.u; t.m+=g.m; g.bods.forEach(x=>t.bods.add(x)); g.skus.forEach(x=>t.skus.add(x)); g.coms.forEach(x=>t.coms.add(x)); t.ids.push(...g.ids); t.linked=true; }
+    else movs[sk]={...g, k:sk, linked:true};
+    delete movs[mk];
+  }
+  const out=[];
+  for(const k of new Set([...Object.keys(sales), ...Object.keys(movs)])){
+    const s=sales[k], g=movs[k];
+    const row={k, f:(s&&s.f)||(g&&g.f), ord: s?s.ord:[...g.coms].join(', '), canal: s?s.canal:'', bods: g?[...g.bods].join(', '):'',
+      skus:[...new Set([...(s?s.skus:[]), ...(g?g.skus:[])])].join(', '), su:s?s.u:0, sm:s?s.m:0, mu:g?g.u:0, mm:g?g.m:0, linked:g&&g.linked, est:s&&s.est};
+    if(s && !s.anyInc && !g) continue;                     // venta excluida sin salida: correcto, no se muestra
+    if(s && !s.anyInc && g) row.st='excl';
+    else if(s && !g) row.st='sales';
+    else if(!s && g) row.st='mov';
+    else if(row.su!==row.mu) row.st='unid';
+    else if(Math.round(row.sm)!==Math.round(row.mm)) row.st='monto';
+    else row.st='ok';
+    row.du=row.mu-row.su; row.dm=row.mm-row.sm;
+    if(row.st!=='ok' && DB.reconOk[k]) row.rev=true;
+    out.push(row);
+  }
+  return {rows:out, sales, movs};
+}
+const ST_LABEL={ok:['Cuadra','ok'], monto:['Diferencia de monto','warn'], unid:['Diferencia de unidades','bad'], sales:['Sin salida en movimientos','bad'], mov:['Falta en reportes','warn'], excl:['Excluida en reporte, con salida','bad']};
+const ST_HINT={monto:'Mismas unidades; el reporte tiene otro monto (p. ej. el movimiento incluye envío). Manda el movimiento.', unid:'Las unidades del reporte no coinciden con las salidas. Manda el movimiento.', sales:'El reporte tiene una venta sin salida en movimientos: falta registrar la salida o la venta no corresponde.', mov:'Venta registrada en movimientos que no aparece en los reportes de canales (reporte desactualizado o venta directa).', excl:'El reporte la marca cancelada/reembolsada, pero hay salida en movimientos.'};
+let lastConc=[];
+function renderConc(){
+  const {rows, sales, movs}=buildConc();
+  const chs=[...new Set(rows.flatMap(r=>[r.canal, ...r.bods.split(', ')]).filter(Boolean))].sort(chSort);
+  const cs=$('#cCh'), cv=cs.value; cs.innerHTML='<option value="">Todos</option>'+chs.map(c=>`<option>${esc(c)}</option>`).join(''); cs.value=cv;
+  const d1=$('#cFrom').value, d2=$('#cTo').value, fe=$('#cEst').value, fc=cs.value, q=$('#cQ').value.trim().toLowerCase();
+  const inRange = r => (!d1||r.f>=d1) && (!d2||r.f<=d2);
+  const base=rows.filter(inRange);
+  const list=base.filter(r=>
+    (!fc || r.canal===fc || r.bods.split(', ').includes(fc)) &&
+    (!fe || (fe==='dif' ? (r.st!=='ok' && !r.rev) : fe==='rev' ? r.rev : (r.st===fe && !r.rev))) &&
+    (!q || [r.ord,r.skus,r.canal,r.bods,r.k].join(' ').toLowerCase().includes(q))
+  ).sort((a,b)=> (a.f<b.f?1:a.f>b.f?-1:0));
+  lastConc=list;
+  // KPIs sobre el rango
+  const sumS=base.reduce((a,r)=>a+r.sm,0), sumM=base.reduce((a,r)=>a+r.mm,0), uS=base.reduce((a,r)=>a+r.su,0), uM=base.reduce((a,r)=>a+r.mu,0);
+  const cnt=t=>base.filter(r=>r.st===t && !r.rev).length;
+  const amt=t=>base.filter(r=>r.st===t && !r.rev).reduce((a,r)=>a+Math.abs(r.dm),0);
+  $('#cKpis').innerHTML=[
+    ['Movimientos (oficial)', fmtMoney(sumM), `${fmtInt(uM)} u`],
+    ['Reportes de canales', fmtMoney(sumS), `${fmtInt(uS)} u`],
+    ['Diferencia reportes', `${sumS-sumM>=0?'+':'−'}${fmtMoney(Math.abs(sumS-sumM))}`, `${uS-uM>=0?'+':''}${fmtInt(uS-uM)} u vs. movimientos`],
+    ['Cuadran', fmtInt(cnt('ok')), `de ${fmtInt(base.length)} órdenes`],
+    ['Falta en reportes', fmtInt(cnt('mov')), fmtMoney(amt('mov'))],
+    ['Sin salida en movimientos', fmtInt(cnt('sales')), fmtMoney(amt('sales'))],
+    ['Dif. de unidades', fmtInt(cnt('unid')+cnt('excl')), 'incluye excluidas con salida'],
+    ['Dif. de monto', fmtInt(cnt('monto')), fmtMoney(amt('monto'))]
+  ].map(([l,v,s2])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:20px">${v}</div><div class="s">${s2}</div></div>`).join('');
+  // candidatos para vincular (ventas sin salida)
+  const freeSales=Object.values(sales).filter(o=>o.anyInc && !movs[o.k]);
+  const shown=list.slice(0,400);
+  $('#cTbl').innerHTML='<colgroup><col style="width:82px"><col style="width:150px"><col style="width:140px"><col style="width:165px"><col><col style="width:58px"><col style="width:58px"><col style="width:86px"><col style="width:86px"><col style="width:86px"><col style="width:170px"></colgroup><thead><tr><th>Fecha</th><th>Estado</th><th>Orden / comentario</th><th>Canal → bodega</th><th>SKU</th><th class="n">Mov u</th><th class="n">Rep u</th><th class="n">Mov. $</th><th class="n">Reporte $</th><th class="n">Δ $</th><th></th></tr></thead><tbody>'+
+    shown.map(r=>{
+      const [lab,cls]=ST_LABEL[r.st];
+      let act='';
+      if(r.st==='mov' && r.k.startsWith('MOV|')||r.st==='mov' && r.k.startsWith('ML?|')){
+        const near=freeSales.filter(o=>Math.abs((new Date(o.f)-new Date(r.f))/864e5)<=10).sort((a,b)=>Math.abs(new Date(a.f)-new Date(r.f))-Math.abs(new Date(b.f)-new Date(r.f))).slice(0,12);
+        if(near.length) act+=`<select data-link="${esc(r.k)}"><option value="">Vincular con venta…</option>${near.map(o=>`<option value="${esc(o.k)}">${esc(o.f)} · ${esc(o.canal)} ${esc(o.ord)} · ${fmtInt(o.u)} u · ${fmtMoney(o.m)}</option>`).join('')}</select> `;
+      }
+      if(r.linked){ const mk=Object.keys(DB.links).find(x=>DB.links[x]===r.k); if(mk) act+=`<button class="btn sm" data-unlink="${esc(mk)}">Desvincular</button> `; }
+      if(r.st!=='ok') act+= r.rev ? `<button class="btn sm" data-rev="${esc(r.k)}">Reabrir</button>` : `<button class="btn sm" data-rev="${esc(r.k)}">Marcar revisado</button>`;
+      return `<tr${r.rev?' style="opacity:.55"':''}><td title="${esc(r.f)}">${r.f.slice(8,10)}-${r.f.slice(5,7)}-${r.f.slice(2,4)}</td><td class="wrap"><span class="st ${r.rev?'rev':cls}" title="${esc(ST_HINT[r.st]||'')}">${r.rev?'Revisado · ':''}${lab}</span>${r.linked?' <span class="pill">vinculado</span>':''}</td>`+
+        `<td title="${esc(r.ord)}">${esc(r.ord)}</td><td class="wrap">${r.canal?dot(r.canal)+esc(r.canal):'<span class="muted">—</span>'} <span class="muted">→</span> ${r.bods?r.bods.split(', ').map(b=>dot(b)+esc(b)).join(' '):'<span class="muted">—</span>'}</td>`+
+        `<td title="${esc(r.skus)}">${esc(r.skus)}</td><td class="n"><b>${r.mu?fmtInt(r.mu):'–'}</b></td><td class="n ${r.du?'neg':''}">${r.su?fmtInt(r.su):'–'}</td>`+
+        `<td class="n"><b>${r.mm?fmtMoney(r.mm):'–'}</b></td><td class="n">${r.sm?fmtMoney(r.sm):'–'}</td><td class="n ${Math.round(r.dm)?'neg':''}">${Math.round(r.dm)?(r.dm<0?'+':'−')+fmtMoney(Math.abs(r.dm)):''}</td><td><div class="acts">${act}</div></td></tr>`; }).join('')+'</tbody>';
+  $('#cNote').textContent = (list.length>shown.length?`Mostrando ${shown.length} de ${list.length}. `:'')+'Δ $ = reporte − movimiento (manda el movimiento). "Vincular" une una salida sin orden reconocible (p. ej. boletas "B 5005 FLBL") con su venta. "Marcar revisado" deja la diferencia aceptada.';
+  $$('#cTbl [data-link]').forEach(sel=>sel.onchange=()=>{ if(!sel.value) return; DB.links[sel.dataset.link]=sel.value; saveDB(); renderConc(); toast('Vinculado'); });
+  $$('#cTbl [data-unlink]').forEach(b=>b.onclick=()=>{ delete DB.links[b.dataset.unlink]; saveDB(); renderConc(); });
+  $$('#cTbl [data-rev]').forEach(b=>b.onclick=()=>{ const k=b.dataset.rev; if(DB.reconOk[k]) delete DB.reconOk[k]; else DB.reconOk[k]=true; saveDB(); renderConc(); });
+}
+['cFrom','cTo','cEst','cCh','cQ'].forEach(id=>$('#'+id).addEventListener('input',renderConc));
+$('#cCsv').onclick=()=>{
+  const head=['Fecha','Estado','Revisado','Orden/comentario','Canal','Bodega','SKU','Mov u (oficial)','Reporte u','Mov $ (oficial)','Reporte $','Dif reporte - mov $'];
+  const lines=[head.join(';'), ...lastConc.map(r=>[r.f, ST_LABEL[r.st][0], r.rev?'Sí':'', r.ord, r.canal, r.bods, r.skus, r.mu, r.su, Math.round(r.mm), Math.round(r.sm), Math.round(-r.dm)].map(csvCell).join(';'))];
+  download('conciliacion.csv','\ufeff'+lines.join('\n'),'text/csv');
+};
+
+/* ============================================================
    DATOS
    ============================================================ */
+function renderCatalog(){
+  const stockBy={}; for(const m of DB.movs) stockBy[m.sku]=(stockBy[m.sku]||0)+m.qty;
+  const rows=Object.values(CAT.bySku).sort((a,b)=>a.target<b.target?-1:1);
+  $('#catTbl').innerHTML='<thead><tr><th>SKU interno</th><th>SKU catálogo</th><th>Nombre</th><th>EAN</th><th>SKU DropGO</th><th class="n">Stock total</th></tr></thead><tbody>'+
+    rows.map(c=>`<tr><td><b>${esc(c.target)}</b></td><td class="muted">${normBasic(c.sku)!==c.target?esc(c.sku):''}</td><td>${esc(c.name)}</td><td>${esc(c.ean)}</td><td>${esc(c.dg)}</td><td class="n">${stockBy[c.target]!=null?fmtInt(stockBy[c.target]):'<span class="muted">sin movimientos</span>'}</td></tr>`).join('')+'</tbody>';
+  $('#catIssues').innerHTML = CAT.issues.length ? `<div style="margin-bottom:10px">${CAT.issues.map(i=>`<div style="font-size:12px;margin:3px 0"><span class="pill w">Revisar</span> ${esc(i)}</div>`).join('')}</div>` : '';
+}
 function renderDatos(){
-  renderDropgo();
+  renderDropgo(); renderCatalog();
   const sales=Object.values(DB.sales);
   const sd=sales.map(s=>s.f).sort(), md=DB.movs.map(m=>m.f).sort();
   $('#dataKpis').innerHTML=[
@@ -1261,7 +1537,7 @@ function renderDatos(){
   $('#alTbl').innerHTML = '<thead><tr><th>SKU en canal</th><th>SKU interno</th><th></th></tr></thead><tbody>'+
     (rows.length?rows.map(r=>`<tr><td>${esc(r.f)}</td><td><b>${esc(r.t)}</b> ${r.a?'<span class="pill">auto</span>':''}</td><td class="n">${r.a?'':`<button class="btn sm danger" data-del="${esc(r.f)}">Quitar</button>`}</td></tr>`).join(''):'<tr><td colspan="3" class="muted">Sin equivalencias</td></tr>')+'</tbody>';
   $$('#alTbl [data-del]').forEach(b=>b.onclick=()=>{ delete DB.aliases[b.dataset.del]; saveDB(); refreshAll(); });
-  const known=[...new Set(DB.movs.map(r=>r.sku))].sort();
+  const known=[...new Set([...DB.movs.map(r=>r.sku), ...Object.values(CAT.bySku).map(c=>c.target)])].sort();
   $('#skuList').innerHTML = known.map(s=>`<option value="${esc(s)}">`).join('');
   // SKUs de ventas sin equivalencia en movimientos
   const um={}; for(const s of sales){ const c=canonSku(s.skuRaw); if(DB.movs.length && !knownSkuUpper[c.toUpperCase()]) um[c]=(um[c]||0)+1; }
@@ -1279,6 +1555,7 @@ function refreshAll(){
   if(active==='ventas') renderVentas();
   if(active==='stock') renderStock();
   if(active==='movs') renderMovs();
+  if(active==='conc') renderConc();
   renderDatos();
 }
 function segBind(id, cb){ $$('#'+id+' button').forEach(b=>b.onclick=()=>{ $$('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); cb(b.dataset.v); }); }
@@ -1323,7 +1600,7 @@ $('#dgDl').onclick=exportDropgoXlsx;
 $('#alAdd').onclick=()=>{
   const f=normBasic($('#alFrom').value).toUpperCase(), t=normBasic($('#alTo').value);
   if(!f||!t){ toast('Completa ambos SKU'); return; }
-  DB.aliases[f]=t; rebuildKnownSkus(); learnAliases(); const g=applyDropgo(); if(g&&g.nuevos) DB.log.unshift({ts:new Date().toISOString(), file:'Movimientos DropGO (tras equivalencia '+f+')', type:'DropGO · generado', filas:g.nuevos, ...g}); saveDB(); $('#alFrom').value=''; $('#alTo').value=''; refreshAll(); toast('Equivalencia guardada');
+  DB.aliases[f]=t; rebuildKnownSkus(); learnAliases(); applyAuto(null); saveDB(); $('#alFrom').value=''; $('#alTo').value=''; refreshAll(); toast('Equivalencia guardada');
 };
 
 function download(name, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
@@ -1373,6 +1650,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',refreshAl
     }
   }
   rebuildKnownSkus(); learnAliases();
+  if(DB.movs.length || Object.keys(DB.sales).length){ ensureIds(); applyAuto(null); saveDB(); }
   if(!DB.movs.length && !Object.keys(DB.sales).length){
     $$('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab==='datos'));
     $$('section.tab').forEach(s=>s.classList.toggle('on', s.id==='tab-datos'));
