@@ -675,7 +675,7 @@
                         <header>
                             <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-truck text-amber-600 text-3xl"></i></div>
                             <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Reporte DropGO</h2>
-                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el reporte de entregables. Se filtrarán y omitirán automáticamente los movimientos de "Varin Meli Full".</p>
+                            <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el reporte de entregables (<span class="font-mono bg-zinc-100 px-1 rounded">reporte_entregable_DropGO3.xlsx</span>). Se filtrarán y omitirán automáticamente los movimientos de "Varin Meli Full".</p>
                         </header>
                         <div class="relative border-2 border-dashed border-amber-200 rounded-lg p-10 bg-amber-50/50 hover:bg-amber-50 transition-all cursor-pointer group">
                             <input type="file" id="file-upload-dropgo" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -687,8 +687,6 @@
                     </div>
 
                     <hr class="border-zinc-200 my-8">
-                    <div class="bg-white p-8 rounded-lg border border-zinc-200 shadow-sm space-y-6">
-                        <header>
                             <div class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-chart-pie-slice text-purple-600 text-3xl"></i></div>
                             <h2 class="text-xl font-medium text-zinc-900 tracking-tight">Importar Ventas por Canal</h2>
                             <p class="text-zinc-500 text-sm mt-2 max-w-lg mx-auto">Sube el archivo <span class="font-mono bg-zinc-100 px-1 rounded">ventas_por_canal_y_mes_2.xlsx</span> para actualizar el dashboard.</p>
@@ -1553,18 +1551,18 @@
                             }
                         }
 
-                        if (nuevos.length > 0) { 
-                             this.inventory = [...nuevos, ...this.inventory]; 
-                             this.saveAndRender(); 
-                             this.showNotification(`Restaurados ${nuevos.length} movimientos. ${dupes} omitidos (ya existían).`, 'success');
+                        if (nuevos.length > 0) {  
+                            this.inventory = [...nuevos, ...this.inventory];  
+                            this.saveAndRender();  
+                            this.showNotification(`Restaurados ${nuevos.length} movimientos. ${dupes} omitidos (ya existían).`, 'success');
                         } else if (dupes > 0) {
                             this.showNotification(`Leído correctamente. Los ${dupes} registros ya están en tu inventario.`, 'success');
                         } else {
                             this.showNotification(`El archivo está vacío o los datos no son válidos.`, 'error');
                         }
-                    } catch (err) { 
-                         this.showNotification("Error procesando el archivo: " + err.message, 'error'); 
-                     }
+                    } catch (err) {  
+                        this.showNotification("Error procesando el archivo: " + err.message, 'error');  
+                    }
                 };
                 reader.readAsArrayBuffer(file); 
                 e.target.value = null;
@@ -1590,7 +1588,6 @@
                         }
 
                         if (headerIndex === -1) headerIndex = 0; // Si no pilla encabezados claros, empieza desde 0
-
                         // Normalización robusta (Elimina tildes para evitar errores con "ARTÍCULO")
                         const headers = rawRows[headerIndex].map(h => 
                             String(h).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u200B-\u200F\uFEFF]/g, '').trim().toUpperCase()
@@ -1691,22 +1688,22 @@
                                     quantity: cantidad,
                                     status: 'Vendido',
                                     value: valorDropGo,
-                                     comment: finalComment,
+                                    comment: finalComment,
                                     mlSaleId: saleId || null
                                 });
                             }
                         }
 
-                        if (nuevos.length > 0) { 
-                             this.inventory = [...nuevos, ...this.inventory]; 
-                             this.saveAndRender(); 
-                             this.showNotification(`Se importaron ${nuevos.length} registros DropGO. ${dupes} omitidos.`, 'success');
+                        if (nuevos.length > 0) {  
+                            this.inventory = [...nuevos, ...this.inventory];  
+                            this.saveAndRender();  
+                            this.showNotification(`Se importaron ${nuevos.length} registros DropGO. ${dupes} omitidos.`, 'success');
                         } else {
                             this.showNotification(dupes > 0 ? `Se omitieron ${dupes} movimientos (ya existían).` : `No hay registros válidos para importar.`, 'error');
                         }
-                    } catch (err) { 
-                         this.showNotification("Error procesando DropGO: " + err.message, 'error'); 
-                     }
+                    } catch (err) {  
+                        this.showNotification("Error procesando DropGO: " + err.message, 'error');  
+                    }
                 };
                 reader.readAsArrayBuffer(file); 
                 e.target.value = null;
@@ -1752,14 +1749,14 @@
                         const headers = rows[hIdx].map(h => h ? String(h).trim() : '');
                         
                         const isFlat = headers.some(h => h.toLowerCase().includes('mes')) && 
-                                        (headers.some(h => h.toLowerCase().includes('canal')) || headers.some(h => h.toLowerCase().includes('tienda')));
+                                       (headers.some(h => h.toLowerCase().includes('canal')) || headers.some(h => h.toLowerCase().includes('tienda')));
 
                         if (isFlat) {
                             const idxCanal = headers.findIndex(h => h.toLowerCase().includes('canal') || h.toLowerCase().includes('tienda'));
                             const idxMes = headers.findIndex(h => h.toLowerCase().includes('mes'));
                             const idxVentas = headers.findIndex(h => /total|monto|venta|suma/i.test(h)) !== -1 
-                                 ? headers.findIndex(h => /total|monto|venta|suma/i.test(h)) 
-                                 : headers.length - 1;
+                                  ? headers.findIndex(h => /total|monto|venta|suma/i.test(h)) 
+                                  : headers.length - 1;
 
                             for (let i = hIdx + 1; i < rows.length; i++) {
                                 const row = rows[i];
@@ -1928,6 +1925,7 @@
                             <td class="px-6 py-4"><input type="text" class="edit-comment w-32 p-1 border rounded text-xs" value="${i.comment||''}"></td>
                             <td class="px-6 py-4 text-center space-x-1"><button onclick="App.saveEdit(${i.id})" class="text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-md"><i class="ph ph-check-circle text-xl"></i></button><button onclick="App.toggleEdit(null)" class="text-zinc-400 hover:bg-zinc-100 p-1.5 rounded-md"><i class="ph ph-x-circle text-xl"></i></button></td>
                         </tr>`;
+                    
                     let bc = 'bg-white text-zinc-800 border-zinc-200';
                     if (i.warehouse === 'Full ML' || i.warehouse.includes('3')) bc = 'bg-emerald-200 text-emerald-900 border-emerald-300';
                     else if (i.warehouse === 'WH Hub' || i.warehouse.includes('1')) bc = 'bg-sky-200 text-sky-900 border-sky-300';
