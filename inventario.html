@@ -170,7 +170,7 @@ td .acts{display:flex;gap:6px}
       <div class="f"><label>Hasta</label><input type="date" id="dTo"></div>
       <div class="f"><label>Rango rápido</label>
         <div class="seg" id="presetSeg">
-          <button data-v="7">7d</button><button data-v="30">30d</button><button data-v="90">90d</button><button data-v="ytd">Año</button><button data-v="all">Todo</button>
+          <button data-v="7">7d</button><button data-v="30">30d</button><button data-v="90">90d</button><button data-v="ytd">Año</button><button data-v="all" class="on">Todo</button>
         </div></div>
       <div class="f"><label>Agrupar por</label>
         <div class="seg" id="granSeg"><button data-v="day">Día</button><button data-v="week">Semana</button><button data-v="month" class="on">Mes</button></div></div>
@@ -1086,7 +1086,8 @@ function renderVentas(){
 
   // rango por defecto
   const dates = all.map(r=>r.f).sort();
-  if(!VS.from && dates.length){ VS.from=dates[0]; VS.to=dates[dates.length-1]; }
+  // El rango sigue a los datos (incluye siempre lo recién cargado), salvo que el usuario haya elegido fechas a mano
+  if(dates.length && VS.range!=='manual') applyPreset(VS.range||'all', dates);
   $('#dFrom').value=VS.from; $('#dTo').value=VS.to;
 
   const incExcl=$('#incExcl').checked; const sel=skuSel.value;
@@ -1561,24 +1562,28 @@ function refreshAll(){
 function segBind(id, cb){ $$('#'+id+' button').forEach(b=>b.onclick=()=>{ $$('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); cb(b.dataset.v); }); }
 
 $$('nav button').forEach(b=>b.onclick=()=>{ $$('nav button').forEach(x=>x.classList.toggle('on',x===b)); $$('section.tab').forEach(s=>s.classList.toggle('on', s.id==='tab-'+b.dataset.tab)); refreshAll(); });
-segBind('srcSeg', v=>{ VS.src=v; VS.from=''; VS.to=''; renderVentas(); });
+segBind('srcSeg', v=>{ VS.src=v; if(VS.range==='manual') VS.range='all'; renderVentas(); });
 segBind('granSeg', v=>{ VS.gran=v; renderVentas(); });
 segBind('splitSeg', v=>{ VS.split=v; renderVentas(); });
 segBind('topSeg', v=>{ VS.top=v; renderVentas(); });
 segBind('shareSeg', v=>{ VS.share=v; renderVentas(); });
 segBind('monthSeg', v=>{ VS.month=v; renderVentas(); });
-$$('#presetSeg button').forEach(b=>b.onclick=()=>{
-  const all=salesRecords().map(r=>r.f).sort(); if(!all.length) return;
-  const max=all[all.length-1]; const v=b.dataset.v;
+function applyPreset(v, dates){
+  const all=dates||salesRecords().map(r=>r.f).sort(); if(!all.length) return;
+  const max=all[all.length-1];
   if(v==='all'){ VS.from=all[0]; VS.to=max; }
   else if(v==='ytd'){ VS.from=max.slice(0,4)+'-01-01'; VS.to=max; }
   else { VS.to=max; VS.from=new Date(new Date(max+'T00:00:00Z').getTime()-(+v-1)*864e5).toISOString().slice(0,10); }
+  $$('#presetSeg button').forEach(x=>x.classList.toggle('on', x.dataset.v===v));
+}
+$$('#presetSeg button').forEach(b=>b.onclick=()=>{
+  const v=b.dataset.v; VS.range=v; applyPreset(v);
   if(v==='7'||v==='30') { VS.gran='day'; $$('#granSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v==='day')); }
   if(v==='90') { VS.gran='week'; $$('#granSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v==='week')); }
   renderVentas();
 });
-$('#dFrom').onchange=e=>{VS.from=e.target.value; renderVentas();};
-$('#dTo').onchange=e=>{VS.to=e.target.value; renderVentas();};
+$('#dFrom').onchange=e=>{VS.from=e.target.value; VS.range='manual'; $$('#presetSeg button').forEach(x=>x.classList.remove('on')); renderVentas();};
+$('#dTo').onchange=e=>{VS.to=e.target.value; VS.range='manual'; $$('#presetSeg button').forEach(x=>x.classList.remove('on')); renderVentas();};
 $('#skuSel').onchange=renderVentas;
 $('#incExcl').onchange=renderVentas;
 $('#salesSearch').oninput=()=>renderVentas();
@@ -1621,7 +1626,7 @@ $('#impIn').onchange=async e=>{
   } else handleFiles([f]);
   e.target.value='';
 };
-$('#clrBtn').onclick=()=>{ if(confirm('¿Borrar todos los datos guardados en este navegador?')){ DB=emptyDB(); saveDB(); VS.from=VS.to=''; SS.date=''; refreshAll(); toast('Datos borrados'); } };
+$('#clrBtn').onclick=()=>{ if(confirm('¿Borrar todos los datos guardados en este navegador?')){ DB=emptyDB(); saveDB(); VS.from=VS.to=''; VS.range='all'; SS.date=''; refreshAll(); toast('Datos borrados'); } };
 $('#salesCsv').onclick=()=>{
   const head=['Fecha','Canal','Orden','SKU','SKU original','Producto','Unidades','Monto','Estado','Incluida'];
   const lines=[head.join(';'), ...lastSalesRows.map(r=>[r.f,r.canal,r.ord,r.sku,r.skuRaw,r.prod,r.u,r.m,r.est,r.inc?'Sí':'No'].map(csvCell).join(';'))];
