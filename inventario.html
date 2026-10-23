@@ -37,6 +37,7 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px so
 nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
 nav button{border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer}
 nav button.on{background:var(--ink);color:var(--bg)}
+.seg.lang button{padding:6px 10px;font-size:12px;letter-spacing:.04em}
 main{padding:20px 0 60px}
 section.tab{display:none} section.tab.on{display:block}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
@@ -153,6 +154,8 @@ td .acts{display:flex;gap:6px}
     <button data-tab="conc">Conciliación</button>
     <button data-tab="datos">Cargar datos</button>
   </nav>
+  <span class="pill" id="cloudBadge" style="display:none" title=""></span>
+  <div class="seg lang" id="langSeg" title="Idioma / Language"><button data-v="es">ES</button><button data-v="en">EN</button></div>
 </div></header>
 
 <main class="wrap">
@@ -318,6 +321,25 @@ td .acts{display:flex;gap:6px}
 
 <!-- ================= DATOS ================= -->
 <section class="tab" id="tab-datos">
+  <div class="card" style="margin-bottom:16px">
+    <h2>Publicar en GitHub <span class="pill" id="ghStatus" style="display:none;margin-left:auto"></span></h2>
+    <div class="muted sub" style="margin-top:0">Los datos se publican como <b>data.xlsx</b> en tu repositorio, junto a la app. Quien abra la URL (computador o celular) ve siempre la última versión publicada, sin subir archivos. Solo el equipo que <b>publica</b> necesita el token; los demás solo miran.</div>
+    <div class="muted" style="font-size:12px;margin-bottom:10px">Destino: <b id="ghUrl"></b> · <span id="ghInfo"></span></div>
+    <div class="form" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 14px">
+      <div><label>Usuario / organización</label><input id="ghOwner" placeholder="alaskanext-blip"></div>
+      <div><label>Repositorio</label><input id="ghRepo" placeholder="ERPvarin"></div>
+      <div><label>Rama</label><input id="ghBranch" placeholder="main"></div>
+      <div><label>Archivo de datos</label><input id="ghPath" placeholder="data.xlsx"></div>
+      <div class="full"><label>Token de GitHub (fine-grained, permiso "Contents: Read and write" solo para este repositorio)</label><input id="ghToken" type="password" autocomplete="off"></div>
+    </div>
+    <div class="row-actions" style="margin-top:12px;align-items:center">
+      <button class="btn" id="ghSaveCfg">Guardar configuración</button>
+      <button class="btn primary" id="ghPub">Publicar ahora</button>
+      <button class="btn" id="ghPullBtn">Traer versión publicada</button>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="ghAuto"> Publicar automáticamente después de cada carga o cambio</label>
+      <button class="btn sm danger" id="ghForget" style="margin-left:auto">Olvidar token</button>
+    </div>
+  </div>
   <div class="grid g2" style="margin-bottom:16px">
     <div class="card">
       <h2>Subir archivos</h2>
@@ -388,10 +410,12 @@ function loadDB(){
   try{ const s = localStorage.getItem(STORE_KEY); if(s){ DB = Object.assign(emptyDB(), JSON.parse(s)); ensureIds(); return true; } }catch(e){}
   return false;
 }
-function saveDB(){
+function saveDB(fromRemote){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
   catch(e){ toast('No se pudo guardar en el navegador: ' + e.message); }
+  if(!fromRemote && typeof ghSchedule==='function' && !APP_BOOTING) ghSchedule();
 }
+let APP_BOOTING = true;
 
 /* ============================================================
    Utilidades
@@ -405,6 +429,224 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const num = v => { if(typeof v==='number') return v; if(v==null) return 0; const s=String(v).trim(); if(!s) return 0; const n=Number(s.replace(/\s/g,'')); return isNaN(n)?0:n; };
 const str = v => v==null ? '' : String(v).trim();
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',3800); }
+/* ============================================================
+   Idioma: español / inglés (traduce la interfaz; los datos de los archivos se muestran tal cual)
+   ============================================================ */
+let LANG = (()=>{ try{ return localStorage.getItem('varin_lang')==='en' ? 'en' : 'es'; }catch(e){ return 'es'; } })();
+const I18N_EN = {
+  // navegación y encabezado
+  'Ventas y Stock':'Sales & Stock','Ventas':'Sales','Stock':'Stock','Movimientos':'Movements','Conciliación':'Reconciliation','Cargar datos':'Load data',
+  // filtros de ventas
+  'Fuente':'Source','Movimientos por bodega (oficial)':'Warehouse movements (official)','Reportes de canales':'Channel reports',
+  'Desde':'From','Hasta':'To','Rango rápido':'Quick range','Año':'Year','Todo':'All','Agrupar por':'Group by','Día':'Day','Semana':'Week','Mes':'Month',
+  'Desglosar por':'Break down by','Canal':'Channel','Bodega':'Warehouse','Modelo':'Model','SKU':'SKU','Producto':'Product','Todos':'All','Todas':'All',
+  'Incluir canceladas / reembolsadas':'Include cancelled / refunded','Canales':'Channels','Bodegas':'Warehouses','Modelos':'Models',
+  'Ventas en $ (CLP)':'Sales in $ (CLP)','Ventas en unidades':'Sales in units','Participación por canal · ventas':'Share by channel · sales',
+  'Participación por bodega · ventas':'Share by warehouse · sales','Unid.':'Units','Total del período':'Period total','Top productos':'Top products',
+  'Ventas mensuales':'Monthly sales','Unidades':'Units','Pedidos':'Orders','Detalle':'Detail','Exportar CSV':'Export CSV',
+  'Montos en CLP con IVA, solo productos · según los filtros aplicados':'Amounts in CLP incl. VAT, products only · per applied filters',
+  'Montos según movimientos por bodega (fuente oficial) · según los filtros aplicados':'Amounts from warehouse movements (official source) · per applied filters',
+  'Montos de los reportes de canales (CLP con IVA, solo productos) · según los filtros aplicados':'Amounts from channel reports (CLP incl. VAT, products only) · per applied filters',
+  'Unidades vendidas · según los filtros aplicados':'Units sold · per applied filters','Pedidos (órdenes distintas) · según los filtros aplicados':'Orders (distinct) · per applied filters',
+  'Ventas $':'Sales $','según comentario/ID':'by comment/ID','órdenes distintas':'distinct orders','Ticket promedio':'Average ticket','Excluidas':'Excluded',
+  'canceladas o reembolsadas':'cancelled or refunded','canceladas/reembolsadas (no suman)':'cancelled/refunded (not counted)','Total':'Total','(en curso)':'(in progress)',
+  '% del total':'% of total','Fecha':'Date','Fecha ▼':'Date ▼','Fecha ▲':'Date ▲','Orden':'Order','Monto':'Amount','Estado':'Status','Excluida':'Excluded','Otros':'Others',
+  'Sin datos':'No data','Sin ventas para los filtros elegidos.':'No sales for the selected filters.',
+  'Salidas \'Vendido\' de los movimientos por bodega: fuente oficial':'"Sold" outflows from warehouse movements: official source',
+  'Reportes de Mercado Libre, Shopify, Falabella y Ventas por canal (referencia)':'Mercado Libre, Shopify, Falabella and Sales-by-channel reports (reference)',
+  'Buscar orden, SKU, producto…':'Search order, SKU, product…',
+  // stock
+  'Stock al día':'Stock as of','Agrupar':'Group','Ocultar SKUs sin stock':'Hide SKUs without stock','Buscar':'Search',
+  'Haz clic en una bodega para mostrarla u ocultarla. Stock = suma de todas las cantidades del archivo de movimientos (entradas, salidas, ventas y reservas) hasta la fecha elegida.':'Click a warehouse to show or hide it. Stock = sum of all quantities in the movements file (inflows, outflows, sales and reservations) up to the selected date.',
+  'Stock por producto y bodega':'Stock by product and warehouse','Evolución del stock':'Stock over time','Stock por bodega':'Stock by warehouse',
+  'Venta 30d = unidades vendidas en los últimos 30 días (salidas "Vendido" de los movimientos). Cobertura = stock ÷ venta diaria.':'30d sales = units sold in the last 30 days ("Sold" outflows in movements). Coverage = stock ÷ daily sales.',
+  'Últimos movimientos':'Latest movements','Todos los productos':'All products','Venta 30d':'30d sales','Cobertura':'Coverage','> 1 año':'> 1 year',
+  'SKU, producto, EAN o código DropGO…':'SKU, product, EAN or DropGO code…','Total':'Total','Valor':'Value','Comentario':'Comment','Cantidad':'Quantity',
+  'Sube el archivo de movimientos para ver el stock por bodega.':'Upload the movements file to see stock by warehouse.',
+  // movimientos
+  'Registrar movimiento':'Record movement','Tipo de operación':'Operation type','Ingreso (+)':'Inflow (+)','Salida (−)':'Outflow (−)','Venta (−)':'Sale (−)',
+  'Reserva (−)':'Reservation (−)','Transferencia entre bodegas':'Transfer between warehouses','Ajuste (cantidad con signo ±)':'Adjustment (signed quantity ±)',
+  'Fecha de operación':'Operation date','Nombre del producto':'Product name','Bodega destino':'Destination warehouse','Bodega origen':'Source warehouse',
+  'Disponible':'Available','Vendido':'Sold','Reservado':'Reserved','Valor de venta (opcional)':'Sale value (optional)','Comentario (opcional)':'Comment (optional)',
+  'Cancelar edición':'Cancel editing','Guardar cambios':'Save changes','Origen':'Source','Desde archivo':'From file','Manual':'Manual','Editados':'Edited','Editado':'Edited',
+  'Archivo':'File','Mostrar más':'Show more','Editar':'Edit','Eliminar':'Delete','Otra bodega…':'Other warehouse…','Efecto:':'Effect:',
+  'Ej. VA-E002':'e.g. VA-E002','Descripción del producto':'Product description','Nombre de la nueva bodega':'New warehouse name','Ej. 15000':'e.g. 15000',
+  'Notas adicionales...':'Additional notes...','SKU, producto, comentario…':'SKU, product, comment…',
+  // conciliación
+  'Conciliación ventas vs. movimientos':'Sales vs. movements reconciliation','Los':'The','movimientos por bodega son la fuente oficial':'warehouse movements are the official source',
+  '. Esta vista revisa, orden por orden, qué tan completos y correctos están los reportes de canales (Mercado Libre, FULL, Shopify/Varin, Falabella) frente a las salidas "Vendido". Las órdenes se reconocen por el ID de Mercado Libre y por los códigos DropGO (AB59-#### = Varin, AB61-########## = Falabella).':'. This view checks, order by order, how complete and accurate the channel reports (Mercado Libre, FULL, Shopify/Varin, Falabella) are against the "Sold" outflows. Orders are matched by Mercado Libre ID and DropGO codes (AB59-#### = Varin, AB61-########## = Falabella).',
+  'Con diferencias (sin revisar)':'With differences (not reviewed)','Cuadra':'Matches','Diferencia de monto':'Amount difference','Diferencia de unidades':'Unit difference',
+  'Falta en reportes':'Missing in reports','Sin salida en movimientos':'No outflow in movements','Excluida en reporte, con salida':'Excluded in report, with outflow',
+  'Venta excluida con salida':'Excluded sale with outflow','Revisado':'Reviewed','Canal / bodega':'Channel / warehouse','Orden, SKU, comentario…':'Order, SKU, comment…',
+  'Movimientos (oficial)':'Movements (official)','Diferencia reportes':'Report difference','Cuadran':'Matching','Dif. de unidades':'Unit diff.','Dif. de monto':'Amount diff.',
+  'incluye excluidas con salida':'includes excluded with outflow','Orden / comentario':'Order / comment','Canal → bodega':'Channel → warehouse','Mov u':'Mov u','Rep u':'Rep u',
+  'Mov. $':'Mov. $','Reporte $':'Report $','Marcar revisado':'Mark reviewed','Reabrir':'Reopen','Vincular con venta…':'Link to sale…','Desvincular':'Unlink','vinculado':'linked',
+  'Δ $ = reporte − movimiento (manda el movimiento). "Vincular" une una salida sin orden reconocible (p. ej. boletas "B 5005 FLBL") con su venta. "Marcar revisado" deja la diferencia aceptada.':'Δ $ = report − movement (the movement prevails). "Link" joins an outflow with no recognizable order (e.g. "B 5005 FLBL" receipts) to its sale. "Mark reviewed" accepts the difference.',
+  'Mismas unidades; el reporte tiene otro monto (p. ej. el movimiento incluye envío). Manda el movimiento.':'Same units; the report has a different amount (e.g. the movement includes shipping). The movement prevails.',
+  'Las unidades del reporte no coinciden con las salidas. Manda el movimiento.':'Report units do not match the outflows. The movement prevails.',
+  'El reporte tiene una venta sin salida en movimientos: falta registrar la salida o la venta no corresponde.':'The report has a sale with no outflow in movements: the outflow is missing or the sale is not valid.',
+  'Venta registrada en movimientos que no aparece en los reportes de canales (reporte desactualizado o venta directa).':'Sale recorded in movements that is not in the channel reports (outdated report or direct sale).',
+  'El reporte la marca cancelada/reembolsada, pero hay salida en movimientos.':'The report marks it cancelled/refunded, but there is an outflow in movements.',
+  // cargar datos
+  'Subir archivos':'Upload files','Arrastra aquí los Excel o haz clic':'Drag Excel files here or click',
+  'Movimientos · DropGO (reporte de ventas + reporte de picking) · Ventas Mercado Libre · Shopify (orders_export.csv) · Ventas por canal y mes':'Movements · DropGO (sales report + picking report) · Mercado Libre sales · Shopify (orders_export.csv) · Sales by channel and month',
+  'El tipo se detecta automáticamente. Solo se agregan filas nuevas.':'File type is detected automatically. Only new rows are added.',
+  'Datos guardados':'Saved data','Ventas (filas)':'Sales (rows)','Archivos cargados':'Files loaded',
+  'Los datos se guardan en este navegador. Para usarlos en otro equipo, exporta el respaldo en Excel e impórtalo allá (también puedes arrastrarlo a "Subir archivos"). Si lo subes al repositorio como':'Data is stored in this browser. To use it on another computer, export the Excel backup and import it there (you can also drag it into "Upload files"). If you upload it to the repository as',
+  ', se carga automáticamente cuando el navegador no tiene datos.':', it loads automatically when the browser has no data.',
+  'Exportar respaldo (Excel)':'Export backup (Excel)','Importar respaldo':'Import backup','Borrar todo':'Delete all',
+  'Movimientos generados automáticamente':'Automatically generated movements','Descargar movimientos DropGO (Excel)':'Download DropGO movements (Excel)',
+  'Se generan solos al subir el':'Generated automatically when you upload the','reporte de ventas':'sales report','y el':'and the','reporte de picking':'picking report',
+  'de DropGO: una salida "Vendido" en DropGO por orden y SKU, con el total de la orden como valor. Las órdenes canceladas no se registran. Además, cada venta':'from DropGO: one "Sold" outflow in DropGO per order and SKU, valued at the order total. Cancelled orders are not recorded. Also, every',
+  'de Mercado Libre que aún no tenga su salida genera un "Vendido" en':'Mercado Libre sale without an outflow yet generates a "Sold" in',
+  'Aún no se han subido reportes de DropGO.':'No DropGO reports uploaded yet.','Nada por revisar.':'Nothing to review.',
+  'Órdenes con picking':'Orders with picking','Movimientos registrados':'Recorded movements','Por revisar':'To review','SKU picking':'Picking SKU','Cant.':'Qty','Observación':'Note',
+  'Verificar':'Verify','Picking/Inventariado = NO: incluida, verificar':'Picking/Inventoried = NO: included, verify','SKU pendiente':'Pending SKU',
+  'Full ML · SKU sin equivalencia: pendiente (no se registra hasta mapearlo)':'Full ML · SKU without mapping: pending (not recorded until mapped)',
+  'SKU sin equivalencia: pendiente (no se registra hasta mapearlo)':'SKU without mapping: pending (not recorded until mapped)',
+  'Mapear SKU':'Map SKU','Cancelada':'Cancelled','Orden CANCELADA: no se registra':'Order CANCELLED: not recorded','sin pendientes de SKU':'no pending SKUs',
+  'falta reporte de ventas (se usa total del picking)':'sales report missing (picking total is used)',
+  'Catálogo de productos':'Product catalog','SKU · nombre · EAN · SKU DropGO':'SKU · name · EAN · DropGO SKU',
+  'Traduce automáticamente los códigos de Shopify, DropGO y EAN al SKU interno, y da el nombre oficial de cada producto en todos los reportes. Para actualizarlo, sube de nuevo la tabla':'Automatically translates Shopify, DropGO and EAN codes to the internal SKU, and provides the official product name in every report. To update it, upload the table again:',
+  '(columnas SKU, Nombre Producto, EAN Code, SKU DropGO).':'(columns SKU, Nombre Producto, EAN Code, SKU DropGO).',
+  'Revisar':'Review','SKU interno':'Internal SKU','SKU catálogo':'Catalog SKU','Nombre':'Name','SKU DropGO':'DropGO SKU','Stock total':'Total stock','sin movimientos':'no movements',
+  'Equivalencias de SKU':'SKU mappings',
+  'Los canales usan códigos distintos (p. ej. Shopify o Falabella). Las equivalencias':'Channels use different codes (e.g. Shopify or Falabella). Mappings marked',
+  'se aprenden cruzando órdenes con el archivo de movimientos. Puedes agregar o corregir las tuyas.':'are learned by matching orders with the movements file. You can add or correct your own.',
+  'Agregar':'Add','SKU en canal':'Channel SKU','Sin equivalencias':'No mappings','Quitar':'Remove','Historial de cargas':'Upload history','Aún no se han cargado archivos.':'No files loaded yet.',
+  'SKU en el canal (ej. VA-E005 Nogal Negro)':'Channel SKU (e.g. VA-E005 Nogal Negro)','SKU interno (ej. VA-E005)':'Internal SKU (e.g. VA-E005)',
+  'SKUs de ventas que no existen en movimientos (clic para mapear):':'Sales SKUs not found in movements (click to map):',
+  // tipos de archivo / historial
+  'Ventas Mercado Libre':'Mercado Libre sales','Movimientos DropGO':'DropGO movements','Ventas por canal y mes':'Sales by channel and month','DropGO · ventas':'DropGO · sales',
+  'DropGO · picking':'DropGO · picking','Ventas Shopify (Varin)':'Shopify sales (Varin)','DropGO · generado':'DropGO · generated','Full ML · generado':'Full ML · generated',
+  'Catálogo de SKU':'SKU catalog','Respaldo':'Backup','Error':'Error','No se reconoció el formato':'Format not recognized',
+  'Movimientos DropGO (desde ventas + picking)':'DropGO movements (from sales + picking)','Salidas Full ML (desde ventas FULL de Mercado Libre)':'Full ML outflows (from Mercado Libre FULL sales)',
+  // mensajes
+  'Completa ambos SKU':'Fill in both SKUs','Datos borrados':'Data deleted','Equivalencia guardada':'Mapping saved','Indica el SKU':'Enter the SKU','Indica la bodega':'Enter the warehouse',
+  'Indica la fecha':'Enter the date','La bodega destino debe ser distinta':'The destination warehouse must be different','La cantidad no puede ser 0':'Quantity cannot be 0',
+  'Movimiento actualizado':'Movement updated','Movimiento eliminado':'Movement deleted','Movimiento registrado':'Movement recorded','No hay movimientos DropGO generados':'No generated DropGO movements',
+  'Respaldo exportado':'Backup exported','Transferencia registrada':'Transfer recorded','Vinculado':'Linked',
+  '¿Borrar todos los datos guardados en este navegador? (La versión publicada en GitHub no se borra.)':'Delete all data stored in this browser? (The version published on GitHub is not deleted.)',
+  'Publicar en GitHub':'Publish to GitHub','Usuario / organización':'User / organization','Repositorio':'Repository','Rama':'Branch','Archivo de datos':'Data file',
+  'Token de GitHub (fine-grained, permiso "Contents: Read and write" solo para este repositorio)':'GitHub token (fine-grained, "Contents: Read and write" permission for this repository only)',
+  'Guardar configuración':'Save settings','Publicar ahora':'Publish now','Traer versión publicada':'Fetch published version','Publicar automáticamente después de cada carga o cambio':'Publish automatically after every upload or change',
+  'Olvidar token':'Forget token','Destino:':'Target:','Los datos se publican como':'Data is published as',
+  'en tu repositorio, junto a la app. Quien abra la URL (computador o celular) ve siempre la última versión publicada, sin subir archivos. Solo el equipo que':'in your repository, next to the app. Anyone opening the URL (computer or phone) always sees the latest published version, without uploading files. Only the computer that',
+  'publica':'publishes','necesita el token; los demás solo miran.':'needs the token; everyone else just views.',
+  'Aún no hay datos publicados en el repositorio.':'No data published in the repository yet.','Token de GitHub (solo en el equipo que publica)':'GitHub token (only on the publishing computer)',
+  'Falta configurar el repositorio o el token':'Repository or token not configured','Publicando…':'Publishing…','Cambios pendientes de publicar…':'Changes pending publication…',
+  'Buscando versión publicada…':'Looking for published version…','No hay datos publicados (o no se pudo leer el repositorio)':'No published data (or the repository could not be read)',
+  'Versión publicada incorporada':'Published version loaded','Configuración guardada':'Settings saved','Datos publicados':'Data published','Token eliminado de este navegador':'Token removed from this browser',
+  'Datos actualizados desde la versión publicada':'Data updated from the published version',
+  // estados de los reportes de canales
+  'Entregado':'Delivered','Entregadas':'Delivered','Enviados':'Shipped','Venta entregada':'Sale delivered','En camino':'On the way','Listo para despachar':'Ready to ship',
+  'Procesando en la bodega':'Processing at the warehouse','Paquete no entregado':'Package not delivered','Cancelada por el comprador':'Cancelled by the buyer',
+  'Correo y puntos de despacho':'Post and pickup points','Acuerdo con el comprador':'Agreement with the buyer',
+  'Devolución finalizada con reembolso al comprador':'Return completed with refund to buyer','Devolución finalizada. Pusimos el producto de nuevo a la venta':'Return completed. Product put back on sale',
+  'Reclamo finalizado. Te dimos el dinero':'Claim closed. You received the money','Mediación finalizada. Te dimos el dinero.':'Mediation closed. You received the money.',
+  'Importación ML':'ML import','envío a FULL':'shipment to FULL','Ajuste para cuadrar Ventas con visor':'Adjustment to reconcile sales with viewer',
+  'Cancelado':'Cancelled','Reembolsado':'Refunded','Anulado':'Voided','Anulación / reembolso':'Cancellation / refund','auto':'auto'
+};
+// Textos con números o nombres variables
+const I18N_PATTERNS = [
+  [/^(\d[\d.]*) nuevas(?: · (\d[\d.]*) (actualizadas|eliminadas por cancelación))? · (\d[\d.]*) ya existían$/, (m,a,b,c,d)=>`${a} new${b?` · ${b} ${c==='actualizadas'?'updated':'removed due to cancellation'}`:''} · ${d} already existed`],
+  [/^(-?[\d.]+) filas nuevas incorporadas$/, (m,a)=>`${a} new rows added`],
+  [/^Respaldo importado: (\d+) filas nuevas$/, (m,a)=>`Backup imported: ${a} new rows`],
+  [/^Respaldo inválido: (.*)$/, (m,a)=>`Invalid backup: ${a}`],
+  [/^No se pudo guardar en el navegador: (.*)$/, (m,a)=>`Could not save in the browser: ${a}`],
+  [/^¿Eliminar el movimiento (.*) en (.*)\?$/, (m,a,b)=>`Delete movement ${a} in ${b}?`],
+  [/^(.*) por día$/, (m,a)=>`${a} per day`],
+  [/^(.*) por unidad$/, (m,a)=>`${a} per unit`],
+  [/^(\d+) (SKUs|modelos) con stock( ·)?$/, (m,a,b,c)=>`${a} ${b==='modelos'?'models':'SKUs'} in stock${c||''}`],
+  [/^(\d+) negativos$/, (m,a)=>`${a} negative`],
+  [/^bodegas visibles · al (.*)$/, (m,a)=>`visible warehouses · as of ${a}`],
+  [/^(-?\d+) días$/, (m,a)=>`${a} days`],
+  [/^de ([\d.]+) órdenes$/, (m,a)=>`of ${a} orders`],
+  [/^([+-]?[\d.]+) u vs\. movimientos$/, (m,a)=>`${a} u vs. movements`],
+  [/^Total válido \(([\d.]+) filas\)$/, (m,a)=>`Valid total (${a} rows)`],
+  [/^([\d.]+) movimientos$/, (m,a)=>`${a} movements`],
+  [/^Mostrando ([\d.]+) de ([\d.]+) filas\. Usa el buscador o exporta a CSV\.$/, (m,a,b)=>`Showing ${a} of ${b} rows. Use search or export to CSV.`],
+  [/^Mostrando ([\d.]+) de ([\d.]+)\.$/, (m,a,b)=>`Showing ${a} of ${b}.`],
+  [/^Mostrando ([\d.]+) de ([\d.]+)\. (.*)$/, (m,a,b,c)=>`Showing ${a} of ${b}. ${tr(c)}`],
+  [/^en ([^·]+) y$/, (m,a)=>`in ${a} and`],
+  [/^en (.*) · (.*) · estado$/, (m,a,b)=>`in ${a} · ${b} · status`],
+  [/^en (.*) · (.*)$/, (m,a,b)=>`in ${a} · ${b}`],
+  [/^Editar movimiento · (.*)$/, (m,a)=>`Edit movement · ${a}`],
+  [/^último: (.*)$/, (m,a)=>`last: ${a}`],
+  [/^Versión publicada: (.*)$/, (m,a)=>`Published version: ${a}`],
+  [/^Publicado (.*)$/, (m,a)=>`Published ${a}`],
+  [/^No se pudo publicar: (.*)$/, (m,a)=>`Could not publish: ${a}`],
+  [/^Datos publicados: (.*)$/, (m,a)=>`Published data: ${a}`],
+  [/^Token guardado en este navegador \((.*)\)$/, (m,a)=>`Token saved in this browser (${a})`],
+  [/^Datos actualizados desde la versión publicada \((.*)\)$/, (m,a)=>`Data updated from the published version (${a})`],
+  [/^(\d+) en reporte de ventas$/, (m,a)=>`${a} in sales report`],
+  [/^(\d+) con SKU sin equivalencia$/, (m,a)=>`${a} with unmapped SKU`],
+  [/^(.*) \(todas las variantes\)$/, (m,a)=>`${a} (all variants)`],
+  [/^(.*) del catálogo se asocia a (.*) \(código usado en movimientos\)$/, (m,a,b)=>`${a} in the catalog is matched to ${b} (code used in movements)`],
+  [/^EAN (.*) está repetido en: (.*) \(no se usa para traducir\)$/, (m,a,b)=>`EAN ${a} is repeated in: ${b} (not used for translation)`],
+  [/^(.*) está en movimientos pero no en el catálogo$/, (m,a)=>`${a} is in movements but not in the catalog`],
+  [/^Agregado: (.*) en (.*)$/, (m,a,b)=>`Added: ${a} in ${b}`],
+  [/^Editado: (.*) en (.*)$/, (m,a,b)=>`Edited: ${a} in ${b}`],
+  [/^Eliminado: (.*) en (.*)$/, (m,a,b)=>`Deleted: ${a} in ${b}`],
+  [/^Transferencia: (.*)$/, (m,a)=>`Transfer: ${a}`],
+  [/^Transferencia (.*) → (.*)$/, (m,a,b)=>`Transfer ${a} → ${b}`],
+  [/^Movimientos DropGO \(tras equivalencia (.*)\)$/, (m,a)=>`DropGO movements (after mapping ${a})`],
+  [/^No pagado \((.*)\)$/, (m,a)=>`Not paid (${a})`],
+  [/^Revisado · (.*)$/, (m,a)=>`Reviewed · ${tr(a)}`],
+  [/^SKU original: (.*)$/, (m,a)=>`Original SKU: ${a}`],
+  [/^Pedido reembolsado \((.*)\)$/, (m,a)=>`Order refunded (${a})`],
+  [/^(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic) (\d{2,4})$/, (m,a,b)=>`${MES_EN[a]} ${b}`],
+  [/^sem (\d+) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)$/, (m,a,b)=>`wk ${a} ${MES_EN[b]}`],
+  [/^(\d+) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)$/, (m,a,b)=>`${MES_EN[b]} ${a}`],
+];
+const MES_EN={ene:'Jan',feb:'Feb',mar:'Mar',abr:'Apr',may:'May',jun:'Jun',jul:'Jul',ago:'Aug',sep:'Sep',oct:'Oct',nov:'Nov',dic:'Dec'};
+function tr(s){
+  if(LANG!=='en' || s==null) return s;
+  const str0=String(s), t=str0.trim(); if(!t) return str0;
+  let out = I18N_EN[t];
+  if(out===undefined){ for(const [re,fn] of I18N_PATTERNS){ const m=t.match(re); if(m){ out=t.replace(re,fn); break; } } }
+  if(out===undefined && t.includes(' · ')){ const parts=t.split(' · '); const tp=parts.map(x=>{ const y=tr(x); return y; }); if(tp.some((x,i)=>x!==parts[i])) out=tp.join(' · '); }
+  if(out===undefined){ const m=t.match(/^Despacharemos el paquete el (.*)$/); if(m) out='We will ship the package on '+m[1]; }
+  if(out===undefined) return str0;
+  const lead=str0.match(/^\s*/)[0], trail=str0.match(/\s*$/)[0];
+  return lead+out+trail;
+}
+// Traducción de la página: guarda el texto original para poder volver a español
+const I18N_ORIG = new WeakMap(); let i18nBusy=false;
+function i18nNode(n){
+  if(n.nodeType===3){
+    const p=n.parentElement; if(!p || p.closest('script,style,#langSeg')) return;
+    let o=I18N_ORIG.get(n); if(o===undefined || (n.nodeValue!==o.es && n.nodeValue!==o.en)){ o={es:n.nodeValue}; I18N_ORIG.set(n,o); }
+    const v = LANG==='en' ? tr(o.es) : o.es; o.en = LANG==='en' ? v : o.en;
+    if(n.nodeValue!==v) n.nodeValue=v;
+  } else if(n.nodeType===1){
+    for(const a of ['placeholder','title']){ if(!n.hasAttribute(a)) continue;
+      const key='i18n-'+a; let es=n.getAttribute('data-'+key), cur=n.getAttribute(a);
+      if(es===null || (cur!==es && cur!==n.getAttribute('data-'+key+'-en'))){ es=cur; n.setAttribute('data-'+key, es); }
+      const v = LANG==='en' ? tr(es) : es; n.setAttribute('data-'+key+'-en', v); if(cur!==v) n.setAttribute(a, v); }
+  }
+}
+function i18nTree(root){
+  i18nBusy=true;
+  if(root.nodeType===3){ i18nNode(root); i18nBusy=false; return; }
+  i18nNode(root);
+  const w=document.createTreeWalker(root, NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT); let n; while((n=w.nextNode())) i18nNode(n);
+  i18nBusy=false;
+}
+new MutationObserver(muts=>{
+  if(i18nBusy) return;
+  for(const m of muts){
+    if(m.type==='characterData') i18nTree(m.target);
+    else if(m.type==='attributes') i18nNode(m.target);
+    else m.addedNodes.forEach(n=>i18nTree(n));
+  }
+}).observe(document.body, {subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['placeholder','title']});
+function setLang(l){
+  LANG=l; try{ localStorage.setItem('varin_lang', l); }catch(e){}
+  document.documentElement.lang=l;
+  $$('#langSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===l));
+  refreshAll(); i18nTree(document.body);
+}
 const pad = n => String(n).padStart(2,'0');
 const MESES = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
 
@@ -648,7 +890,7 @@ function parseCanal(rows,h){
    ============================================================ */
 const BK_MOV = ['Fecha','SKU','Producto','Bodega','Cantidad','Estado','Valor','Comentario','ID Venta ML','Origen','ID','Clave'];
 const BK_SAL = ['Clave','Fuente','Canal','Fecha','Hora','Orden','SKU','Producto','Unidades','Monto (CLP)','Neto ML (CLP)','Estado','Incluida','Motivo exclusión'];
-function exportBackupXlsx(){
+function buildBackupWb(){
   const wb = XLSX.utils.book_new();
   const movs = [...DB.movs].sort((a,b)=>a.f<b.f?1:a.f>b.f?-1:0);
   const wsM = XLSX.utils.aoa_to_sheet([BK_MOV, ...movs.map(r=>[r.f, r.sku, r.prod, r.bod, r.qty, r.est, r.val||'', r.com, r.ml, srcLabel(r), r.id, r.k])]);
@@ -658,8 +900,8 @@ function exportBackupXlsx(){
   const wsA = XLSX.utils.aoa_to_sheet([['SKU en canal','SKU interno','Tipo'],
     ...Object.entries(DB.aliases).map(([f,t])=>[f,t,'Manual']),
     ...Object.entries(DB.autoAliases).filter(([f])=>!DB.aliases[f]).map(([f,t])=>[f,t,'Automática'])]);
-  const wsL = XLSX.utils.aoa_to_sheet([['Fecha carga','Archivo','Tipo','Filas','Nuevas','Actualizadas','Ya existían'],
-    ...DB.log.map(l=>[new Date(l.ts).toLocaleString('es-CL'), l.file, l.type, l.filas??'', l.nuevos||0, l.act||0, l.iguales||0])]);
+  const wsL = XLSX.utils.aoa_to_sheet([['Fecha carga','Archivo','Tipo','Filas','Nuevas','Actualizadas','Ya existían','TS'],
+    ...DB.log.map(l=>[new Date(l.ts).toLocaleString('es-CL'), l.file, l.type, l.filas??'', l.nuevos||0, l.act||0, l.iguales||0, l.ts])]);
   wsM['!cols']=[{wch:11},{wch:14},{wch:50},{wch:10},{wch:9},{wch:11},{wch:10},{wch:22},{wch:18},{wch:16},{wch:14},{wch:40}];
   wsS['!cols']=[{wch:30},{wch:15},{wch:13},{wch:11},{wch:6},{wch:18},{wch:16},{wch:50},{wch:9},{wch:12},{wch:12},{wch:40},{wch:8},{wch:28}];
   wsA['!cols']=[{wch:26},{wch:18},{wch:11}]; wsL['!cols']=[{wch:20},{wch:60},{wch:22},{wch:8},{wch:8},{wch:12},{wch:11}];
@@ -676,8 +918,19 @@ function exportBackupXlsx(){
     ...dgS.map(r=>[r.f+(r.t?' '+r.t:''), r.est, r.ord, r.ordTienda||'', r.tienda, r.total, r.envio||''])]), 'DropGO Ventas');
   if(dgP.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Fecha','Estado','Orden','Tienda','Total','Status PK','Producto','Cantidad','SKU','Precio','Picking','Inventariado'],
     ...dgP.flatMap(o=>o.lines.map(l=>[o.f, o.est, o.ord, o.tienda, o.total, l.spk||'', l.prod, l.q, l.sku, l.price, l.pk, l.inv]))]), 'DropGO Picking');
-  XLSX.writeFile(wb, `varin_respaldo_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Clave','Valor'],['Generado',new Date().toISOString()],['Movimientos',DB.movs.length],['Ventas',Object.keys(DB.sales).length]]), 'Info');
+  return wb;
+}
+function exportBackupXlsx(){
+  XLSX.writeFile(buildBackupWb(), `varin_respaldo_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Respaldo exportado');
+}
+function applyBackup(bk){
+  const a=mergeBackupMovs(bk.movs, bk.deleted), b=mergeSales(bk.sales);
+  Object.assign(DB.aliases, bk.aliases||{}); mergeDg('dgsales', bk.dgSales||[]); mergeDg('dgpick', bk.dgPicks||[]);
+  Object.assign(DB.links, bk.links||{}); Object.assign(DB.reconOk, bk.reconOk||{}); if(bk.cat&&bk.cat.length) DB.catalog=bk.cat;
+  if(bk.log && bk.log.length){ const seen=new Set(DB.log.map(l=>l.ts+'|'+l.file)); for(const l of bk.log) if(!seen.has(l.ts+'|'+l.file)) DB.log.push(l); DB.log.sort((x,y)=>x.ts<y.ts?1:-1); }
+  return {nuevos:a.nuevos+b.nuevos, act:a.act+b.act, iguales:a.iguales+b.iguales};
 }
 function isBackupWb(wb){
   if(!wb.SheetNames.includes('Ventas') || !wb.SheetNames.includes('Movimientos')) return false;
@@ -708,7 +961,10 @@ function parseBackupWb(wb){
   const links={}, reconOk={};
   if(wb.Sheets['Conciliación']) for(const r of rowsOf(wb.Sheets['Conciliación']).slice(1)){ if(/v[ií]nculo/i.test(str(r[0]))) links[str(r[1])]=str(r[2]); else if(/revisado/i.test(str(r[0]))) reconOk[str(r[1])]=true; }
   const cat = wb.Sheets['Catálogo'] ? (()=>{ const r=rowsOf(wb.Sheets['Catálogo']); return r.length?parseCatalog(r,0):[]; })() : [];
-  return {movs, sales, aliases, deleted, dgSales, dgPicks, links, reconOk, cat};
+  let ts=''; if(wb.Sheets['Info']) for(const r of rowsOf(wb.Sheets['Info'])) if(str(r[0])==='Generado') ts=str(r[1]);
+  const log=[]; if(wb.Sheets['Historial']){ const lr=rowsOf(wb.Sheets['Historial']); const H=lr[0]||[]; const it=colIdx(H,'TS');
+    if(it>=0) for(const r of lr.slice(1)) if(str(r[it])) log.push({ts:str(r[it]), file:str(r[1]), type:str(r[2]), filas:num(r[3]), nuevos:num(r[4]), act:num(r[5]), iguales:num(r[6])}); }
+  return {movs, sales, aliases, deleted, dgSales, dgPicks, links, reconOk, cat, ts, log};
 }
 const srcLabel = r => r.src==='manual' ? 'Manual' : (r.edited ? 'Archivo (editado)' : 'Archivo');
 // Respaldo: actualiza por ID (conserva ediciones), aplica eliminaciones y agrega lo nuevo
@@ -953,8 +1209,7 @@ async function handleFiles(files){
       if(!p){ res.push({file:file.name, err:'No se reconoció el formato'}); continue; }
       let st, filas = p.recs.length;
       if(p.type==='backup'){
-        const a=mergeBackupMovs(p.bk.movs, p.bk.deleted), b=mergeSales(p.bk.sales); Object.assign(DB.aliases, p.bk.aliases); mergeDg('dgsales', p.bk.dgSales||[]); mergeDg('dgpick', p.bk.dgPicks||[]); Object.assign(DB.links, p.bk.links||{}); Object.assign(DB.reconOk, p.bk.reconOk||{}); if(p.bk.cat&&p.bk.cat.length) DB.catalog=p.bk.cat;
-        st={nuevos:a.nuevos+b.nuevos, act:a.act+b.act, iguales:a.iguales+b.iguales}; filas=p.bk.movs.length+p.bk.sales.length;
+        st=applyBackup(p.bk); filas=p.bk.movs.length+p.bk.sales.length;
       } else if(p.type==='dgpick' || p.type==='dgsales'){ st = mergeDg(p.type, p.recs); }
       else if(p.type==='catalog'){
         const old=Object.fromEntries(catalog().map(c=>[normBasic(c.sku).toUpperCase(), JSON.stringify(c)]));
@@ -1117,8 +1372,8 @@ function renderVentas(){
   let gkeys = Object.keys(groups).sort((a,b)=>{ const s=k=>Object.values(groups[k]).reduce((x,y)=>x+y.m,0); return s(b)-s(a); });
   // máximo 10 series + "Otros"
   if(gkeys.length>10){ const keep=gkeys.slice(0,9); const other={}; for(const k of gkeys.slice(9)) for(const [b,v] of Object.entries(groups[k])){ (other[b] ||= {m:0,u:0}); other[b].m+=v.m; other[b].u+=v.u; } groups['Otros']=other; gkeys=[...keep,'Otros']; }
-  const mkDs = metric => gkeys.map(g=>({label:g, data:buckets.map(b=>groups[g][b]?.[metric]||0), ...(g==='Otros'?{backgroundColor:'#9a9a9a',borderWidth:0}:barStyle(g)), borderRadius:2, maxBarThickness:48}));
-  const labels = buckets.map(bucketLabel);
+  const mkDs = metric => gkeys.map(g=>({label:g, data:buckets.map(b=>groups[g][b]?.[metric]||0), ...(g==='Otros'?{backgroundColor:'#9a9a9a',borderWidth:0}:barStyle(g)), label:tr(g), borderRadius:2, maxBarThickness:48}));
+  const labels = buckets.map(b=>tr(bucketLabel(b)));
   const stackedOpts = (isMoney) => ({responsive:true, maintainAspectRatio:false, animation:false,
     interaction:{mode:'index',intersect:false},
     plugins:{legend:{position:'bottom',labels:legendLabels()},
@@ -1139,7 +1394,7 @@ function renderVentas(){
   // top productos
   const byS={}; for(const r of valid){ const k=VS.split==='model'?modelOf(r.sku):r.sku; (byS[k] ||= {m:0,u:0}); byS[k].m+=r.m; byS[k].u+=r.u; }
   const topK = Object.keys(byS).sort((a,b)=>byS[b][VS.top]-byS[a][VS.top]).slice(0,12);
-  drawChart('cTop',{type:'bar', data:{labels:topK, datasets:[{label:VS.top==='m'?'$':'Unidades', data:topK.map(k=>byS[k][VS.top]), backgroundColor:topK.map(k=>colorOf(k)), borderRadius:3, maxBarThickness:22}]},
+  drawChart('cTop',{type:'bar', data:{labels:topK, datasets:[{label:VS.top==='m'?'$':tr('Unidades'), data:topK.map(k=>byS[k][VS.top]), backgroundColor:topK.map(k=>colorOf(k)), borderRadius:3, maxBarThickness:22}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{title:i=>i[0].label+(pname(i[0].label)?' · '+pname(i[0].label):''), label:c=>' '+fmtMoney(byS[c.label].m)+' · '+fmtInt(byS[c.label].u)+' u'}}},
       scales:{x:{ticks:{callback:v=>VS.top==='m'?fmtMoneyShort(v):fmtInt(v)}},y:{grid:{display:false}}}}});
@@ -1365,7 +1620,7 @@ function saveMovement(){
 function deleteMovement(id){
   const i=DB.movs.findIndex(m=>m.id===id); if(i<0) return;
   const r=DB.movs[i];
-  if(!confirm(`¿Eliminar el movimiento ${r.f} · ${r.sku} · ${r.qty>0?'+':''}${r.qty} en ${r.bod}?`)) return;
+  if(!confirm(tr(`¿Eliminar el movimiento ${r.f} · ${r.sku} · ${r.qty>0?'+':''}${r.qty} en ${r.bod}?`))) return;
   DB.movs.splice(i,1); DB.deleted.push({id:r.id, k:r.k, ts:new Date().toISOString()});
   if(MV.editId===id) resetForm();
   logManual(`Eliminado: ${r.sku} ${r.qty>0?'+':''}${r.qty} en ${r.bod} (${r.f})`);
@@ -1524,7 +1779,7 @@ function renderCatalog(){
   $('#catIssues').innerHTML = CAT.issues.length ? `<div style="margin-bottom:10px">${CAT.issues.map(i=>`<div style="font-size:12px;margin:3px 0"><span class="pill w">Revisar</span> ${esc(i)}</div>`).join('')}</div>` : '';
 }
 function renderDatos(){
-  renderDropgo(); renderCatalog();
+  renderDropgo(); renderCatalog(); renderGh();
   const sales=Object.values(DB.sales);
   const sd=sales.map(s=>s.f).sort(), md=DB.movs.map(m=>m.f).sort();
   $('#dataKpis').innerHTML=[
@@ -1562,6 +1817,7 @@ function refreshAll(){
 function segBind(id, cb){ $$('#'+id+' button').forEach(b=>b.onclick=()=>{ $$('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); cb(b.dataset.v); }); }
 
 $$('nav button').forEach(b=>b.onclick=()=>{ $$('nav button').forEach(x=>x.classList.toggle('on',x===b)); $$('section.tab').forEach(s=>s.classList.toggle('on', s.id==='tab-'+b.dataset.tab)); refreshAll(); });
+$$('#langSeg button').forEach(b=>b.onclick=()=>setLang(b.dataset.v));
 segBind('srcSeg', v=>{ VS.src=v; if(VS.range==='manual') VS.range='all'; renderVentas(); });
 segBind('granSeg', v=>{ VS.gran=v; renderVentas(); });
 segBind('splitSeg', v=>{ VS.split=v; renderVentas(); });
@@ -1602,6 +1858,13 @@ fileIn.onchange=()=>{ if(fileIn.files.length) handleFiles([...fileIn.files]); fi
 drop.addEventListener('drop',e=>{ const f=[...e.dataTransfer.files]; if(f.length) handleFiles(f); });
 
 $('#dgDl').onclick=exportDropgoXlsx;
+$('#ghSaveCfg').onclick=()=>{ GH.owner=str($('#ghOwner').value); GH.repo=str($('#ghRepo').value); GH.branch=str($('#ghBranch').value)||'main'; GH.path=str($('#ghPath').value)||'data.xlsx';
+  const t=str($('#ghToken').value); if(t) GH.token=t; $('#ghToken').value=''; GH.auto=$('#ghAuto').checked; ghSave(); renderGh(); toast('Configuración guardada'); };
+$('#ghAuto').onchange=()=>{ GH.auto=$('#ghAuto').checked; ghSave(); };
+$('#ghPub').onclick=async()=>{ const t=str($('#ghToken').value); if(t){ GH.token=t; $('#ghToken').value=''; ghSave(); } clearTimeout(GH_STATE.timer); if(await ghPublish()) toast('Datos publicados'); };
+$('#ghPullBtn').onclick=async()=>{ ghStatus('Buscando versión publicada…'); const g=await ghPull(true).catch(e=>null); if(!g){ ghStatus('No hay datos publicados (o no se pudo leer el repositorio)','err'); return; }
+  applyAuto(null); saveDB(true); refreshAll(); ghStatus('Versión publicada incorporada'); toast(`${fmtInt(g.nuevos)} filas nuevas incorporadas`); };
+$('#ghForget').onclick=()=>{ GH.token=''; ghSave(); renderGh(); toast('Token eliminado de este navegador'); };
 $('#alAdd').onclick=()=>{
   const f=normBasic($('#alFrom').value).toUpperCase(), t=normBasic($('#alTo').value);
   if(!f||!t){ toast('Completa ambos SKU'); return; }
@@ -1626,7 +1889,7 @@ $('#impIn').onchange=async e=>{
   } else handleFiles([f]);
   e.target.value='';
 };
-$('#clrBtn').onclick=()=>{ if(confirm('¿Borrar todos los datos guardados en este navegador?')){ DB=emptyDB(); saveDB(); VS.from=VS.to=''; VS.range='all'; SS.date=''; refreshAll(); toast('Datos borrados'); } };
+$('#clrBtn').onclick=()=>{ if(confirm(tr('¿Borrar todos los datos guardados en este navegador? (La versión publicada en GitHub no se borra.)'))){ DB=emptyDB(); saveDB(true); VS.from=VS.to=''; VS.range='all'; SS.date=''; refreshAll(); toast('Datos borrados'); } };
 $('#salesCsv').onclick=()=>{
   const head=['Fecha','Canal','Orden','SKU','SKU original','Producto','Unidades','Monto','Estado','Incluida'];
   const lines=[head.join(';'), ...lastSalesRows.map(r=>[r.f,r.canal,r.ord,r.sku,r.skuRaw,r.prod,r.u,r.m,r.est,r.inc?'Sí':'No'].map(csvCell).join(';'))];
@@ -1642,14 +1905,92 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',refreshAl
 /* ============================================================
    Inicio
    ============================================================ */
+/* ============================================================
+   Publicación en GitHub: los datos quedan en el repositorio (data.xlsx junto a la app)
+   y cualquiera que abra la URL ve la última versión publicada.
+   ============================================================ */
+const GH_KEY='varin_github_cfg';
+function ghDefaults(){
+  const d={owner:'', repo:'', branch:'main', path:'data.xlsx', token:'', auto:true};
+  const h=location.hostname, segs=location.pathname.split('/').filter(Boolean);
+  if(h.endsWith('.github.io')){
+    d.owner=h.split('.')[0];
+    d.repo = segs.length ? segs[0] : h;
+    // carpeta de la página: si la URL termina en "/" es una carpeta; si no, el último tramo es el archivo (p. ej. inventario.html)
+    let dir = segs.slice(1); if(!location.pathname.endsWith('/') && dir.length) dir = dir.slice(0,-1);
+    d.path = (dir.length ? dir.join('/')+'/' : '') + 'data.xlsx';
+  }
+  return d;
+}
+let GH = (()=>{ try{ return Object.assign(ghDefaults(), JSON.parse(localStorage.getItem(GH_KEY)||'{}')); }catch(e){ return ghDefaults(); } })();
+function ghSave(){ try{ localStorage.setItem(GH_KEY, JSON.stringify(GH)); }catch(e){} }
+const ghApi = () => `https://api.github.com/repos/${encodeURIComponent(GH.owner)}/${encodeURIComponent(GH.repo)}/contents/${GH.path.split('/').map(encodeURIComponent).join('/')}`;
+let GH_STATE = {remoteTs:'', lastCheck:'', status:'', publishing:false, timer:null};
+function ghStatus(msg, kind){ GH_STATE.status=msg; const el=document.getElementById('ghStatus'); if(el){ el.textContent=msg; el.className='pill'+(kind==='err'?' w':''); el.style.display=msg?'':'none'; } renderCloudBadge(); }
+function renderCloudBadge(){
+  const b=document.getElementById('cloudBadge'); if(!b) return;
+  const ts = DB.remoteTs || GH_STATE.remoteTs;
+  b.textContent = ts ? '☁ ' + new Date(ts).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+  b.title = ts ? 'Datos publicados: ' + new Date(ts).toLocaleString('es-CL') : '';
+  b.style.display = ts ? '' : 'none';
+}
+// Descarga la versión publicada y la incorpora (solo si es más nueva que la última incorporada)
+async function ghPull(force){
+  let buf=null;
+  if(GH.owner && GH.repo){
+    try{
+      const h={Accept:'application/vnd.github.raw'}; if(GH.token) h.Authorization='Bearer '+GH.token;
+      const r=await fetch(ghApi()+`?ref=${encodeURIComponent(GH.branch)}&t=${Date.now()}`, {headers:h, cache:'no-store'});
+      if(r.ok) buf=await r.arrayBuffer(); else if(r.status!==404) throw new Error('GitHub '+r.status);
+    }catch(e){ /* sin conexión o límite de la API: se intenta la copia publicada en el sitio */ }
+  }
+  if(!buf){ try{ const r=await fetch(GH.path.split('/').pop()+'?t='+Date.now(), {cache:'no-store'}); if(r.ok) buf=await r.arrayBuffer(); }catch(e){} }
+  if(!buf) return null;
+  const wb=XLSX.read(buf,{type:'array'}); if(!isBackupWb(wb)) return null;
+  const bk=parseBackupWb(wb);
+  GH_STATE.remoteTs=bk.ts; GH_STATE.lastCheck=new Date().toISOString();
+  if(!force && bk.ts && DB.remoteTs && bk.ts<=DB.remoteTs){ renderCloudBadge(); return {nuevos:0, act:0, iguales:0, ts:bk.ts, same:true}; }
+  const st=applyBackup(bk); DB.remoteTs = bk.ts || new Date().toISOString();
+  rebuildKnownSkus(); learnAliases(); saveDB(true); renderCloudBadge();
+  return {...st, ts:bk.ts};
+}
+// Publica: primero incorpora lo que otro equipo haya publicado y luego sube la versión combinada
+async function ghPublish(){
+  if(!GH.owner || !GH.repo || !GH.token){ ghStatus('Falta configurar el repositorio o el token','err'); return false; }
+  if(GH_STATE.publishing) return false; GH_STATE.publishing=true; ghStatus('Publicando…');
+  try{
+    await ghPull(false);
+    const wb=buildBackupWb(); const ts=new Date().toISOString();
+    wb.Sheets['Info']=XLSX.utils.aoa_to_sheet([['Clave','Valor'],['Generado',ts],['Movimientos',DB.movs.length],['Ventas',Object.keys(DB.sales).length]]);
+    const b64=XLSX.write(wb,{type:'base64',bookType:'xlsx'});
+    const h={Accept:'application/vnd.github+json', Authorization:'Bearer '+GH.token, 'Content-Type':'application/json'};
+    let sha; const g=await fetch(ghApi()+`?ref=${encodeURIComponent(GH.branch)}&t=${Date.now()}`, {headers:h, cache:'no-store'});
+    if(g.ok) sha=(await g.json()).sha; else if(g.status===401||g.status===403) throw new Error('Token sin permiso ('+g.status+')'); else if(g.status!==404) throw new Error('GitHub '+g.status);
+    const r=await fetch(ghApi(), {method:'PUT', headers:h, body:JSON.stringify({message:`Datos Varin ${ts.slice(0,16).replace('T',' ')}`, content:b64, branch:GH.branch, ...(sha?{sha}:{})})});
+    if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error((j.message||'GitHub')+' ('+r.status+')'); }
+    DB.remoteTs=ts; GH_STATE.remoteTs=ts; saveDB(true);
+    ghStatus('Publicado ' + new Date(ts).toLocaleString('es-CL'));
+    return true;
+  }catch(e){ ghStatus('No se pudo publicar: '+e.message,'err'); return false; }
+  finally{ GH_STATE.publishing=false; renderGh(); }
+}
+function ghSchedule(){ if(!GH.auto || !GH.token || !GH.owner) return; clearTimeout(GH_STATE.timer); GH_STATE.timer=setTimeout(ghPublish, 4000); ghStatus('Cambios pendientes de publicar…'); }
+function renderGh(){
+  const f=id=>document.getElementById(id); if(!f('ghOwner')) return;
+  if(document.activeElement!==f('ghOwner')) f('ghOwner').value=GH.owner; if(document.activeElement!==f('ghRepo')) f('ghRepo').value=GH.repo;
+  if(document.activeElement!==f('ghBranch')) f('ghBranch').value=GH.branch; if(document.activeElement!==f('ghPath')) f('ghPath').value=GH.path;
+  f('ghToken').placeholder = GH.token ? 'Token guardado en este navegador (••••' + GH.token.slice(-4) + ')' : 'Token de GitHub (solo en el equipo que publica)';
+  f('ghAuto').checked=!!GH.auto; f('ghPub').disabled=GH_STATE.publishing;
+  const ts=DB.remoteTs||GH_STATE.remoteTs;
+  f('ghInfo').textContent = ts ? 'Versión publicada: ' + new Date(ts).toLocaleString('es-CL') : 'Aún no hay datos publicados en el repositorio.';
+  f('ghUrl').textContent = `${GH.owner||'?'}/${GH.repo||'?'} · ${GH.branch} · ${GH.path}`;
+}
+
 (async function init(){
   const had = loadDB();
+  // Siempre se busca la versión publicada en GitHub (así la URL muestra lo último desde cualquier equipo)
+  try{ const g=await ghPull(false); if(g && !g.same && (g.nuevos||g.act)) setTimeout(()=>toast(`Datos actualizados desde la versión publicada (${new Date(g.ts||Date.now()).toLocaleString('es-CL')})`),300); }catch(e){}
   if(!had){
-    // Si el repositorio tiene un data.xlsx (respaldo exportado), se carga como base.
-    try{
-      const r=await fetch('data.xlsx',{cache:'no-store'});
-      if(r.ok){ const wb=XLSX.read(await r.arrayBuffer(),{type:'array'}); if(isBackupWb(wb)){ const bk=parseBackupWb(wb); mergeBackupMovs(bk.movs, bk.deleted); mergeDg('dgsales', bk.dgSales||[]); mergeDg('dgpick', bk.dgPicks||[]); mergeSales(bk.sales); Object.assign(DB.aliases,bk.aliases); saveDB(); } }
-    }catch(e){}
     if(!DB.movs.length && !Object.keys(DB.sales).length){
       try{ const r=await fetch('data.json',{cache:'no-store'}); if(r.ok){ const j=await r.json(); DB=Object.assign(emptyDB(), j); ensureIds(); saveDB(); } }catch(e){}
     }
@@ -1661,6 +2002,12 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',refreshAl
     $$('section.tab').forEach(s=>s.classList.toggle('on', s.id==='tab-datos'));
   }
   refreshAll();
+  document.documentElement.lang=LANG; $$('#langSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===LANG));
+  if(LANG==='en') i18nTree(document.body);
+  renderGh(); renderCloudBadge(); APP_BOOTING=false;
+  // Revisa cada 5 minutos (y al volver a la pestaña) si hay una versión publicada más nueva
+  const recheck=async()=>{ if(document.hidden || GH_STATE.publishing) return; const g=await ghPull(false).catch(()=>null); if(g && !g.same){ applyAuto(null); saveDB(true); refreshAll(); toast('Datos actualizados desde la versión publicada'); } };
+  setInterval(recheck, 5*60*1000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) recheck(); });
 })();
 </script>
 </body>
