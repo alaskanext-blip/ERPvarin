@@ -732,6 +732,62 @@
 
             }, [dataVentasResumen, dataVentasDetalle, dataComprasDetalle, dataHonorarios, selectedMonth, filtros]);
 
+            const estadoResultados = useMemo(() => {
+                const months = availableMonths.filter(m => m !== 'Todos');
+                const rows = {
+                    ingresos: [],
+                    compras: [],
+                    importaciones: [],
+                    honorarios: [],
+                    totalGastos: [],
+                    utilidad: []
+                };
+                let totalGeneral = { ingresos: 0, compras: 0, importaciones: 0, honorarios: 0, totalGastos: 0, utilidad: 0 };
+
+                months.forEach(m => {
+                    // Ingresos
+                    const resVentasMes = dataVentasResumen.filter(d => d.Mes === m);
+                    let vNeto = 0;
+                    resVentasMes.forEach(r => {
+                        const t = String(r.Tipo).toLowerCase();
+                        if (t.includes('(33)') || t.includes('(34)') || t.includes('(43)') || 
+                            t.includes('(39)') || t.includes('(41)') || t.includes('(48)')) {
+                            vNeto += r.Neto;
+                        } else if (t.includes('(61)')) {
+                            vNeto -= r.Neto;
+                        }
+                    });
+                    rows.ingresos.push(vNeto);
+                    totalGeneral.ingresos += vNeto;
+
+                    // Gastos
+                    const detCompras = dataComprasDetalle.filter(d => d.Mes === m);
+                    const compras33 = detCompras.filter(d => (d.TipoDoc === '33' || d.TipoDoc === '34') && validCompra(d)).reduce((a,c) => a + c.Neto, 0);
+                    const compras61 = detCompras.filter(d => d.TipoDoc === '61' && validCompra(d)).reduce((a,c) => a + c.Neto, 0);
+                    const netoCompras = compras33 - compras61;
+                    rows.compras.push(netoCompras);
+                    totalGeneral.compras += netoCompras;
+
+                    const comprasDIN = filtros.importaciones ? detCompras.filter(d => d.TipoDoc === '914').reduce((a,c) => a + c.Neto, 0) : 0;
+                    rows.importaciones.push(comprasDIN);
+                    totalGeneral.importaciones += comprasDIN;
+
+                    const hon = filtros.honorarios ? dataHonorarios.filter(d => d.Mes === m).reduce((a,c) => a + c.Brutos, 0) : 0;
+                    rows.honorarios.push(hon);
+                    totalGeneral.honorarios += hon;
+
+                    const totGasto = netoCompras + comprasDIN + hon;
+                    rows.totalGastos.push(totGasto);
+                    totalGeneral.totalGastos += totGasto;
+
+                    const util = vNeto - totGasto;
+                    rows.utilidad.push(util);
+                    totalGeneral.utilidad += util;
+                });
+
+                return { months, rows, totalGeneral };
+            }, [availableMonths, dataVentasResumen, dataComprasDetalle, dataHonorarios, filtros]);
+
             const uniqueProveedores = useMemo(() => {
                 if (!processedData) return ['Todos'];
                 const provs = new Set();
@@ -1169,6 +1225,98 @@
                                         </CollapsibleTable>
                                     )}
                                 </div>
+
+                                {/* ESTADO DE RESULTADOS MENSUAL */}
+                                {estadoResultados.months.length > 0 && (
+                                    <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6 ${isExporting ? 'text-xs mt-4' : 'text-sm'}`}>
+                                        <div className={`bg-slate-50 border-b border-slate-200 ${isExporting ? 'p-2' : 'p-4'}`}>
+                                            <h3 className={`font-bold text-slate-800 uppercase tracking-wide ${isExporting ? 'text-xs' : 'text-sm'}`}>Estado de Resultados Mensual</h3>
+                                        </div>
+                                        <div className="p-0 overflow-x-auto">
+                                            <table className="w-full text-left border-collapse min-w-max">
+                                                <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase text-[10px]">
+                                                    <tr>
+                                                        <th className={`font-semibold ${isExporting ? 'p-1.5' : 'p-3'} min-w-[200px] sticky left-0 bg-white shadow-[1px_0_0_#e2e8f0]`}>Concepto</th>
+                                                        {estadoResultados.months.map(m => (
+                                                            <th key={m} className={`font-semibold text-right ${isExporting ? 'p-1.5' : 'p-3'}`}>{m}</th>
+                                                        ))}
+                                                        <th className={`font-bold text-right text-slate-700 bg-slate-50 ${isExporting ? 'p-1.5' : 'p-3'}`}>TOTAL</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {/* Ingresos */}
+                                                    <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className={`font-bold text-blue-600 sticky left-0 bg-white/90 backdrop-blur shadow-[1px_0_0_#e2e8f0] ${isExporting ? 'p-1.5' : 'p-3'}`}>Ingresos Operacionales</td>
+                                                        {estadoResultados.rows.ingresos.map((val, i) => (
+                                                            <td key={i} className={`text-right text-slate-700 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(val)}</td>
+                                                        ))}
+                                                        <td className={`text-right font-bold text-blue-700 bg-slate-50 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(estadoResultados.totalGeneral.ingresos)}</td>
+                                                    </tr>
+                                                    
+                                                    {/* Gastos y Costos */}
+                                                    {(filtros.compras || filtros.shipping || filtros.setup) && (
+                                                        <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                            <td className={`text-slate-500 pl-6 sticky left-0 bg-white/90 backdrop-blur shadow-[1px_0_0_#e2e8f0] ${isExporting ? 'p-1.5' : 'p-3'}`}>(-) Compras Locales</td>
+                                                            {estadoResultados.rows.compras.map((val, i) => (
+                                                                <td key={i} className={`text-right text-slate-600 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(val)}</td>
+                                                            ))}
+                                                            <td className={`text-right text-slate-700 bg-slate-50 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(estadoResultados.totalGeneral.compras)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {filtros.importaciones && (
+                                                        <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                            <td className={`text-slate-500 pl-6 sticky left-0 bg-white/90 backdrop-blur shadow-[1px_0_0_#e2e8f0] ${isExporting ? 'p-1.5' : 'p-3'}`}>(-) Importaciones (DIN)</td>
+                                                            {estadoResultados.rows.importaciones.map((val, i) => (
+                                                                <td key={i} className={`text-right text-slate-600 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(val)}</td>
+                                                            ))}
+                                                            <td className={`text-right text-slate-700 bg-slate-50 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(estadoResultados.totalGeneral.importaciones)}</td>
+                                                        </tr>
+                                                    )}
+                                                    {filtros.honorarios && (
+                                                        <tr className="border-b border-slate-100 hover:bg-slate-50">
+                                                            <td className={`text-slate-500 pl-6 sticky left-0 bg-white/90 backdrop-blur shadow-[1px_0_0_#e2e8f0] ${isExporting ? 'p-1.5' : 'p-3'}`}>(-) Honorarios (BH)</td>
+                                                            {estadoResultados.rows.honorarios.map((val, i) => (
+                                                                <td key={i} className={`text-right text-slate-600 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(val)}</td>
+                                                            ))}
+                                                            <td className={`text-right text-slate-700 bg-slate-50 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(estadoResultados.totalGeneral.honorarios)}</td>
+                                                        </tr>
+                                                    )}
+                                                    <tr className="border-b border-slate-200 hover:bg-slate-50">
+                                                        <td className={`font-bold text-rose-500 sticky left-0 bg-white/90 backdrop-blur shadow-[1px_0_0_#e2e8f0] ${isExporting ? 'p-1.5' : 'p-3'}`}>Total Gastos</td>
+                                                        {estadoResultados.rows.totalGastos.map((val, i) => (
+                                                            <td key={i} className={`text-right font-bold text-rose-500 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(val)}</td>
+                                                        ))}
+                                                        <td className={`text-right font-bold text-rose-600 bg-rose-50/50 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(estadoResultados.totalGeneral.totalGastos)}</td>
+                                                    </tr>
+
+                                                    {/* Utilidad */}
+                                                    <tr className="bg-slate-900 text-white border-t-2 border-slate-800">
+                                                        <td className={`font-black uppercase tracking-wide sticky left-0 bg-slate-900 shadow-[1px_0_0_#1e293b] ${isExporting ? 'p-1.5' : 'p-3'}`}>Utilidad Neta</td>
+                                                        {estadoResultados.rows.utilidad.map((val, i) => (
+                                                            <td key={i} className={`text-right font-bold ${val >= 0 ? 'text-emerald-400' : 'text-red-400'} ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(val)}</td>
+                                                        ))}
+                                                        <td className={`text-right font-black ${estadoResultados.totalGeneral.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'} bg-slate-800 ${isExporting ? 'p-1.5' : 'p-3'}`}>{formatCurrency(estadoResultados.totalGeneral.utilidad)}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* GRÁFICO ESTADO DE RESULTADOS MENSUAL */}
+                                {estadoResultados.months.length > 0 && (
+                                    <div className="mt-6">
+                                        <MultiLineChart 
+                                            title="Evolución de Ingresos vs Utilidad Neta" 
+                                            labels={estadoResultados.months} 
+                                            datasets={[
+                                                { label: "Ingresos", data: estadoResultados.rows.ingresos, borderColor: "#3b82f6", bgColor: "rgba(59, 130, 246, 0.1)", fill: true },
+                                                { label: "Utilidad", data: estadoResultados.rows.utilidad, borderColor: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)", fill: true }
+                                            ]}
+                                            isExporting={isExporting}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
