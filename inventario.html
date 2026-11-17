@@ -103,6 +103,10 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .editing{outline:2px solid var(--warn);outline-offset:-2px}
 tr.hl td{background:var(--accent-soft)}
 .askbar{display:flex;gap:8px;margin-top:4px}
+#askChips{flex-direction:column;gap:8px}
+.askgrp{display:grid;grid-template-columns:150px 1fr;gap:6px 10px;align-items:start}
+.askgl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding-top:7px}
+@media (max-width:860px){.askgrp{grid-template-columns:1fr}.askgl{padding-top:0}}
 .askbar input{flex:1;min-width:0;padding:11px 13px;font-size:15px}
 .asklog{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .askq{display:flex;justify-content:flex-end}
@@ -1907,6 +1911,17 @@ const filtLabel = q => [q.canal && L(`canal ${q.canal}`,`channel ${q.canal}`), q
 // ---------- intenciones ----------
 const ASK_INTENTS = [
   ['help',   /\b(ayuda|help|que puedo preguntar|what can i ask|ejemplos|examples)\b/],
+  ['summary', /\b(resumen|como va el negocio|como vamos|como va|estado del negocio|overview|summary|how is the business|how are we doing|panorama|dashboard)\b/],
+  ['forecast',/\b(proyecc\w*|proyect\w*|voy a vender|vamos a vender|cierre (de|del) mes|cerrar el mes|forecast\w*|projection|project\w*|will (i|we) sell|estimad\w*)\b/],
+  ['growth',  /\b(crec\w*|growth|growing|variacion mensual|mes contra mes|month over month)\b/],
+  ['pareto',  /\b(pareto|concentra\w*|dependencia|depend\w*)\b|\b80 ?%/],
+  ['transfer',/\b(transfer\w*|mover stock|mover a|enviar a|mandar a|redistribu\w*|rebalanc\w*|send to|move stock)\b/],
+  ['invvalue',/\b(valor (del |de |en )?(inventario|stock|bodega)|stock valorizado|inventario valorizado|cuanto vale|inventory value|stock value|plata en (bodega|stock))\b/],
+  ['doi',     /\b(rotacion|dias de inventario|days of inventory|turnover|inventory days|cuanto me dura|cuanto dura el stock|how long will (the )?stock last)\b/],
+  ['returns', /\b(devoluci\w*|cancelaci\w*|cancelad\w*|reembols\w*|returns?|refund\w*|cancel\w*)\b/],
+  ['weekday', /\b(dia de la semana|dias de la semana|que dia (de la semana )?(se )?vend\w*|weekday\w*|day of (the )?week|fin de semana|weekend)\b/],
+  ['price',   /\b(precio\w*|prices?|pricing|a cuanto (se )?vend\w*)\b/],
+  ['basket',  /\b(unidades por pedido|unidades por orden|tamano (del |de los |de )?pedido\w*|items per order|units per order|order size|canasta|basket)\b/],
   ['order',  /\b(orden|pedido|order|boleta)\s*(n[°o]?\.?\s*)?#?\s*[a-z]*\d|#\d{3,6}\b|\bab\d{2}-\d+|\b2000\d{10,}\b|^\s*\d{9,10}\s*$/],
   ['conc',   /\b(concilia\w*|cuadra\w*|reconcil\w*|mismatch\w*)\b|diferencias? (entre|con) (reportes|ventas|movimientos)/],
   ['slow',   /\b(sin ventas?|no se vende\w*|no (se )?vend\w*|lent[oa]s?|dormid\w*|parad[oa]s?|slow\w*|not selling|dead stock|sin movimiento)\b/],
@@ -1921,7 +1936,7 @@ const ASK_INTENTS = [
   ['sales',  /\b(vend\w*|venta\w*|factur\w*|sales|sold|sell\w*|revenue|pedidos|ordenes|orders|cuanto (se )?(hizo|gano|ganamos)|ingresos)\b/],
 ];
 function askIntent(t, q){
-  for(const [k,re] of ASK_INTENTS) if(re.test(t)) return k;
+  for(const [k,re] of ASK_INTENTS) if(re.test(t)) return (k==='summary' && (q.canal||q.prod||q.bod)) ? 'sales' : k;
   if(q.prod || q.canal || q.per) return 'sales';
   return null;
 }
@@ -2067,6 +2082,159 @@ const ASK_HANDLERS = {
     return {html};
   },
 
+  // ===================== preguntas de negocio =====================
+  summary(q){
+    const ref=askRef(), y=+ref.slice(0,4), mo=+ref.slice(5,7)-1, day=+ref.slice(8,10);
+    const all=askSales();
+    const cur={from:ref.slice(0,8)+'01', to:ref}; const py=mo===0?y-1:y, pm=mo===0?11:mo-1;
+    const prevSame={from:`${py}-${pad(pm+1)}-01`, to:`${py}-${pad(pm+1)}-${pad(Math.min(day,+monthEnd(py,pm).slice(8)))}`};
+    const s=sumSales(filterSales(all,{per:cur})), sp=sumSales(filterSales(all,{per:prevSame}));
+    const dim=+monthEnd(y,mo).slice(8), proj=day? s.m/day*dim : 0;
+    const ch=groupBy(filterSales(all,{per:cur}),r=>r.canal).sort((a,b)=>b.m-a.m)[0];
+    const tp=groupBy(filterSales(all,{per:cur}),r=>r.sku).sort((a,b)=>b.u-a.u)[0];
+    const st=askStock(ref); const stockTot=Object.entries(st).filter(([k])=>k!=='Ajuste').reduce((a,[,v])=>a+Object.values(v).reduce((x,y)=>x+y,0),0);
+    const d90=addDays(ref,-89), u90=all.filter(r=>r.f>=d90&&r.f<=ref).reduce((a,r)=>a+r.u,0); const doi=u90? stockTot/(u90/90) : null;
+    const d30=addDays(ref,-29), sold30={}; all.forEach(r=>{ if(r.f>=d30&&r.f<=ref) sold30[r.sku]=(sold30[r.sku]||0)+r.u; });
+    const risk=Object.keys(sold30).filter(k=>{ const stock=Object.values(st[k]||{}).reduce((a,b)=>a+b,0); return stock/(sold30[k]/30)<30; }).length;
+    const d60=addDays(ref,-59), sold60=new Set(all.filter(r=>r.f>=d60).map(r=>r.sku));
+    const slow=Object.keys(st).filter(k=>k!=='Ajuste' && !sold60.has(k) && Object.values(st[k]).reduce((a,b)=>a+b,0)>0).length;
+    let concOpen=0; try{ concOpen=buildConc().rows.filter(r=>r.st!=='ok'&&!r.rev).length; }catch(e){}
+    const li=(icon,txt)=>`<div style="margin:5px 0">${icon} ${txt}</div>`;
+    return {html:`<b>${L('Resumen del negocio','Business summary')}</b> <span class="muted">(${L('al','as of')} ${fmtD(ref)})</span>` +
+      li('💰', `${L('Ventas del mes','Month sales')}: <b>${fmtMoney(s.m)}</b> · ${fmtInt(s.u)} u · ${fmtInt(s.o)} ${L('pedidos','orders')}${sp.m?` (<b>${fmtPct(pctChg(s.m,sp.m))}</b> ${L('vs. mismo tramo del mes anterior','vs. same days last month')})`:''}`) +
+      li('📈', `${L('Proyección de cierre del mes','Month-end projection')}: <b>${fmtMoney(proj)}</b> ${L('al ritmo actual','at the current pace')}${day<10?` <span class="muted">(${L('poco confiable: van solo','not reliable yet: only')} ${day} ${L('días','days')})</span>`:''}`) +
+      (ch? li('🏪', `${L('Canal líder','Top channel')}: ${dot(ch.k)}<b>${esc(ch.k)}</b> (${(s.m?ch.m/s.m*100:0).toLocaleString('es-CL',{maximumFractionDigits:0})}% ${L('de las ventas','of sales')})`):'') +
+      (tp? li('⭐', `${L('Producto más vendido','Best-selling product')}: <b>${esc(tp.k)}</b> · ${esc(pname(tp.k))} (${fmtInt(tp.u)} u)`):'') +
+      li('📦', `${L('Stock total','Total stock')}: <b>${fmtInt(stockTot)} u</b>${doi?` · ${L('alcanza para','lasts about')} <b>${doi>365?L('más de 1 año','over 1 year')+` (${Math.round(doi/30)} ${L('meses','months')})`:Math.round(doi)+' '+L('días','days')}</b> ${L('al ritmo de los últimos 90 días','at the last 90 days pace')}`:''}`) +
+      li('⚠️', `${L('SKUs con menos de 30 días de cobertura','SKUs with less than 30 days of coverage')}: <b>${risk}</b> · ${L('SKUs con stock y sin ventas en 60 días','SKUs in stock with no sales in 60 days')}: <b>${slow}</b>`) +
+      li('🔎', `${L('Diferencias de conciliación sin revisar','Unreviewed reconciliation differences')}: <b>${concOpen}</b>`)};
+  },
+
+  forecast(q){
+    const ref=askRef(), y=+ref.slice(0,4), mo=+ref.slice(5,7)-1, day=+ref.slice(8,10), dim=+monthEnd(y,mo).slice(8);
+    const all=askSales(); const cur={from:ref.slice(0,8)+'01', to:ref};
+    const rows=filterSales(all,{...q, per:cur}); const s=sumSales(rows);
+    const py=mo===0?y-1:y, pm=mo===0?11:mo-1; const prev=sumSales(filterSales(all,{...q, per:{from:`${py}-${pad(pm+1)}-01`, to:monthEnd(py,pm)}}));
+    const f=x=>day? x/day*dim : 0;
+    const g=groupBy(rows,r=>r.canal).sort((a,b)=>b.m-a.m);
+    return {html:`${L('Proyección de','Projection for')} <b>${L(MES_LARGO_ES,MES_LARGO_EN)[mo]} ${y}</b>${filtLabel(q)?' · '+filtLabel(q):''}: ${L('llevas','so far')} <b>${fmtMoney(s.m)}</b> (${fmtInt(s.u)} u) ${L('en','in')} ${day} ${L('de','of')} ${dim} ${L('días','days')}. ${L('Al ritmo actual cerrarías en','At the current pace the month would close at')} <b>${fmtMoney(f(s.m))}</b> ${L('y','and')} <b>${fmtInt(Math.round(f(s.u)))} u</b>${prev.m?` (${fmtPct(pctChg(f(s.m),prev.m))} ${L('vs. el mes anterior completo','vs. full previous month')}, ${fmtMoney(prev.m)})`:''}.${day<10?` <span class="pill w">${L('Con pocos días del mes la proyección es poco confiable','With few days elapsed the projection is not reliable')}</span>`:''}` +
+      (g.length? tbl([L('Canal','Channel'),L('Acumulado','To date'),L('Proyección','Projection'),L('Unid. proyectadas','Projected units')], g.map(x=>[`${dot(x.k)}${esc(x.k)}`, fmtMoney(x.m), fmtMoney(f(x.m)), fmtInt(Math.round(f(x.u)))]), [1,2,3]):'') +
+      `<span class="muted" style="font-size:12px">${L('Proyección lineal: lo vendido en el mes ÷ días transcurridos × días del mes. No considera estacionalidad ni campañas.','Linear projection: month sales ÷ elapsed days × days in month. Does not account for seasonality or campaigns.')}</span>`};
+  },
+
+  growth(q){
+    const ref=askRef();
+    let y=+ref.slice(0,4), m=+ref.slice(5,7)-1; const months=[]; for(let i=0;i<7;i++){ months.unshift(`${y}-${pad(m+1)}`); m--; if(m<0){m=11;y--;} }
+    const rows=filterSales(askSales(),{...q, per:{from:months[0]+'-01', to:ref}});
+    const g={}; rows.forEach(r=>{ const k=r.f.slice(0,7); (g[k] ||= {m:0,u:0}); g[k].m+=r.m; g[k].u+=r.u; });
+    const lab=k=>`${L(MES_LARGO_ES,MES_LARGO_EN)[+k.slice(5,7)-1].slice(0,3)} ${k.slice(0,4)}`;
+    const list=months.map((k,i)=>({k, m:(g[k]||{}).m||0, u:(g[k]||{}).u||0, ch:i?pctChg((g[k]||{}).m||0, (g[months[i-1]]||{}).m||0):null}));
+    const closed=list.slice(0,-1).filter(x=>x.m>0); const first=closed[0], last=closed[closed.length-1];
+    const avg = (first && last && first!==last) ? (Math.pow(last.m/first.m, 1/(closed.length-1))-1)*100 : null;
+    return {html:`${L('Crecimiento mes a mes','Month-over-month growth')}${filtLabel(q)?' · '+filtLabel(q):''}. ${avg!=null?`${L('Crecimiento promedio mensual entre','Average monthly growth between')} ${lab(first.k)} ${L('y','and')} ${lab(last.k)}: <b>${fmtPct(avg)}</b>.`:''} <span class="muted">${L('El último mes puede estar incompleto.','The last month may be incomplete.')}</span>` +
+      bar(list.map(x=>({l:lab(x.k), v:x.m})), fmtMoney) +
+      tbl([L('Mes','Month'),'$',L('Unid.','Units'),L('vs. mes anterior','vs. previous month')], list.map(x=>[lab(x.k), fmtMoney(x.m), fmtInt(x.u), x.ch==null?'—':`<span class="${x.ch<0?'neg':''}">${fmtPct(x.ch)}</span>`]), [1,2,3])};
+  },
+
+  pareto(q){
+    q.per ||= {from:addDays(askRef(),-89), to:askRef(), label:L('últimos 90 días','last 90 days')};
+    const rows=filterSales(askSales(),q); const tot=rows.reduce((a,r)=>a+r.m,0);
+    const g=groupBy(rows,r=>r.sku).sort((a,b)=>b.m-a.m); let acc=0; const lst=g.map(x=>{ acc+=x.m; return {...x, cum:tot?acc/tot*100:0}; });
+    const n80=lst.findIndex(x=>x.cum>=80)+1;
+    const chs=groupBy(rows,r=>r.canal).sort((a,b)=>b.m-a.m);
+    if(!g.length) return {html:`${L('Sin ventas en','No sales in')} ${perTxt(q.per)}.`};
+    return {html:`${L('Concentración de ventas','Sales concentration')} ${perTxt(q.per)}: <b>${n80} ${L('de','of')} ${g.length}</b> ${L('productos generan el 80% de las ventas','products generate 80% of sales')}. ${L('El canal principal','The main channel')} (${dot(chs[0].k)}${esc(chs[0].k)}) ${L('aporta el','brings')} <b>${(chs[0].m/tot*100).toLocaleString('es-CL',{maximumFractionDigits:0})}%</b>${chs[0].m/tot>0.5?` <span class="pill w">${L('alta dependencia de un canal','high dependence on one channel')}</span>`:''}.` +
+      tbl(['#','SKU',L('Producto','Product'),'$','%',L('% acumulado','Cumulative %')], lst.slice(0,15).map((x,i)=>[i+1, `<b>${esc(x.k)}</b>`, esc(pname(x.k)), fmtMoney(x.m), (x.m/tot*100).toLocaleString('es-CL',{maximumFractionDigits:1})+'%', `${i<n80?'<b>':''}${x.cum.toLocaleString('es-CL',{maximumFractionDigits:0})}%${i<n80?'</b>':''}`]), [3,4,5])};
+  },
+
+  price(q){
+    q.per ||= {from:addDays(askRef(),-89), to:askRef(), label:L('últimos 90 días','last 90 days')};
+    const rows=filterSales(askSales(),q).filter(r=>r.u>0 && r.m>0);
+    if(!rows.length) return {html:`${L('Sin ventas con monto en','No sales with amount in')} ${perTxt(q.per)}.`};
+    const chs=[...new Set(rows.map(r=>r.canal))].sort(chSort); const skus=groupBy(rows,r=>r.sku).sort((a,b)=>b.u-a.u).map(x=>x.k).slice(0,20);
+    const cell={}; rows.forEach(r=>{ const k=r.sku+'|'+r.canal; (cell[k] ||= {m:0,u:0}); cell[k].m+=r.m; cell[k].u+=r.u; });
+    return {html:`${L('Precio promedio por unidad, por canal','Average price per unit, by channel')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}.` +
+      tbl(['SKU',...chs.map(c=>`${dot(c)}${esc(c)}`),L('General','Overall')], skus.map(s=>{ const tot=chs.reduce((a,c)=>{ const x=cell[s+'|'+c]; if(x){a.m+=x.m;a.u+=x.u;} return a; },{m:0,u:0});
+        return [`<b>${esc(s)}</b>`, ...chs.map(c=>{ const x=cell[s+'|'+c]; return x? `${fmtMoney(x.m/x.u)} <span class="muted">(${x.u})</span>`:'<span class="muted">·</span>'; }), `<b>${fmtMoney(tot.m/tot.u)}</b>`]; }), chs.map((_,i)=>i+1).concat([chs.length+1])) +
+      `<span class="muted" style="font-size:12px">${L('Entre paréntesis, unidades vendidas. El valor de los movimientos DropGO incluye el envío cobrado.','Units sold in brackets. DropGO movement values include the shipping charged.')}</span>`};
+  },
+
+  weekday(q){
+    q.per ||= {from:addDays(askRef(),-179), to:askRef(), label:L('últimos 180 días','last 180 days')};
+    const rows=filterSales(askSales(),q); const names=L(['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']);
+    const g=names.map(n=>({l:n, m:0, u:0, o:new Set()})); rows.forEach(r=>{ const d=(new Date(r.f+'T00:00:00Z').getUTCDay()+6)%7; g[d].m+=r.m; g[d].u+=r.u; g[d].o.add(r.canal+'|'+r.ord); });
+    const tot=g.reduce((a,x)=>a+x.m,0); if(!tot) return {html:`${L('Sin ventas en','No sales in')} ${perTxt(q.per)}.`};
+    const best=g.reduce((a,b)=>b.m>a.m?b:a), worst=g.reduce((a,b)=>b.m<a.m?b:a);
+    return {html:`${L('Ventas por día de la semana','Sales by day of week')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}: ${L('el mejor día es','the best day is')} <b>${best.l}</b> (${(best.m/tot*100).toLocaleString('es-CL',{maximumFractionDigits:0})}%) ${L('y el más flojo','and the weakest')} <b>${worst.l}</b>.` +
+      bar(g.map(x=>({l:x.l, v:x.m})), fmtMoney) +
+      tbl([L('Día','Day'),'$','%',L('Unid.','Units'),L('Pedidos','Orders')], g.map(x=>[x.l, fmtMoney(x.m), (x.m/tot*100).toLocaleString('es-CL',{maximumFractionDigits:0})+'%', fmtInt(x.u), fmtInt(x.o.size)]), [1,2,3,4])};
+  },
+
+  basket(q){
+    q.per ||= {from:addDays(askRef(),-89), to:askRef(), label:L('últimos 90 días','last 90 days')};
+    const rows=filterSales(askSales(),q); const ords={}; rows.forEach(r=>{ const k=r.canal+'|'+r.ord; (ords[k] ||= {c:r.canal,u:0,m:0}); ords[k].u+=r.u; ords[k].m+=r.m; });
+    const list=Object.values(ords); if(!list.length) return {html:`${L('Sin pedidos en','No orders in')} ${perTxt(q.per)}.`};
+    const b={'1':0,'2':0,'3':0,'4+':0}; list.forEach(o=>{ b[o.u>=4?'4+':String(Math.max(1,o.u))]++; });
+    const byC={}; list.forEach(o=>{ (byC[o.c] ||= {n:0,u:0}); byC[o.c].n++; byC[o.c].u+=o.u; });
+    const avg=list.reduce((a,o)=>a+o.u,0)/list.length;
+    return {html:`${L('Tamaño de los pedidos','Order size')} ${perTxt(q.per)}: ${L('en promedio','on average')} <b>${avg.toLocaleString('es-CL',{maximumFractionDigits:2})} ${L('unidades por pedido','units per order')}</b>; ${L('el','')} <b>${(100-b['1']/list.length*100).toLocaleString('es-CL',{maximumFractionDigits:0})}%</b> ${L('de los pedidos lleva más de una unidad','of orders have more than one unit')}.` +
+      bar(Object.entries(b).map(([k,v])=>({l:`${k} ${L('unid.','units')}`, v})), v=>fmtInt(v)+' '+L('pedidos','orders')) +
+      tbl([L('Canal','Channel'),L('Pedidos','Orders'),L('Unid. por pedido','Units per order')], Object.entries(byC).sort((a,b)=>b[1].n-a[1].n).map(([c,x])=>[`${dot(c)}${esc(c)}`, fmtInt(x.n), (x.u/x.n).toLocaleString('es-CL',{maximumFractionDigits:2})]), [1,2])};
+  },
+
+  transfer(q){
+    const ref=askRef(), d30=addDays(ref,-29); const target=q.bod || 'Full ML'; const days=+((q.t.match(/\b(\d+)\s*(dias|days)\b/)||[])[1]||45);
+    const st=askStock(ref); const sold={}; askSales().forEach(r=>{ if(r.bod===target && r.f>=d30 && r.f<=ref) sold[r.sku]=(sold[r.sku]||0)+r.u; });
+    const out=[];
+    for(const s of Object.keys(sold)){ if(!prodMatch(q.prod,s)) continue;
+      const daily=sold[s]/30, have=(st[s]||{})[target]||0, need=Math.ceil(days*daily-have); if(need<=0) continue;
+      const src=Object.entries(st[s]||{}).filter(([b,v])=>b!==target && v>0).sort((a,b)=>b[1]-a[1])[0];
+      out.push({s, have, sold:sold[s], cov:daily?have/daily:0, need, src:src?src[0]:'', srcQty:src?src[1]:0, qty:src?Math.min(need,src[1]):0}); }
+    out.sort((a,b)=>a.cov-b.cov);
+    if(!out.length) return {html:L(`Con la venta de los últimos 30 días, ${target} tiene stock para ${days} días o más en todos los SKUs que vende. No hace falta transferir.`,`Based on the last 30 days of sales, ${target} has ${days}+ days of stock for every SKU it sells. No transfer needed.`)};
+    return {html:`${L('Transferencias sugeridas hacia','Suggested transfers to')} ${dot(target)}<b>${esc(target)}</b> ${L(`para cubrir ${days} días de venta`,`to cover ${days} days of sales`)} (${L('según los últimos 30 días','based on the last 30 days')}): <b>${fmtInt(out.reduce((a,x)=>a+x.qty,0))} u</b> ${L('en','in')} ${out.length} SKUs.` +
+      tbl(['SKU',L('Producto','Product'),`${L('Stock en','Stock in')} ${esc(target)}`,L('Venta 30d','30d sales'),L('Cobertura','Coverage'),L('Faltan','Needed'),L('Desde','From'),L('Transferir','Transfer')],
+        out.map(x=>[`<b>${esc(x.s)}</b>`, esc(pname(x.s)), fmtInt(x.have), fmtInt(x.sold), `${Math.round(x.cov)} ${L('días','days')}`, fmtInt(x.need), x.src?`${dot(x.src)}${esc(x.src)} <span class="muted">(${fmtInt(x.srcQty)})</span>`:`<span class="neg">${L('sin stock en otras bodegas','no stock elsewhere')}</span>`, `<b>${fmtInt(x.qty)}</b>`]), [2,3,5,7]) +
+      `<span class="muted" style="font-size:12px">${L('Puedes cambiar el destino y los días: "transferir a DropGO para 60 días". Origen sugerido: la bodega con más stock de ese SKU.','You can change the destination and days: "transfer to DropGO for 60 days". Suggested source: the warehouse with the most stock of that SKU.')}</span>`};
+  },
+
+  invvalue(q){
+    const ref=askRef(), st=askStock(ref); const pr={}; askSales().forEach(r=>{ if(r.u>0&&r.m>0){ (pr[r.sku] ||= {m:0,u:0}); pr[r.sku].m+=r.m; pr[r.sku].u+=r.u; } });
+    const modelPrice=k=>{ const md=modelOf(k); let m=0,u=0; Object.entries(pr).forEach(([s,x])=>{ if(modelOf(s)===md){m+=x.m;u+=x.u;} }); return u?m/u:0; };
+    const bods=q.bod?[q.bod]:allBodegas(); const rows=[]; const byB={};
+    Object.keys(st).filter(k=>k!=='Ajuste' && prodMatch(q.prod,k)).forEach(k=>{ const p=pr[k]?pr[k].m/pr[k].u:modelPrice(k); const units=bods.reduce((a,b)=>a+Math.max(0,st[k][b]||0),0); if(units<=0) return;
+      rows.push({k, units, p, v:units*p, est:!pr[k]}); bods.forEach(b=>{ byB[b]=(byB[b]||0)+Math.max(0,st[k][b]||0)*p; }); });
+    rows.sort((a,b)=>b.v-a.v); const tot=rows.reduce((a,x)=>a+x.v,0);
+    return {html:`${L('Valor del stock','Stock value')}${q.bod?' '+L('en','in')+' '+q.bod:''}${q.prod?' · '+q.prod.label:''}: <b>${fmtMoney(tot)}</b> ${L('a precio de venta promedio','at average selling price')} (${fmtInt(rows.reduce((a,x)=>a+x.units,0))} u).` +
+      (q.bod?'':bar(Object.entries(byB).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([b,v])=>({l:b,v,c:b})), fmtMoney)) +
+      tbl(['SKU',L('Producto','Product'),L('Unid.','Units'),L('Precio prom.','Avg price'),L('Valor','Value')], rows.slice(0,25).map(x=>[`<b>${esc(x.k)}</b>`, esc(pname(x.k)), fmtInt(x.units), `${fmtMoney(x.p)}${x.est?' <span class="muted">*</span>':''}`, fmtMoney(x.v)]), [2,3,4]) +
+      `<span class="muted" style="font-size:12px">${L('No hay costos en los datos, por eso se valoriza a precio de venta (con IVA). * Sin ventas propias: se usa el precio promedio del modelo.','There is no cost data, so stock is valued at selling price (incl. VAT). * No own sales: model average price is used.')}</span>`};
+  },
+
+  doi(q){
+    const ref=askRef(), d90=addDays(ref,-89), st=askStock(ref); const sold={}, soldB={};
+    askSales().forEach(r=>{ if(r.f>=d90&&r.f<=ref && prodMatch(q.prod,r.sku)){ sold[r.sku]=(sold[r.sku]||0)+r.u; soldB[r.bod]=(soldB[r.bod]||0)+r.u; } });
+    const stockB={}; Object.keys(st).filter(k=>k!=='Ajuste'&&prodMatch(q.prod,k)).forEach(k=>Object.entries(st[k]).forEach(([b,v])=>{ stockB[b]=(stockB[b]||0)+v; }));
+    const totS=Object.values(stockB).reduce((a,b)=>a+b,0), totU=Object.values(sold).reduce((a,b)=>a+b,0);
+    const days=x=>x.u? Math.round(x.s/(x.u/90)) : null; const fmtDays=d=>d==null?L('sin ventas','no sales'):d>365?`> 1 ${L('año','year')} (${Math.round(d/30)} ${L('meses','months')})`:`${d} ${L('días','days')}`;
+    const byModel={}; Object.keys(st).filter(k=>k!=='Ajuste'&&prodMatch(q.prod,k)).forEach(k=>{ const m=modelOf(k); (byModel[m] ||= {s:0,u:0}); byModel[m].s+=Object.values(st[k]).reduce((a,b)=>a+b,0); byModel[m].u+=sold[k]||0; });
+    return {html:`${L('Días de inventario','Days of inventory')}${q.prod?' · '+q.prod.label:''}: ${L('con','with')} <b>${fmtInt(totS)} u</b> ${L('en stock y','in stock and')} ${fmtInt(totU)} u ${L('vendidas en 90 días, el inventario alcanza para','sold in 90 days, inventory lasts')} <b>${fmtDays(days({s:totS,u:totU}))}</b> (${L('rotación anual aprox.','approx. annual turnover')} ${totS>0?(totU/90*365/totS).toLocaleString('es-CL',{maximumFractionDigits:1}):'—'}x).` +
+      tbl([L('Bodega','Warehouse'),L('Stock','Stock'),L('Venta 90d','90d sales'),L('Días de inventario','Days of inventory')], Object.keys(stockB).sort(chSort).map(b=>[`${dot(b)}${esc(b)}`, fmtInt(stockB[b]), fmtInt(soldB[b]||0), fmtDays(days({s:stockB[b],u:soldB[b]||0}))]), [1,2]) +
+      `<h4>${L('Por modelo','By model')}</h4>` + tbl([L('Modelo','Model'),L('Stock','Stock'),L('Venta 90d','90d sales'),L('Días de inventario','Days of inventory')], Object.entries(byModel).filter(([,x])=>x.s>0).sort((a,b)=>(days(b[1])??1e9)-(days(a[1])??1e9)).map(([m,x])=>[`<b>${esc(m)}</b>`, fmtInt(x.s), fmtInt(x.u), fmtDays(days(x))]), [1,2])};
+  },
+
+  returns(q){
+    q.per ||= {from:askRef().slice(0,4)+'-01-01', to:askRef(), label:L('este año','this year')};
+    const rows=Object.values(DB.sales).filter(s=>(q.per.all||(s.f>=q.per.from&&s.f<=q.per.to)) && (!q.canal||s.canal===q.canal) && prodMatch(q.prod,canonSku(s.skuRaw)));
+    const ex=rows.filter(s=>!s.inc); if(!rows.length) return {html:`${L('No hay ventas en los reportes de canales para','No channel-report sales for')} ${perTxt(q.per)}.`};
+    const byC={}; rows.forEach(s=>{ (byC[s.canal] ||= {n:0,x:0,m:0}); byC[s.canal].n++; if(!s.inc){ byC[s.canal].x++; byC[s.canal].m+=s.m; } });
+    const byR={}; ex.forEach(s=>{ const r=tr(s.mot||L('Sin motivo','No reason')); byR[r]=(byR[r]||0)+1; });
+    return {html:`${L('Cancelaciones y devoluciones','Cancellations and returns')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}: <b>${ex.length}</b> ${L('de','of')} ${rows.length} ${L('ventas','sales')} (<b>${(ex.length/rows.length*100).toLocaleString('es-CL',{maximumFractionDigits:1})}%</b>), ${fmtMoney(ex.reduce((a,s)=>a+s.m,0))}.` +
+      bar(Object.entries(byR).map(([k,v])=>({l:k,v})), v=>fmtInt(v)) +
+      tbl([L('Canal','Channel'),L('Ventas','Sales'),L('Canceladas/devueltas','Cancelled/returned'),'%','$'], Object.entries(byC).sort((a,b)=>b[1].x-a[1].x).map(([c,x])=>[`${dot(c)}${esc(c)}`, fmtInt(x.n), fmtInt(x.x), (x.x/x.n*100).toLocaleString('es-CL',{maximumFractionDigits:1})+'%', fmtMoney(x.m)]), [1,2,3,4]) +
+      `<span class="muted" style="font-size:12px">${L('Fuente: reportes de canales (Mercado Libre, Shopify, Falabella), que son los que registran cancelaciones y reembolsos.','Source: channel reports (Mercado Libre, Shopify, Falabella), which record cancellations and refunds.')}</span>`};
+  },
+
   conc(q){
     const {rows}=buildConc(); const base=rows.filter(r=>!q.per || q.per.all || (r.f>=q.per.from && r.f<=q.per.to));
     const open=base.filter(r=>r.st!=='ok' && !r.rev); const c={}; open.forEach(r=>c[r.st]=(c[r.st]||0)+1);
@@ -2083,7 +2251,7 @@ function askAnswer(raw){
   const q={raw, t};
   q.per=askPeriod(t);
   q.prod=askProduct(raw);
-  const stockish=/\b(stock|inventario|inventory|existencia|cobertura|quiebre|agot|reponer|coverage|stockout|sin ventas|no se vende|lento|dormid|slow|ingres|entrad|llego|recep|inbound|receiv)/.test(t);
+  const stockish=/\b(stock|inventario|inventory|existencia|cobertura|quiebre|agot|reponer|coverage|stockout|sin ventas|no se vende|lento|dormid|slow|ingres|entrad|llego|recep|inbound|receiv|transfer|mover|enviar|mandar|valor|valoriz|rotacion|inventario|dura|turnover|send to|move stock)/.test(t);
   q.bod=askBodega(t, stockish);
   q.canal=stockish ? null : askChannel(t);
   if(q.bod==='Full ML' && q.canal==='FULL' && !/\bbodega|warehouse\b/.test(t)) q.bod=null;
@@ -2092,17 +2260,27 @@ function askAnswer(raw){
   if(!intent) return {html:L('No entendí la pregunta. ','I did not understand the question. ')+ASK_HANDLERS.help().html, unknown:true};
   const out=ASK_HANDLERS[intent](q);
   const stale = askRef()<todayISO();
-  out.html += `<div class="askfoot">${L('Fuente: movimientos por bodega','Source: warehouse movements')} · ${L('datos hasta','data up to')} ${fmtD(lastDataDate())}${stale?' · '+L('los períodos relativos ("este mes", "últimos 30 días") se cuentan desde esa fecha','relative periods ("this month", "last 30 days") are counted from that date'):''}</div>`;
+  out.html += `<div class="askfoot">${intent==='returns'?L('Fuente: reportes de canales','Source: channel reports'):L('Fuente: movimientos por bodega','Source: warehouse movements')} · ${L('datos hasta','data up to')} ${fmtD(lastDataDate())}${stale?' · '+L('los períodos relativos ("este mes", "últimos 30 días") se cuentan desde esa fecha','relative periods ("this month", "last 30 days") are counted from that date'):''}</div>`;
   out.intent=intent; return out;
 }
 
 // ---------- interfaz ----------
-const ASK_EXAMPLES = () => L(
-  ['¿Cuánto vendí este mes?','¿Cuánto vendió FULL en octubre?','Top productos del mes pasado','Stock en DropGO','¿Qué productos se van a quebrar?','Ventas por mes este año','Compara canales últimos 90 días','Productos sin ventas','¿Qué ingresó a bodega en los últimos 30 días?','¿Cuál fue el mejor mes?','Orden #1017','Diferencias en conciliación'],
-  ['How much did I sell this month?','FULL sales in October','Top products last month','Stock in DropGO','Which products will run out?','Sales by month this year','Compare channels last 90 days','Products not selling','What came into the warehouse in the last 30 days?','What was the best month?','Order #1017','Reconciliation differences']);
+const ASK_EXAMPLES = () => L([
+  ['Resumen', ['¿Cómo va el negocio?','¿Cuánto voy a vender este mes?','Crecimiento mes a mes']],
+  ['Ventas', ['¿Cuánto vendí este mes?','¿Cuánto vendió FULL en octubre?','Compara canales últimos 90 días','Ventas por mes este año','¿Cuál fue el mejor mes?','¿Qué día de la semana se vende más?']],
+  ['Productos y precios', ['Top productos del mes pasado','¿Qué productos hacen el 80% de las ventas?','Precio promedio por canal','Unidades por pedido','Cancelaciones y devoluciones']],
+  ['Stock', ['Stock en DropGO','¿Qué productos se van a quebrar?','¿Qué debería transferir a Full?','Valor del inventario','Días de inventario','Productos sin ventas','¿Qué ingresó a bodega en los últimos 30 días?']],
+  ['Órdenes y control', ['Orden #1017','Diferencias en conciliación']]
+],[
+  ['Summary', ['How is the business doing?','How much will I sell this month?','Month over month growth']],
+  ['Sales', ['How much did I sell this month?','FULL sales in October','Compare channels last 90 days','Sales by month this year','What was the best month?','Which day of the week sells most?']],
+  ['Products & prices', ['Top products last month','Which products make 80% of sales?','Average price by channel','Units per order','Cancellations and returns']],
+  ['Stock', ['Stock in DropGO','Which products will run out?','What should I transfer to Full?','Inventory value','Days of inventory','Products not selling','What came into the warehouse in the last 30 days?']],
+  ['Orders & control', ['Order #1017','Reconciliation differences']]
+]);
 const ASK_LOG=[];
 function renderAsk(){
-  $('#askChips').innerHTML = ASK_EXAMPLES().map(x=>`<button class="chip" data-q="${esc(x)}">${esc(x)}</button>`).join('');
+  $('#askChips').innerHTML = ASK_EXAMPLES().map(([g,qs])=>`<div class="askgrp"><span class="askgl">${esc(g)}</span><div class="chips">${qs.map(x=>`<button class="chip" data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`).join('');
   $$('#askChips .chip').forEach(b=>b.onclick=()=>{ $('#askIn').value=b.dataset.q; askSubmit(); });
   $('#askIn').placeholder = L('Escribe tu pregunta… ej: ¿cuánto vendió Falabella en septiembre?','Type your question… e.g. how much did Falabella sell in September?');
   $('#askLog').innerHTML = ASK_LOG.length ? ASK_LOG.map(e=>`<div class="askq"><span>${esc(e.q)}</span></div><div class="aska">${e.a}</div>`).join('') :
