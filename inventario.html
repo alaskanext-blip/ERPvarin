@@ -102,6 +102,21 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .effect b{color:var(--ink)}
 .editing{outline:2px solid var(--warn);outline-offset:-2px}
 tr.hl td{background:var(--accent-soft)}
+.askbar{display:flex;gap:8px;margin-top:4px}
+.askbar input{flex:1;min-width:0;padding:11px 13px;font-size:15px}
+.asklog{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.askq{display:flex;justify-content:flex-end}
+.askq span{background:var(--ink);color:var(--bg);padding:8px 13px;border-radius:14px 14px 4px 14px;max-width:85%;font-weight:500}
+.aska{background:var(--bg);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:12px 14px;line-height:1.55}
+.aska h4{margin:12px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.aska .tblwrap{margin-top:8px;background:var(--panel);border-radius:8px}
+.asktbl{font-size:12.5px} .asktbl th{background:var(--panel)}
+.askfoot{margin-top:10px;font-size:11.5px;color:var(--muted)}
+.askbars{display:flex;flex-direction:column;gap:5px;margin:10px 0 4px}
+.ab{display:grid;grid-template-columns:minmax(90px,170px) 1fr auto;gap:8px;align-items:center;font-size:12.5px}
+.abl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abt{height:10px;background:var(--line);border-radius:999px;overflow:hidden} .abt i{display:block;height:100%;border-radius:999px}
+.abv{font-variant-numeric:tabular-nums;white-space:nowrap}
 #cTbl{font-size:12px;table-layout:fixed;min-width:980px} #cTbl td{vertical-align:top}
 #cTbl th,#cTbl td{padding:7px 6px;overflow:hidden;text-overflow:ellipsis}
 #cTbl td.wrap{white-space:normal}
@@ -152,6 +167,7 @@ td .acts{display:flex;gap:6px}
     <button data-tab="stock">Stock</button>
     <button data-tab="movs">Movimientos</button>
     <button data-tab="conc">Conciliación</button>
+    <button data-tab="ask">Preguntar</button>
     <button data-tab="datos">Cargar datos</button>
   </nav>
   <span class="pill" id="cloudBadge" style="display:none" title=""></span>
@@ -319,6 +335,17 @@ td .acts{display:flex;gap:6px}
   </div>
 </section>
 
+<!-- ================= PREGUNTAR ================= -->
+<section class="tab" id="tab-ask">
+  <div class="card">
+    <h2>Pregúntale a tus datos <button class="btn sm" id="askClear" style="margin-left:auto">Limpiar</button></h2>
+    <div class="muted sub" style="margin-top:0">Asistente sin IA: entiende preguntas simples sobre ventas, stock, cobertura, productos más vendidos, comparaciones por canal o bodega, ingresos de mercadería, productos sin ventas, órdenes y conciliación. Responde con los movimientos por bodega (fuente oficial).</div>
+    <form id="askForm" class="askbar"><input id="askIn" autocomplete="off"><button class="btn primary" type="submit">Preguntar</button></form>
+    <div class="chips" id="askChips" style="margin:12px 0 4px"></div>
+    <div id="askLog" class="asklog"></div>
+  </div>
+</section>
+
 <!-- ================= DATOS ================= -->
 <section class="tab" id="tab-datos">
   <div class="card" style="margin-bottom:16px">
@@ -435,7 +462,8 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.style.display='bl
 let LANG = (()=>{ try{ return localStorage.getItem('varin_lang')==='en' ? 'en' : 'es'; }catch(e){ return 'es'; } })();
 const I18N_EN = {
   // navegación y encabezado
-  'Ventas y Stock':'Sales & Stock','Ventas':'Sales','Stock':'Stock','Movimientos':'Movements','Conciliación':'Reconciliation','Cargar datos':'Load data',
+  'Ventas y Stock':'Sales & Stock','Ventas':'Sales','Stock':'Stock','Movimientos':'Movements','Conciliación':'Reconciliation','Cargar datos':'Load data','Preguntar':'Ask','Pregúntale a tus datos':'Ask your data','Limpiar':'Clear',
+  'Asistente sin IA: entiende preguntas simples sobre ventas, stock, cobertura, productos más vendidos, comparaciones por canal o bodega, ingresos de mercadería, productos sin ventas, órdenes y conciliación. Responde con los movimientos por bodega (fuente oficial).':'Assistant without AI: understands simple questions about sales, stock, coverage, top products, channel or warehouse comparisons, inbound stock, products without sales, orders and reconciliation. Answers from warehouse movements (official source).',
   // filtros de ventas
   'Fuente':'Source','Movimientos por bodega (oficial)':'Warehouse movements (official)','Reportes de canales':'Channel reports',
   'Desde':'From','Hasta':'To','Rango rápido':'Quick range','Año':'Year','Todo':'All','Agrupar por':'Group by','Día':'Day','Semana':'Week','Mes':'Month',
@@ -1769,6 +1797,327 @@ $('#cCsv').onclick=()=>{
 };
 
 /* ============================================================
+   PREGUNTAR: asistente sin IA. Entiende preguntas simples (español o inglés)
+   y las responde calculando sobre los datos cargados. Fuente oficial: movimientos por bodega.
+   ============================================================ */
+const L = (es,en) => LANG==='en' ? en : es;
+const ASK_MONTHS = [
+  ['enero','january','ene','jan'],['febrero','february','feb'],['marzo','march','mar'],['abril','april','abr','apr'],['mayo','may'],['junio','june','jun'],
+  ['julio','july','jul'],['agosto','august','ago','aug'],['septiembre','setiembre','september','sept','sep'],['octubre','october','oct'],['noviembre','november','nov'],['diciembre','december','dic','dec']];
+const MES_LARGO_ES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const MES_LARGO_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const qNorm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[¿?¡!,;]/g,' ').replace(/\s+/g,' ').trim();
+const isoD = d => d.toISOString().slice(0,10);
+const addDays = (iso,n) => { const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return isoD(d); };
+const daysBetween = (a,b) => Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/864e5)+1;
+const monthEnd = (y,m) => isoD(new Date(Date.UTC(y,m+1,0)));
+const fmtD = iso => iso ? `${iso.slice(8,10)}-${iso.slice(5,7)}-${iso.slice(0,4)}` : '';
+const pctChg = (a,b) => b ? ((a-b)/Math.abs(b)*100) : null;
+const fmtPct = v => v==null ? '' : `${v>=0?'+':''}${v.toLocaleString('es-CL',{maximumFractionDigits:0})}%`;
+
+// ---------- entidades ----------
+function askPeriod(t){
+  const today=askRef(), y=+today.slice(0,4), m=+today.slice(5,7)-1; let mm;
+  if(/\b(hoy|today)\b/.test(t)) return {from:today,to:today,label:L('hoy','today')};
+  if(/\b(ayer|yesterday)\b/.test(t)){ const d=addDays(today,-1); return {from:d,to:d,label:L('ayer','yesterday')}; }
+  if((mm=t.match(/\b(?:(?:los |las )?ultim[oa]s|last|past)\s+(\d+)\s+(dias?|days?|semanas?|weeks?|mes(?:es)?|months?)\b/))){
+    const n=+mm[1], u=mm[2], k=/^(sem|week)/.test(u)?7:/^(mes|month)/.test(u)?30:1, d=n*k;
+    return {from:addDays(today,-(d-1)), to:today, label:L(`últimos ${n} ${k===7?'semanas':k===30?'meses':'días'}`, `last ${n} ${k===7?'weeks':k===30?'months':'days'}`)};
+  }
+  if(/\b(esta semana|this week)\b/.test(t)){ const wd=(new Date(today+'T00:00:00Z').getUTCDay()+6)%7; return {from:addDays(today,-wd),to:today,label:L('esta semana','this week')}; }
+  if(/\b(semana pasada|last week|semana anterior)\b/.test(t)){ const wd=(new Date(today+'T00:00:00Z').getUTCDay()+6)%7; const s=addDays(today,-wd-7); return {from:s,to:addDays(s,6),label:L('semana pasada','last week')}; }
+  if(/\b(mes pasado|last month|mes anterior)\b/.test(t)){ const py=m===0?y-1:y, pm=m===0?11:m-1; return {from:`${py}-${pad(pm+1)}-01`,to:monthEnd(py,pm),label:L('mes pasado','last month')}; }
+  if(/\b(este mes|this month|mes actual|en el mes|del mes)\b/.test(t)) return {from:today.slice(0,8)+'01',to:today,label:L('este mes','this month')};
+  if(/\b(ano pasado|last year)\b/.test(t)) return {from:`${y-1}-01-01`,to:`${y-1}-12-31`,label:String(y-1)};
+  if(/\b(este ano|this year|ano actual|en el ano|del ano)\b/.test(t)) return {from:`${y}-01-01`,to:today,label:L('este año','this year')};
+  if(/\b(total|historic[oa]|siempre|all time|ever|desde el inicio|todo el periodo|en total)\b/.test(t)) return {all:true,label:L('todo el período','all time')};
+  // mes con nombre (y año opcional)
+  for(let i=0;i<12;i++){
+    for(const w of ASK_MONTHS[i]){
+      const re=new RegExp(`\\b${w}\\b(?:\\s+(?:de\\s+|del\\s+)?(\\d{4}))?`); const mt=t.match(re);
+      if(mt && !(w==='mar' && /\bmar\b(?!\s+\d)/.test(t) && !/\b(en|de) mar\b/.test(t)) && !(w==='may' && LANG==='en' && !/\bin may\b/.test(t))){
+        let yy=mt[1]?+mt[1]:y; if(!mt[1] && i>m) yy=y-1;
+        return {from:`${yy}-${pad(i+1)}-01`, to:monthEnd(yy,i), label:L(`${MES_LARGO_ES[i]} ${yy}`, `${MES_LARGO_EN[i]} ${yy}`)};
+      }
+    }
+  }
+  if((mm=t.match(/\b(20\d{2})\b/))) return {from:`${mm[1]}-01-01`,to:`${mm[1]}-12-31`,label:mm[1]};
+  return null;
+}
+function askChannel(t){
+  if(/\bfull\b(?!\s*ml)/.test(t)) return 'FULL';
+  if(/\b(shopify|tienda web|sitio web|pagina web|web)\b/.test(t) || /\bvarin\b(?!.*\bvarin\b)/.test(t) && /\b(canal|venta|vend|sales|sold|channel)/.test(t) && !/\bproducto/.test(t)) return 'Varin';
+  if(/\bfalabella\b/.test(t)) return 'Falabella';
+  if(/\b(mercado ?libre|meli|ml)\b/.test(t)) return 'Mercado Libre';
+  if(/\b(otros|others|venta directa|direct sale)\b/.test(t)) return 'Otros';
+  return null;
+}
+function askBodega(t, stockCtx){
+  const bods=allBodegas();
+  for(const b of bods){ const n=qNorm(b); if(n.length>2 && new RegExp(`\\b${n.replace(/\s+/g,'\\s*')}\\b`).test(t)) return b; }
+  if(/\bdrop ?go\b/.test(t)) return 'DropGO';
+  if(/\b(oficina|office)\b/.test(t)) return 'Office';
+  if(/\bhub\b/.test(t)) return 'WH Hub';
+  if(stockCtx && /\bfull\b/.test(t)) return 'Full ML';
+  return null;
+}
+const ASK_FAMILIES = [
+  [/\b(lampar\w*|lamps?)\b/, 'VA-E001', ['Lámpara ventilador','Fan lamp']],
+  [/\b(traditional|tradicional)\b/, 'VA-E002', ['Ventilador Traditional','Traditional fan']],
+  [/\b(bambu|bamboo)\b/, 'VA-E004', ['Ventilador Bambú','Bamboo fan']],
+  [/\b(round|redondo)\b/, 'VA-E005', ['Ventilador Round','Round fan']],
+  [/\b(estufa|estufas|calefactor|calefactores|radiador|heater|heaters)\b/, 'VA-G005', ['Estufa / calefactor','Heater']],
+  [/\b(caja|cajas|llaves|safe|key box|keybox)\b/, 'VA-F00', ['Caja de seguridad','Key safe']],
+];
+function askProduct(raw){
+  const U=' '+raw.toUpperCase().replace(/\s+/g,' ')+' ';
+  const skus=Object.values(knownSkuUpper).filter(s=>s && s!=='Ajuste').sort((a,b)=>b.length-a.length);
+  for(const s of skus){ const su=s.toUpperCase(); const i=U.indexOf(su); if(i>=0 && !/[A-Z0-9]/.test(U[i+su.length]||' ')){
+      // "VA-E002" es a la vez SKU y modelo: si hay variantes del mismo modelo, se toma el modelo completo
+      if(!su.includes(' ') && skus.some(o=>o.toUpperCase().startsWith(su+' ')) && !/\bSKU\b/.test(U)) return {model:s, label:`${s} (${L('todas las variantes','all variants')})`};
+      return {sku:s, label:s}; } }
+  let mm=U.match(/\b(?:VA[- ]?)?([EFG])[- ]?(\d{3})\b/); if(mm){ const mod=`VA-${mm[1]}${mm[2]}`; return {model:mod, label:mod}; }
+  // códigos de canal (EAN, DropGO, Shopify) y nombres del catálogo
+  for(const w of raw.split(/\s+/)){ const c=canonSku(w); if(c && knownSkuUpper[c.toUpperCase()] && w.length>=6) return {sku:c, label:`${c} (${w})`}; }
+  const t=qNorm(raw);
+  for(const [re,mod,lab] of ASK_FAMILIES) if(re.test(t)) return {model:mod, label:`${L(lab[0],lab[1])} (${mod}${mod.endsWith('0')?'x':''})`};
+  return null;
+}
+const prodMatch = (p, sku) => !p || (p.sku ? sku===p.sku : String(sku).toUpperCase().startsWith(p.model.toUpperCase()));
+
+// ---------- datos (oficial = movimientos) ----------
+function askSales(){
+  const chOf=movChannelResolver();
+  return DB.movs.filter(r=>/vendido/i.test(r.est)).map(r=>({f:r.f, canal:chOf(r), bod:r.bod, ord:(/^\d{10,}$/.test(r.ml)?r.ml:(r.com||r.ml)), sku:r.sku, u:-r.qty, m:r.val||0}));
+}
+function askStock(asOf){
+  const st={}; for(const r of DB.movs){ if(asOf && r.f>asOf) continue; (st[r.sku] ||= {}); st[r.sku][r.bod]=(st[r.sku][r.bod]||0)+r.qty; } return st;
+}
+const lastDataDate = () => DB.movs.reduce((a,r)=>r.f>a?r.f:a,'');
+// Fecha de referencia: hoy, o el último día con datos si los datos están atrasados
+const askRef = () => { const t=todayISO(), l=lastDataDate(); return l && l<t ? l : t; };
+function filterSales(rows, q){
+  return rows.filter(r=> (!q.per || q.per.all || (r.f>=q.per.from && r.f<=q.per.to)) && (!q.canal || r.canal===q.canal) && (!q.bod || r.bod===q.bod) && prodMatch(q.prod, r.sku));
+}
+function sumSales(rows){ return {m:rows.reduce((a,r)=>a+r.m,0), u:rows.reduce((a,r)=>a+r.u,0), o:new Set(rows.map(r=>r.canal+'|'+r.ord)).size}; }
+function groupBy(rows, key){ const g={}; for(const r of rows){ const k=key(r); (g[k] ||= {k, m:0, u:0, ords:new Set()}); g[k].m+=r.m; g[k].u+=r.u; g[k].ords.add(r.canal+'|'+r.ord); } return Object.values(g).map(x=>({k:x.k, m:x.m, u:x.u, o:x.ords.size})); }
+function prevPeriod(per){ if(!per || per.all) return null; const n=daysBetween(per.from, per.to); return {from:addDays(per.from,-n), to:addDays(per.from,-1)}; }
+const filtLabel = q => [q.canal && L(`canal ${q.canal}`,`channel ${q.canal}`), q.bod && L(`bodega ${q.bod}`,`warehouse ${q.bod}`), q.prod && q.prod.label].filter(Boolean).join(' · ');
+
+// ---------- intenciones ----------
+const ASK_INTENTS = [
+  ['help',   /\b(ayuda|help|que puedo preguntar|what can i ask|ejemplos|examples)\b/],
+  ['order',  /\b(orden|pedido|order|boleta)\s*(n[°o]?\.?\s*)?#?\s*[a-z]*\d|#\d{3,6}\b|\bab\d{2}-\d+|\b2000\d{10,}\b|^\s*\d{9,10}\s*$/],
+  ['conc',   /\b(concilia\w*|cuadra\w*|reconcil\w*|mismatch\w*)\b|diferencias? (entre|con) (reportes|ventas|movimientos)/],
+  ['slow',   /\b(sin ventas?|no se vende\w*|no (se )?vend\w*|lent[oa]s?|dormid\w*|parad[oa]s?|slow\w*|not selling|dead stock|sin movimiento)\b/],
+  ['cover',  /\b(quiebre|quiebra\w*|quebr\w*|agot\w*|se acaba\w*|se va a acabar|cobertura|repon\w*|reposicion|stock bajo|bajo stock|poco stock|running out|run out|stockout|reorder|low stock|coverage|dias de stock|alcanza)\b/],
+  ['inflow', /\b(entrad\w*|llego|llegaron|llegada|recepci\w*|recibi\w*|came in\w*|ingres\w* (de |a )?(stock|mercader\w*|producto\w*|unidades|bodega)|inbound|arriv\w*|receiv\w*|restock\w*)\b/],
+  ['best',   /\b(mejor|peor|best|worst|record|maximo|minimo)\s+(mes|dia|semana|month|day|week)\b/],
+  ['top',    /\b(top|mas vendid\w*|ranking|best ?sell\w*|que se vende mas|lo que mas se vende|estrella|top sellers?|most sold|que producto\w* (se )?vend\w* mas)\b/],
+  ['trend',  /\b(por mes|mensual\w*|evolucion|tendencia|monthly|trend|mes a mes|by month|por semana|semanal|weekly|by week|por dia|diari[oa]s?|daily)\b/],
+  ['compare',/\b(compar\w*|versus|vs|participacion|por canal|share|by channel|que canal|por bodega|by warehouse|que bodega|mix)\b/],
+  ['ticket', /\b(ticket|promedio por (venta|orden|pedido)|average (order|ticket|sale)|valor promedio)\b/],
+  ['stock',  /\b(stock|inventario|inventory|existencia\w*|cuant[oa]s? (hay|quedan|tengo|tenemos)|how many (are )?(left|in stock|do we have))\b/],
+  ['sales',  /\b(vend\w*|venta\w*|factur\w*|sales|sold|sell\w*|revenue|pedidos|ordenes|orders|cuanto (se )?(hizo|gano|ganamos)|ingresos)\b/],
+];
+function askIntent(t, q){
+  for(const [k,re] of ASK_INTENTS) if(re.test(t)) return k;
+  if(q.prod || q.canal || q.per) return 'sales';
+  return null;
+}
+
+// ---------- respuestas ----------
+const bar = (items, fmt) => { const mx=Math.max(1,...items.map(i=>Math.abs(i.v))); return `<div class="askbars">${items.map(i=>`<div class="ab"><span class="abl" title="${esc(i.l)}">${i.c?dot(i.c):''}${esc(i.l)}</span><span class="abt"><i style="width:${Math.max(1,Math.abs(i.v)/mx*100)}%;background:${i.c?colorOf(i.c):'var(--accent)'}"></i></span><span class="abv">${fmt(i.v)}</span></div>`).join('')}</div>`; };
+const tbl = (head, rows, numCols=[]) => `<div class="tblwrap" style="max-height:340px"><table class="asktbl"><thead><tr>${head.map((h,i)=>`<th class="${numCols.includes(i)?'n':''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${numCols.includes(i)?'n':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+const perTxt = per => !per ? '' : per.all ? L('todo el período','all time') : `${per.label} <span class="muted">(${fmtD(per.from)} → ${fmtD(per.to)})</span>`;
+
+const ASK_HANDLERS = {
+  help(){ return {html: L(
+    `Puedo responder preguntas sobre <b>ventas</b>, <b>stock</b>, <b>cobertura</b>, <b>productos más vendidos</b>, <b>comparaciones por canal o bodega</b>, <b>ingresos de mercadería</b>, <b>productos sin ventas</b>, <b>órdenes</b> y <b>conciliación</b>. Puedes indicar período ("octubre", "mes pasado", "últimos 30 días", "este año"), canal (FULL, Varin, Falabella, Mercado Libre), bodega (DropGO, Full ML, Office, WH Hub) o producto (SKU como VA-E002 BWa, modelo como E002, o palabras como "lámpara" o "estufa"). Prueba los ejemplos de arriba.`,
+    `I can answer questions about <b>sales</b>, <b>stock</b>, <b>coverage</b>, <b>top products</b>, <b>channel or warehouse comparisons</b>, <b>inbound stock</b>, <b>products without sales</b>, <b>orders</b> and <b>reconciliation</b>. You can specify a period ("October", "last month", "last 30 days", "this year"), channel (FULL, Varin, Falabella, Mercado Libre), warehouse (DropGO, Full ML, Office, WH Hub) or product (SKU like VA-E002 BWa, model like E002, or words like "lamp" or "heater"). Try the examples above.`)}; },
+
+  sales(q){
+    q.per ||= {from:askRef().slice(0,8)+'01', to:askRef(), label:L('este mes','this month')};
+    const all=askSales(), rows=filterSales(all,q), s=sumSales(rows);
+    const pp=prevPeriod(q.per), ps=pp?sumSales(filterSales(all,{...q,per:pp})):null;
+    const unitsFirst=/\b(unidades|cuantas|cuantos|units|how many)\b/.test(q.t);
+    const main = unitsFirst ? `<b>${fmtInt(s.u)} ${L('unidades','units')}</b> (${fmtMoney(s.m)})` : `<b>${fmtMoney(s.m)}</b> ${L('en','in')} <b>${fmtInt(s.u)}</b> ${L('unidades','units')}`;
+    let html = `${L('Ventas','Sales')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}: ${main}, ${fmtInt(s.o)} ${L('pedidos','orders')}${s.o?`, ${L('ticket promedio','average ticket')} ${fmtMoney(s.m/s.o)}`:''}.`;
+    if(ps) html += ` <span class="muted">${L('Período anterior','Previous period')} (${fmtD(pp.from)} → ${fmtD(pp.to)}): ${fmtMoney(ps.m)} · ${fmtInt(ps.u)} u${ps.m?` → <b>${fmtPct(pctChg(s.m,ps.m))}</b>`:''}.</span>`;
+    if(!rows.length) return {html: html+`<br><span class="muted">${L('No hay salidas "Vendido" en ese período con esos filtros.','No "Sold" outflows in that period with those filters.')}</span>`};
+    const by = q.canal ? groupBy(rows, r=>r.bod) : groupBy(rows, r=>r.canal); by.sort((a,b)=>b.m-a.m);
+    const top = groupBy(rows, r=>r.sku).sort((a,b)=>b.u-a.u).slice(0,5);
+    html += `<h4>${q.canal?L('Por bodega','By warehouse'):L('Por canal','By channel')}</h4>` + bar(by.map(x=>({l:x.k, v:x.m, c:x.k})), fmtMoney);
+    if(!q.prod || q.prod.model) html += `<h4>${L('Productos con más unidades','Products with most units')}</h4>` + tbl([L('SKU','SKU'),L('Producto','Product'),L('Unid.','Units'),'$'], top.map(x=>[`<b>${esc(x.k)}</b>`, esc(pname(x.k)), fmtInt(x.u), fmtMoney(x.m)]), [2,3]);
+    return {html};
+  },
+
+  top(q){
+    q.per ||= {from:askRef().slice(0,8)+'01', to:askRef(), label:L('este mes','this month')};
+    const rows=filterSales(askSales(),q); const byU=!/\$|monto|plata|pesos|ingreso|revenue|amount|factur/.test(q.t);
+    const g=groupBy(rows, r=> /\bmodelo|model\b/.test(q.t) ? modelOf(r.sku) : r.sku).sort((a,b)=> byU ? b.u-a.u||b.m-a.m : b.m-a.m).slice(0,10);
+    if(!g.length) return {html:`${L('Sin ventas en','No sales in')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}.`};
+    return {html:`${L('Top productos','Top products')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''} (${byU?L('por unidades','by units'):L('por monto','by amount')}):` +
+      bar(g.map(x=>({l:x.k, v:byU?x.u:x.m, c:x.k})), byU?(v=>fmtInt(v)+' u'):fmtMoney) +
+      tbl(['#','SKU',L('Producto','Product'),L('Unid.','Units'),'$',L('Pedidos','Orders')], g.map((x,i)=>[i+1,`<b>${esc(x.k)}</b>`,esc(pname(x.k)),fmtInt(x.u),fmtMoney(x.m),fmtInt(x.o)]), [3,4,5])};
+  },
+
+  compare(q){
+    q.per ||= {from:addDays(askRef(),-89), to:askRef(), label:L('últimos 90 días','last 90 days')};
+    const byBod=/\bbodega|warehouse\b/.test(q.t);
+    const rows=filterSales(askSales(),{...q, canal:byBod?q.canal:null}); const s=sumSales(rows);
+    const g=groupBy(rows, r=>byBod?r.bod:r.canal).sort((a,b)=>b.m-a.m);
+    if(!g.length) return {html:`${L('Sin ventas en','No sales in')} ${perTxt(q.per)}.`};
+    return {html:`${byBod?L('Ventas por bodega','Sales by warehouse'):L('Ventas por canal','Sales by channel')} ${perTxt(q.per)}${q.prod?' · '+q.prod.label:''}: ${L('total','total')} <b>${fmtMoney(s.m)}</b> · ${fmtInt(s.u)} u.` +
+      bar(g.map(x=>({l:x.k, v:x.m, c:x.k})), fmtMoney) +
+      tbl([byBod?L('Bodega','Warehouse'):L('Canal','Channel'),'$','%',L('Unid.','Units'),L('Pedidos','Orders'),L('Ticket','Ticket')], g.map(x=>[`${dot(x.k)}${esc(x.k)}`, fmtMoney(x.m), (s.m?x.m/s.m*100:0).toLocaleString('es-CL',{maximumFractionDigits:1})+'%', fmtInt(x.u), fmtInt(x.o), fmtMoney(x.o?x.m/x.o:0)]), [1,2,3,4,5])};
+  },
+
+  trend(q){
+    const today=askRef(); q.per ||= {from:today.slice(0,4)+'-01-01', to:today, label:L('este año','this year')};
+    const gran = /\b(semana|semanal|weekly|week)\b/.test(q.t)?'w':/\b(dia|diari[oa]s?|daily|day)\b/.test(q.t)?'d':'m';
+    const key = r => gran==='m' ? r.f.slice(0,7) : gran==='d' ? r.f : (()=>{ const d=new Date(r.f+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7)); return isoD(d); })();
+    const rows=filterSales(askSales(),q); const g=groupBy(rows,key).sort((a,b)=>a.k<b.k?-1:1);
+    if(!g.length) return {html:`${L('Sin ventas en','No sales in')} ${perTxt(q.per)}.`};
+    const lab = k => gran==='m' ? `${L(MES_LARGO_ES,MES_LARGO_EN)[+k.slice(5,7)-1].slice(0,3)} ${k.slice(0,4)}` : fmtD(k);
+    const best=g.reduce((a,b)=>b.m>a.m?b:a);
+    return {html:`${L('Ventas','Sales')} ${gran==='m'?L('por mes','by month'):gran==='w'?L('por semana','by week'):L('por día','by day')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}. ${L('Mejor','Best')}: <b>${lab(best.k)}</b> (${fmtMoney(best.m)}).` +
+      bar(g.slice(-24).map(x=>({l:lab(x.k), v:x.m})), fmtMoney) +
+      tbl([L('Período','Period'),'$',L('Unid.','Units'),L('Pedidos','Orders')], g.map(x=>[lab(x.k), fmtMoney(x.m), fmtInt(x.u), fmtInt(x.o)]), [1,2,3])};
+  },
+
+  best(q){
+    const rows=filterSales(askSales(), q); const unit=/\b(dia|day)\b/.test(q.t)?'d':/\b(semana|week)\b/.test(q.t)?'w':'m'; const worst=/\b(peor|worst|minimo)\b/.test(q.t);
+    const key = r => unit==='m' ? r.f.slice(0,7) : unit==='d' ? r.f : (()=>{ const d=new Date(r.f+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7)); return isoD(d); })();
+    const g=groupBy(rows,key).sort((a,b)=> worst ? a.m-b.m : b.m-a.m);
+    if(!g.length) return {html:L('No hay ventas con esos filtros.','No sales with those filters.')};
+    const lab = k => unit==='m' ? `${L(MES_LARGO_ES,MES_LARGO_EN)[+k.slice(5,7)-1]} ${k.slice(0,4)}` : unit==='w' ? L('semana del ','week of ')+fmtD(k) : fmtD(k);
+    const b=g[0];
+    return {html:`${worst?L('Peor','Worst'):L('Mejor','Best')} ${unit==='m'?L('mes','month'):unit==='w'?L('semana','week'):L('día','day')}${q.per?' · '+perTxt(q.per):''}${filtLabel(q)?' · '+filtLabel(q):''}: <b>${lab(b.k)}</b> ${L('con','with')} <b>${fmtMoney(b.m)}</b>, ${fmtInt(b.u)} u, ${fmtInt(b.o)} ${L('pedidos','orders')}.` +
+      tbl(['#',L('Período','Period'),'$',L('Unid.','Units')], g.slice(0,5).map((x,i)=>[i+1, lab(x.k), fmtMoney(x.m), fmtInt(x.u)]), [2,3])};
+  },
+
+  ticket(q){ q.per ||= {from:askRef().slice(0,8)+'01', to:askRef(), label:L('este mes','this month')};
+    const rows=filterSales(askSales(),q); const s=sumSales(rows); const g=groupBy(rows,r=>r.canal).sort((a,b)=>b.m-a.m);
+    return {html:`${L('Ticket promedio','Average ticket')} ${perTxt(q.per)}${filtLabel(q)?' · '+filtLabel(q):''}: <b>${fmtMoney(s.o?s.m/s.o:0)}</b> ${L('por pedido','per order')} · ${fmtMoney(s.u?s.m/s.u:0)} ${L('por unidad','per unit')} (${fmtInt(s.o)} ${L('pedidos','orders')}).` +
+      (g.length? tbl([L('Canal','Channel'),L('Ticket','Ticket'),L('Pedidos','Orders'),'$'], g.map(x=>[`${dot(x.k)}${esc(x.k)}`, fmtMoney(x.o?x.m/x.o:0), fmtInt(x.o), fmtMoney(x.m)]), [1,2,3]) : '')};
+  },
+
+  stock(q){
+    const st=askStock(askRef()); const bods=q.bod?[q.bod]:allBodegas();
+    let skus=Object.keys(st).filter(s=>s!=='Ajuste' && prodMatch(q.prod,s));
+    const rowsT=skus.map(s=>({s, per:bods.map(b=>st[s][b]||0)})).map(x=>({...x, t:x.per.reduce((a,b)=>a+b,0)})).filter(x=>x.t!==0 || x.per.some(v=>v)).sort((a,b)=>b.t-a.t);
+    const tot=rowsT.reduce((a,x)=>a+x.t,0);
+    const where = q.bod ? L(`en ${q.bod}`,`in ${q.bod}`) : L('en todas las bodegas','across all warehouses');
+    let html = `${L('Stock actual','Current stock')} ${where}${q.prod?' · '+q.prod.label:''}: <b>${fmtInt(tot)} ${L('unidades','units')}</b> ${L('en','in')} ${rowsT.filter(x=>x.t>0).length} SKUs.`;
+    const neg=rowsT.filter(x=>x.per.some(v=>v<0)); if(neg.length) html += ` <span class="pill w">${neg.length} ${L('con saldo negativo','with negative balance')}</span>`;
+    if(!q.bod){ const byB=allBodegas().map(b=>({l:b, v:skus.reduce((a,s)=>a+(st[s][b]||0),0), c:b})).filter(x=>x.v); html += bar(byB, v=>fmtInt(v)+' u'); }
+    html += tbl(['SKU',L('Producto','Product'),...(bods.length>1?bods:[]),L('Total','Total')], rowsT.slice(0,40).map(x=>[`<b>${esc(x.s)}</b>`, esc(pname(x.s)), ...(bods.length>1?x.per.map(v=>v?`<span class="${v<0?'neg':''}">${fmtInt(v)}</span>`:'<span class="muted">·</span>'):[]), `<b class="${x.t<0?'neg':''}">${fmtInt(x.t)}</b>`]), [...(bods.length>1?bods.map((_,i)=>i+2):[]), bods.length>1?bods.length+2:2]);
+    return {html};
+  },
+
+  cover(q){
+    const today=askRef(), d30=addDays(today,-29), st=askStock(today);
+    const days = (q.t.match(/\b(\d+)\s*dias?\b/)||[])[1]; const limit = days?+days:30;
+    const sold={}; for(const r of askSales()) if(r.f>=d30 && r.f<=today && (!q.bod || r.bod===q.bod)) sold[r.sku]=(sold[r.sku]||0)+r.u;
+    const list=Object.keys({...st,...sold}).filter(s=>s!=='Ajuste' && prodMatch(q.prod,s)).map(s=>{ const stock=q.bod?(st[s]||{})[q.bod]||0:Object.values(st[s]||{}).reduce((a,b)=>a+b,0); const v=(sold[s]||0)/30; return {s, stock, sold:sold[s]||0, cov: v>0 ? stock/v : null}; })
+      .filter(x=>x.sold>0).sort((a,b)=>(a.cov??1e9)-(b.cov??1e9));
+    const risk=list.filter(x=>x.cov!==null && x.cov<limit);
+    const where = q.bod ? L(` en ${q.bod}`,` in ${q.bod}`) : '';
+    let html = risk.length
+      ? `<b>${risk.length}</b> ${L(`SKU${risk.length>1?'s':''} con menos de ${limit} días de cobertura${where}`,`SKU${risk.length>1?'s':''} with less than ${limit} days of coverage${where}`)} ${L('según la venta de los últimos 30 días','based on the last 30 days of sales')}:`
+      : `${L(`Ningún SKU con ventas recientes tiene menos de ${limit} días de cobertura${where}.`,`No SKU with recent sales has less than ${limit} days of coverage${where}.`)}`;
+    html += tbl(['SKU',L('Producto','Product'),L('Stock','Stock'),L('Venta 30d','30d sales'),L('Cobertura','Coverage'),L('Sin stock aprox.','Stockout approx.')],
+      list.slice(0,25).map(x=>[`<b>${esc(x.s)}</b>`, esc(pname(x.s)), `<span class="${x.stock<=0?'neg':''}">${fmtInt(x.stock)}</span>`, fmtInt(x.sold),
+        x.cov===null?'—':(x.cov<limit?`<span class="pill w">${Math.max(0,Math.round(x.cov))} ${L('días','days')}</span>`:x.cov>365?L('> 1 año','> 1 year'):`${Math.round(x.cov)} ${L('días','days')}`),
+        x.cov===null?'':x.stock<=0?L('ya sin stock','already out'):fmtD(addDays(today,Math.round(x.cov)))]), [2,3,4]);
+    html += `<span class="muted" style="font-size:12px">${L('Cobertura = stock ÷ (unidades vendidas en 30 días ÷ 30). Solo SKUs con ventas en los últimos 30 días.','Coverage = stock ÷ (units sold in 30 days ÷ 30). Only SKUs with sales in the last 30 days.')}</span>`;
+    return {html};
+  },
+
+  slow(q){
+    const today=askRef(); const n=+((q.t.match(/\b(\d+)\s*(dias|days)\b/)||[])[1]||60); const since=addDays(today,-(n-1)); const st=askStock(today);
+    const sold=new Set(askSales().filter(r=>r.f>=since).map(r=>r.sku)); const last={}; for(const r of askSales()) if(!last[r.sku]||r.f>last[r.sku]) last[r.sku]=r.f;
+    const list=Object.keys(st).filter(s=>s!=='Ajuste' && prodMatch(q.prod,s) && !sold.has(s)).map(s=>({s, stock:q.bod?(st[s][q.bod]||0):Object.values(st[s]).reduce((a,b)=>a+b,0)})).filter(x=>x.stock>0).sort((a,b)=>b.stock-a.stock);
+    if(!list.length) return {html:L(`Todos los SKUs con stock${q.bod?' en '+q.bod:''} tuvieron ventas en los últimos ${n} días.`,`Every SKU in stock${q.bod?' in '+q.bod:''} had sales in the last ${n} days.`)};
+    return {html:`<b>${list.length}</b> ${L(`SKUs con stock${q.bod?' en '+q.bod:''} y sin ventas en los últimos ${n} días`,`SKUs in stock${q.bod?' in '+q.bod:''} with no sales in the last ${n} days`)} (${fmtInt(list.reduce((a,x)=>a+x.stock,0))} u):` +
+      tbl(['SKU',L('Producto','Product'),L('Stock','Stock'),L('Última venta','Last sale')], list.map(x=>[`<b>${esc(x.s)}</b>`, esc(pname(x.s)), fmtInt(x.stock), last[x.s]?fmtD(last[x.s]):L('nunca','never')]), [2])};
+  },
+
+  inflow(q){
+    q.per ||= {from:addDays(askRef(),-29), to:askRef(), label:L('últimos 30 días','last 30 days')};
+    const rows=DB.movs.filter(r=>r.qty>0 && !/vendido|reservado/i.test(r.est) && (q.per.all || (r.f>=q.per.from && r.f<=q.per.to)) && (!q.bod || r.bod===q.bod) && prodMatch(q.prod,r.sku)).sort((a,b)=>a.f<b.f?1:-1);
+    if(!rows.length) return {html:`${L('No hubo ingresos de stock en','No stock inflows in')} ${perTxt(q.per)}${q.bod?' · '+q.bod:''}.`};
+    const byB=groupBy(rows.map(r=>({...r,u:r.qty,m:0,canal:'',ord:r.id})), r=>r.bod);
+    return {html:`${L('Ingresos de stock','Stock inflows')} ${perTxt(q.per)}: <b>${fmtInt(rows.reduce((a,r)=>a+r.qty,0))} ${L('unidades','units')}</b> ${L('en','in')} ${rows.length} ${L('movimientos','movements')} ${L('(incluye transferencias entrantes)','(includes incoming transfers)')}.` +
+      bar(byB.map(x=>({l:x.k, v:x.u, c:x.k})), v=>fmtInt(v)+' u') +
+      tbl([L('Fecha','Date'),L('Bodega','Warehouse'),'SKU',L('Cantidad','Quantity'),L('Comentario','Comment')], rows.slice(0,40).map(r=>[fmtD(r.f), `${dot(r.bod)}${esc(r.bod)}`, `<b>${esc(r.sku)}</b>`, '+'+fmtInt(r.qty), esc(r.com||'')]), [3])};
+  },
+
+  order(q){
+    const m=q.raw.match(/#\s*(\d{3,6})\b|\b(ab\d{2}-[\w-]+)|\b(2000\d{10,})\b|\b(\d{9,10})\b|\b(?:orden|pedido|order|boleta)\s*(?:n[°o]?\.?\s*)?#?\s*([a-z0-9-]+)/i);
+    const id=m ? (m[1]||m[2]||m[3]||m[4]||m[5]) : ''; if(!id) return {html:L('Indica el número de orden (ej. "orden #1017", "AB61-3255690948" o un ID de Mercado Libre).','Give an order number (e.g. "order #1017", "AB61-3255690948" or a Mercado Libre ID).')};
+    const key=id.toUpperCase().replace(/^#/,''); const digits=key.replace(/\D/g,'');
+    const movs=DB.movs.filter(r=>{ const c=(r.com||'').toUpperCase(), ml=(r.ml||''); return c===key || ml===key || (digits.length>=4 && (c.endsWith('-'+digits) || c.includes(digits) || ml.endsWith(digits))); });
+    const sales=Object.values(DB.sales).filter(s=>{ const o=String(s.ord).toUpperCase().replace(/^#/,''); return o===key || o===digits || (digits.length>=9 && o.endsWith(digits)); });
+    if(!movs.length && !sales.length) return {html:`${L('No encontré la orden','Order not found')} <b>${esc(id)}</b> ${L('en movimientos ni en reportes.','in movements or reports.')}`};
+    let html=`${L('Orden','Order')} <b>${esc(id)}</b>: ${movs.length} ${L('movimiento(s)','movement(s)')} · ${sales.length} ${L('línea(s) en reportes de canales','line(s) in channel reports')}.`;
+    if(movs.length) html+=`<h4>${L('Movimientos (oficial)','Movements (official)')}</h4>`+tbl([L('Fecha','Date'),L('Bodega','Warehouse'),'SKU',L('Cantidad','Quantity'),L('Estado','Status'),L('Valor','Value'),L('Comentario','Comment')], movs.map(r=>[fmtD(r.f),`${dot(r.bod)}${esc(r.bod)}`,`<b>${esc(r.sku)}</b>`,fmtInt(r.qty),esc(r.est),r.val?fmtMoney(r.val):'',esc(r.com||r.ml)]), [3,5]);
+    if(sales.length) html+=`<h4>${L('Reportes de canales','Channel reports')}</h4>`+tbl([L('Fecha','Date'),L('Canal','Channel'),'SKU',L('Unid.','Units'),'$',L('Estado','Status')], sales.map(s=>[fmtD(s.f),`${dot(s.canal)}${esc(s.canal)}`,`<b>${esc(canonSku(s.skuRaw))}</b>`,fmtInt(s.u),fmtMoney(s.m),`${s.inc?'':'<span class="pill w">'+L('Excluida','Excluded')+'</span> '}${esc(s.est)}`]), [3,4]);
+    return {html};
+  },
+
+  conc(q){
+    const {rows}=buildConc(); const base=rows.filter(r=>!q.per || q.per.all || (r.f>=q.per.from && r.f<=q.per.to));
+    const open=base.filter(r=>r.st!=='ok' && !r.rev); const c={}; open.forEach(r=>c[r.st]=(c[r.st]||0)+1);
+    const lbl={monto:L('diferencia de monto','amount difference'), unid:L('diferencia de unidades','unit difference'), sales:L('sin salida en movimientos','no outflow in movements'), mov:L('falta en reportes','missing in reports'), excl:L('excluida en reporte, con salida','excluded in report, with outflow')};
+    return {html:`${L('Conciliación','Reconciliation')}${q.per?' · '+perTxt(q.per):''}: <b>${fmtInt(base.filter(r=>r.st==='ok').length)}</b> ${L('órdenes cuadran','orders match')} ${L('de','of')} ${fmtInt(base.length)}; <b>${fmtInt(open.length)}</b> ${L('con diferencias sin revisar','with unreviewed differences')}.` +
+      bar(Object.entries(c).map(([k,v])=>({l:lbl[k], v})), v=>fmtInt(v)) +
+      tbl([L('Fecha','Date'),L('Estado','Status'),L('Orden','Order'),L('Mov u','Mov u'),L('Rep u','Rep u'),'Δ $'], open.sort((a,b)=>a.f<b.f?1:-1).slice(0,15).map(r=>[fmtD(r.f), lbl[r.st], esc(r.ord), fmtInt(r.mu), fmtInt(r.su), Math.round(r.dm)?fmtMoney(-r.dm):'']), [3,4,5]) +
+      `<span class="muted" style="font-size:12px">${L('Detalle completo en la pestaña Conciliación.','Full detail in the Reconciliation tab.')}</span>`};
+  },
+};
+
+function askAnswer(raw){
+  const t=qNorm(raw);
+  const q={raw, t};
+  q.per=askPeriod(t);
+  q.prod=askProduct(raw);
+  const stockish=/\b(stock|inventario|inventory|existencia|cobertura|quiebre|agot|reponer|coverage|stockout|sin ventas|no se vende|lento|dormid|slow|ingres|entrad|llego|recep|inbound|receiv)/.test(t);
+  q.bod=askBodega(t, stockish);
+  q.canal=stockish ? null : askChannel(t);
+  if(q.bod==='Full ML' && q.canal==='FULL' && !/\bbodega|warehouse\b/.test(t)) q.bod=null;
+  const intent=askIntent(t,q);
+  if(!DB.movs.length) return {html:L('Aún no hay datos cargados. Sube el archivo de movimientos en "Cargar datos".','No data loaded yet. Upload the movements file in "Load data".')};
+  if(!intent) return {html:L('No entendí la pregunta. ','I did not understand the question. ')+ASK_HANDLERS.help().html, unknown:true};
+  const out=ASK_HANDLERS[intent](q);
+  const stale = askRef()<todayISO();
+  out.html += `<div class="askfoot">${L('Fuente: movimientos por bodega','Source: warehouse movements')} · ${L('datos hasta','data up to')} ${fmtD(lastDataDate())}${stale?' · '+L('los períodos relativos ("este mes", "últimos 30 días") se cuentan desde esa fecha','relative periods ("this month", "last 30 days") are counted from that date'):''}</div>`;
+  out.intent=intent; return out;
+}
+
+// ---------- interfaz ----------
+const ASK_EXAMPLES = () => L(
+  ['¿Cuánto vendí este mes?','¿Cuánto vendió FULL en octubre?','Top productos del mes pasado','Stock en DropGO','¿Qué productos se van a quebrar?','Ventas por mes este año','Compara canales últimos 90 días','Productos sin ventas','¿Qué ingresó a bodega en los últimos 30 días?','¿Cuál fue el mejor mes?','Orden #1017','Diferencias en conciliación'],
+  ['How much did I sell this month?','FULL sales in October','Top products last month','Stock in DropGO','Which products will run out?','Sales by month this year','Compare channels last 90 days','Products not selling','What came into the warehouse in the last 30 days?','What was the best month?','Order #1017','Reconciliation differences']);
+const ASK_LOG=[];
+function renderAsk(){
+  $('#askChips').innerHTML = ASK_EXAMPLES().map(x=>`<button class="chip" data-q="${esc(x)}">${esc(x)}</button>`).join('');
+  $$('#askChips .chip').forEach(b=>b.onclick=()=>{ $('#askIn').value=b.dataset.q; askSubmit(); });
+  $('#askIn').placeholder = L('Escribe tu pregunta… ej: ¿cuánto vendió Falabella en septiembre?','Type your question… e.g. how much did Falabella sell in September?');
+  $('#askLog').innerHTML = ASK_LOG.length ? ASK_LOG.map(e=>`<div class="askq"><span>${esc(e.q)}</span></div><div class="aska">${e.a}</div>`).join('') :
+    `<div class="muted" style="padding:18px 4px">${L('Haz una pregunta o toca uno de los ejemplos.','Ask a question or tap one of the examples.')}</div>`;
+}
+function askSubmit(){
+  const q=str($('#askIn').value); if(!q) return;
+  let a; try{ a=askAnswer(q).html; }catch(e){ a=`<span class="neg">${L('Error al calcular la respuesta','Error computing the answer')}: ${esc(e.message)}</span>`; }
+  ASK_LOG.unshift({q, a}); if(ASK_LOG.length>30) ASK_LOG.pop();
+  $('#askIn').value=''; renderAsk(); $('#askLog').scrollTop=0;
+}
+$('#askForm').addEventListener('submit', e=>{ e.preventDefault(); askSubmit(); });
+$('#askClear').onclick=()=>{ ASK_LOG.length=0; renderAsk(); };
+
+/* ============================================================
    DATOS
    ============================================================ */
 function renderCatalog(){
@@ -1812,6 +2161,7 @@ function refreshAll(){
   if(active==='stock') renderStock();
   if(active==='movs') renderMovs();
   if(active==='conc') renderConc();
+  if(active==='ask') renderAsk();
   renderDatos();
 }
 function segBind(id, cb){ $$('#'+id+' button').forEach(b=>b.onclick=()=>{ $$('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b)); cb(b.dataset.v); }); }
